@@ -68,59 +68,59 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 
 | ID | Title | Status | Parent |
 |---|---|---|---|
-| EPIC-1 | Engineering Foundation | — | — |
-| US-1.1 | Plugin Package Scaffold and Manifest | READY | EPIC-1 |
-| US-1.1#1 | Create plugin/ tree per PRD §7 (plugin.yaml, __init__.py, skills/denial-triage/, dashboar… | TODO | US-1.1 |
-| US-1.1#2 | Define typed ClaimCoachSettings (Pydantic v2) and mirror it in plugin.yaml config_schema | TODO | US-1.1 |
-| US-1.1#3 | Add tests test_us_1_1_manifest_declares_v2_fields, test_us_1_1_backend_manifest_points_at… | TODO | US-1.1 |
-| US-1.1#4 | Write docs/runbooks/install-enable.md (Preconditions, Steps, Verification, Rollback) | TODO | US-1.1 |
-| US-1.1#5 | Record evidence/US-1.1/test-report.md | TODO | US-1.1 |
-| US-1.2 | Worker Sidecar with Per-Launch Token | READY | EPIC-1 |
-| US-1.2#1 | Implement claimcoach/worker/app.py (FastAPI) and worker/launcher.py with typed WorkerConf… | TODO | US-1.2 |
-| US-1.2#2 | Generate the token with secrets.token_urlsafe and write the file with 0600 permissions | TODO | US-1.2 |
-| US-1.2#3 | Add tests test_us_1_2_worker_binds_loopback, test_us_1_2_worker_writes_per_launch_token,… | TODO | US-1.2 |
-| US-1.2#4 | Write docs/runbooks/worker-start-stop-health.md | TODO | US-1.2 |
-| US-1.2#5 | Record evidence/US-1.2/test-report.md | TODO | US-1.2 |
-| US-1.3 | Thin Typed plugin_api Proxy and Error Envelope | READY | EPIC-1 |
-| US-1.3#1 | Implement dashboard/plugin_api.py router = APIRouter() with typed ApiError, ErrorEnvelope… | TODO | US-1.3 |
-| US-1.3#2 | Add a single httpx-based WorkerClient with typed methods; no bare except (catch httpx.HTT… | TODO | US-1.3 |
-| US-1.3#3 | Add tests test_us_1_3_health_proxies_to_worker, test_us_1_3_worker_unavailable_returns_en… | TODO | US-1.3 |
-| US-1.3#4 | Record evidence/US-1.3/test-report.md | TODO | US-1.3 |
-| US-1.4 | Quality Gate and Test Harnesses | READY | EPIC-1 |
-| US-1.4#1 | Add Makefile check target, pyproject.toml (ruff, mypy strict, pytest, coverage ≥ 85% fail… | TODO | US-1.4 |
-| US-1.4#2 | Write types/hermes-plugin-sdk.d.ts covering the SDK surfaces ClaimCoach uses (PC-3), with… | TODO | US-1.4 |
-| US-1.4#3 | Implement tests/fakes/fake_model_server.py (OpenAI-compatible /v1/models and /v1/chat/com… | TODO | US-1.4 |
-| US-1.4#4 | Add a pytest socket guard fixture that fails on non-loopback connections | TODO | US-1.4 |
-| US-1.4#5 | Add tests test_us_1_4_make_check_passes, test_us_1_4_type_error_fails_gate, test_us_1_4_p… | TODO | US-1.4 |
-| US-1.4#6 | Record evidence/US-1.4/test-report.md | TODO | US-1.4 |
-| US-1.5 | Evidence Template, Runbook Skeletons, and ADR-0001 | READY | EPIC-1 |
-| US-1.5#1 | Create evidence/TEMPLATE/test-report.md and a short evidence/README.md explaining UNVERIF… | TODO | US-1.5 |
-| US-1.5#2 | Create the runbook skeletons listed in the scenario, including docs/runbooks/phi-purge.md… | TODO | US-1.5 |
-| US-1.5#3 | Write docs/adr/0001-worker-sidecar.md | TODO | US-1.5 |
-| US-1.5#4 | Add tests test_us_1_5_evidence_template_contract, test_us_1_5_runbooks_have_sections, tes… | TODO | US-1.5 |
-| US-1.5#5 | Record evidence/US-1.5/test-report.md | TODO | US-1.5 |
-| EPIC-2 | Local Model Management | — | — |
-| US-2.1 | Model Role Registry in models.yaml | READY | EPIC-2 |
-| US-2.1#1 | Implement claimcoach/models/registry.py with ModelRole (enum), ModelSpec, and ModelRegist… | TODO | US-2.1 |
-| US-2.1#2 | Ship a default models.yaml written to the plugin data dir on first run | TODO | US-2.1 |
-| US-2.1#3 | Add tests test_us_2_1_every_role_registered, test_us_2_1_paths_resolve_under_models_home,… | TODO | US-2.1 |
-| US-2.1#4 | Record evidence/US-2.1/test-report.md | TODO | US-2.1 |
-| US-2.2 | Lazy Start, Health Check, and Idle Unload | READY | EPIC-2 |
-| US-2.2#1 | Implement claimcoach/models/manager.py with typed ModelStatus and an async ModelManager (… | TODO | US-2.2 |
-| US-2.2#2 | Add tests test_us_2_2_server_starts_on_first_use, test_us_2_2_unhealthy_server_not_used,… | TODO | US-2.2 |
-| US-2.2#3 | Update docs/runbooks/worker-start-stop-health.md with model-server sections | TODO | US-2.2 |
-| US-2.2#4 | Record evidence/US-2.2/test-report.md | TODO | US-2.2 |
-| US-2.3 | Memory Guard and Queueing | READY | EPIC-2 |
-| US-2.3#1 | Implement claimcoach/models/memory_guard.py with typed ResidencyPolicy and a size-tier ta… | TODO | US-2.3 |
-| US-2.3#2 | Add tests test_us_2_3_two_large_models_never_resident, test_us_2_3_voxtral_loads_alone, t… | TODO | US-2.3 |
-| US-2.3#3 | Update docs/runbooks/troubleshooting.md (memory pressure) | TODO | US-2.3 |
-| US-2.3#4 | Record evidence/US-2.3/test-report.md | TODO | US-2.3 |
-| US-2.4 | Missing-Model Detection, Confirmed Download, and Reranker Conversion | READY | EPIC-2 |
-| US-2.4#1 | Implement claimcoach/models/acquire.py with typed DownloadRequest, ConversionRequest, Acq… | TODO | US-2.4 |
-| US-2.4#2 | Add REST routes for status, download, and convert behind explicit confirmation flags | TODO | US-2.4 |
-| US-2.4#3 | Add tests test_us_2_4_missing_models_reported, test_us_2_4_download_requires_confirmation… | TODO | US-2.4 |
-| US-2.4#4 | Write docs/runbooks/model-download-convert.md | TODO | US-2.4 |
-| US-2.4#5 | Record evidence/US-2.4/test-report.md | TODO | US-2.4 |
+| EPIC-1 | Engineering Foundation | DONE | — |
+| US-1.1 | Plugin Package Scaffold and Manifest | DONE | EPIC-1 |
+| US-1.1#1 | Create plugin/ tree per PRD §7 (plugin.yaml, __init__.py, skills/denial-triage/, dashboar… | DONE | US-1.1 |
+| US-1.1#2 | Define typed ClaimCoachSettings (Pydantic v2) and mirror it in plugin.yaml config_schema | DONE | US-1.1 |
+| US-1.1#3 | Add tests test_us_1_1_manifest_declares_v2_fields, test_us_1_1_backend_manifest_points_at… | DONE | US-1.1 |
+| US-1.1#4 | Write docs/runbooks/install-enable.md (Preconditions, Steps, Verification, Rollback) | DONE | US-1.1 |
+| US-1.1#5 | Record evidence/US-1.1/test-report.md | DONE | US-1.1 |
+| US-1.2 | Worker Sidecar with Per-Launch Token | DONE | EPIC-1 |
+| US-1.2#1 | Implement claimcoach/worker/app.py (FastAPI) and worker/launcher.py with typed WorkerConf… | DONE | US-1.2 |
+| US-1.2#2 | Generate the token with secrets.token_urlsafe and write the file with 0600 permissions | DONE | US-1.2 |
+| US-1.2#3 | Add tests test_us_1_2_worker_binds_loopback, test_us_1_2_worker_writes_per_launch_token,… | DONE | US-1.2 |
+| US-1.2#4 | Write docs/runbooks/worker-start-stop-health.md | DONE | US-1.2 |
+| US-1.2#5 | Record evidence/US-1.2/test-report.md | DONE | US-1.2 |
+| US-1.3 | Thin Typed plugin_api Proxy and Error Envelope | DONE | EPIC-1 |
+| US-1.3#1 | Implement dashboard/plugin_api.py router = APIRouter() with typed ApiError, ErrorEnvelope… | DONE | US-1.3 |
+| US-1.3#2 | Add a single httpx-based WorkerClient with typed methods; no bare except (catch httpx.HTT… | DONE | US-1.3 |
+| US-1.3#3 | Add tests test_us_1_3_health_proxies_to_worker, test_us_1_3_worker_unavailable_returns_en… | DONE | US-1.3 |
+| US-1.3#4 | Record evidence/US-1.3/test-report.md | DONE | US-1.3 |
+| US-1.4 | Quality Gate and Test Harnesses | DONE | EPIC-1 |
+| US-1.4#1 | Add Makefile check target, pyproject.toml (ruff, mypy strict, pytest, coverage ≥ 85% fail… | DONE | US-1.4 |
+| US-1.4#2 | Write types/hermes-plugin-sdk.d.ts covering the SDK surfaces ClaimCoach uses (PC-3), with… | DONE | US-1.4 |
+| US-1.4#3 | Implement tests/fakes/fake_model_server.py (OpenAI-compatible /v1/models and /v1/chat/com… | DONE | US-1.4 |
+| US-1.4#4 | Add a pytest socket guard fixture that fails on non-loopback connections | DONE | US-1.4 |
+| US-1.4#5 | Add tests test_us_1_4_make_check_passes, test_us_1_4_type_error_fails_gate, test_us_1_4_p… | DONE | US-1.4 |
+| US-1.4#6 | Record evidence/US-1.4/test-report.md | DONE | US-1.4 |
+| US-1.5 | Evidence Template, Runbook Skeletons, and ADR-0001 | DONE | EPIC-1 |
+| US-1.5#1 | Create evidence/TEMPLATE/test-report.md and a short evidence/README.md explaining UNVERIF… | DONE | US-1.5 |
+| US-1.5#2 | Create the runbook skeletons listed in the scenario, including docs/runbooks/phi-purge.md… | DONE | US-1.5 |
+| US-1.5#3 | Write docs/adr/0001-worker-sidecar.md | DONE | US-1.5 |
+| US-1.5#4 | Add tests test_us_1_5_evidence_template_contract, test_us_1_5_runbooks_have_sections, tes… | DONE | US-1.5 |
+| US-1.5#5 | Record evidence/US-1.5/test-report.md | DONE | US-1.5 |
+| EPIC-2 | Local Model Management | DONE | — |
+| US-2.1 | Model Role Registry in models.yaml | DONE | EPIC-2 |
+| US-2.1#1 | Implement claimcoach/models/registry.py with ModelRole (enum), ModelSpec, and ModelRegist… | DONE | US-2.1 |
+| US-2.1#2 | Ship a default models.yaml written to the plugin data dir on first run | DONE | US-2.1 |
+| US-2.1#3 | Add tests test_us_2_1_every_role_registered, test_us_2_1_paths_resolve_under_models_home,… | DONE | US-2.1 |
+| US-2.1#4 | Record evidence/US-2.1/test-report.md | DONE | US-2.1 |
+| US-2.2 | Lazy Start, Health Check, and Idle Unload | DONE | EPIC-2 |
+| US-2.2#1 | Implement claimcoach/models/manager.py with typed ModelStatus and an async ModelManager (… | DONE | US-2.2 |
+| US-2.2#2 | Add tests test_us_2_2_server_starts_on_first_use, test_us_2_2_unhealthy_server_not_used,… | DONE | US-2.2 |
+| US-2.2#3 | Update docs/runbooks/worker-start-stop-health.md with model-server sections | DONE | US-2.2 |
+| US-2.2#4 | Record evidence/US-2.2/test-report.md | DONE | US-2.2 |
+| US-2.3 | Memory Guard and Queueing | DONE | EPIC-2 |
+| US-2.3#1 | Implement claimcoach/models/memory_guard.py with typed ResidencyPolicy and a size-tier ta… | DONE | US-2.3 |
+| US-2.3#2 | Add tests test_us_2_3_two_large_models_never_resident, test_us_2_3_voxtral_loads_alone, t… | DONE | US-2.3 |
+| US-2.3#3 | Update docs/runbooks/troubleshooting.md (memory pressure) | DONE | US-2.3 |
+| US-2.3#4 | Record evidence/US-2.3/test-report.md | DONE | US-2.3 |
+| US-2.4 | Missing-Model Detection, Confirmed Download, and Reranker Conversion | DONE | EPIC-2 |
+| US-2.4#1 | Implement claimcoach/models/acquire.py with typed DownloadRequest, ConversionRequest, Acq… | DONE | US-2.4 |
+| US-2.4#2 | Add REST routes for status, download, and convert behind explicit confirmation flags | DONE | US-2.4 |
+| US-2.4#3 | Add tests test_us_2_4_missing_models_reported, test_us_2_4_download_requires_confirmation… | DONE | US-2.4 |
+| US-2.4#4 | Write docs/runbooks/model-download-convert.md | DONE | US-2.4 |
+| US-2.4#5 | Record evidence/US-2.4/test-report.md | DONE | US-2.4 |
 | EPIC-3 | PHI Boundary and Redaction | — | — |
 | US-3.1 | PHI Span Detector with Regex Validators | READY | EPIC-3 |
 | US-3.1#1 | Implement claimcoach/redact/detector.py (Qwen3-8B JSON span prompt) and claimcoach/redact… | TODO | US-3.1 |
@@ -881,7 +881,7 @@ Source: PRD.md §5.
 
 ### US-1.1: Plugin Package Scaffold and Manifest
 
-Status: READY
+Status: DONE
 
 As a developer
 I want a unified Hermes plugin package with a v2 manifest
@@ -922,18 +922,18 @@ Dependencies:
 - External: Hermes Agent >= 0.22.5 installed locally
 
 Tasks:
-- [ ] Create plugin/ tree per PRD §7 (plugin.yaml, __init__.py, skills/denial-triage/, dashboard/manifest.json, dashboard/plugin_api.py, desktop/plugin.js, claimcoach/ package) with module docstrings citing US-1.1
-- [ ] Define typed `ClaimCoachSettings` (Pydantic v2) and mirror it in plugin.yaml config_schema
-- [ ] Add tests test_us_1_1_manifest_declares_v2_fields, test_us_1_1_backend_manifest_points_at_plugin_api, test_us_1_1_python_half_inert_until_enabled, test_us_1_1_python_half_loads_once_enabled
-- [ ] Write docs/runbooks/install-enable.md (Preconditions, Steps, Verification, Rollback)
-- [ ] Record evidence/US-1.1/test-report.md
+- [x] Create plugin/ tree per PRD §7 (plugin.yaml, __init__.py, skills/denial-triage/, dashboard/manifest.json, dashboard/plugin_api.py, desktop/plugin.js, claimcoach/ package) with module docstrings citing US-1.1
+- [x] Define typed `ClaimCoachSettings` (Pydantic v2) and mirror it in plugin.yaml config_schema
+- [x] Add tests test_us_1_1_manifest_declares_v2_fields, test_us_1_1_backend_manifest_points_at_plugin_api, test_us_1_1_python_half_inert_until_enabled, test_us_1_1_python_half_loads_once_enabled
+- [x] Write docs/runbooks/install-enable.md (Preconditions, Steps, Verification, Rollback)
+- [x] Record evidence/US-1.1/test-report.md
 
 Open Questions:
 - PRD.md §7 tree still lists a `specs/` folder while §12 names `SPECS.md`. Should the tree be updated to show `SPECS.md`?
 
 ### US-1.2: Worker Sidecar with Per-Launch Token
 
-Status: READY
+Status: DONE
 
 As a developer
 I want heavy work to run in an app-owned worker process bound to loopback with a per-launch token
@@ -967,18 +967,18 @@ Dependencies:
 - US-1.1
 
 Tasks:
-- [ ] Implement claimcoach/worker/app.py (FastAPI) and worker/launcher.py with typed `WorkerConfig` and `WorkerHandle` models; docstrings cite US-1.2 and the §7.9 worker decision
-- [ ] Generate the token with `secrets.token_urlsafe` and write the file with 0600 permissions
-- [ ] Add tests test_us_1_2_worker_binds_loopback, test_us_1_2_worker_writes_per_launch_token, test_us_1_2_requests_without_token_rejected
-- [ ] Write docs/runbooks/worker-start-stop-health.md
-- [ ] Record evidence/US-1.2/test-report.md
+- [x] Implement claimcoach/worker/app.py (FastAPI) and worker/launcher.py with typed `WorkerConfig` and `WorkerHandle` models; docstrings cite US-1.2 and the §7.9 worker decision
+- [x] Generate the token with `secrets.token_urlsafe` and write the file with 0600 permissions
+- [x] Add tests test_us_1_2_worker_binds_loopback, test_us_1_2_worker_writes_per_launch_token, test_us_1_2_requests_without_token_rejected
+- [x] Write docs/runbooks/worker-start-stop-health.md
+- [x] Record evidence/US-1.2/test-report.md
 
 Open Questions:
 - None
 
 ### US-1.3: Thin Typed plugin_api Proxy and Error Envelope
 
-Status: READY
+Status: DONE
 
 As a developer
 I want plugin_api.py to be a thin typed proxy to the worker that always returns a typed model or the error envelope
@@ -1011,17 +1011,17 @@ Dependencies:
 - US-1.2
 
 Tasks:
-- [ ] Implement dashboard/plugin_api.py `router = APIRouter()` with typed `ApiError`, `ErrorEnvelope`, `HealthResponse` models in claimcoach/api/models.py
-- [ ] Add a single httpx-based `WorkerClient` with typed methods; no bare `except` (catch `httpx.HTTPError` and validation errors explicitly)
-- [ ] Add tests test_us_1_3_health_proxies_to_worker, test_us_1_3_worker_unavailable_returns_envelope, test_us_1_3_unhandled_errors_mapped
-- [ ] Record evidence/US-1.3/test-report.md
+- [x] Implement dashboard/plugin_api.py `router = APIRouter()` with typed `ApiError`, `ErrorEnvelope`, `HealthResponse` models in claimcoach/api/models.py
+- [x] Add a single httpx-based `WorkerClient` with typed methods; no bare `except` (catch `httpx.HTTPError` and validation errors explicitly)
+- [x] Add tests test_us_1_3_health_proxies_to_worker, test_us_1_3_worker_unavailable_returns_envelope, test_us_1_3_unhandled_errors_mapped
+- [x] Record evidence/US-1.3/test-report.md
 
 Open Questions:
 - None
 
 ### US-1.4: Quality Gate and Test Harnesses
 
-Status: READY
+Status: DONE
 
 As a developer
 I want one quality-gate command plus offline test harnesses for Python and plugin.js
@@ -1069,19 +1069,19 @@ Dependencies:
 - US-1.1
 
 Tasks:
-- [ ] Add Makefile `check` target, pyproject.toml (ruff, mypy strict, pytest, coverage ≥ 85% fail-under), biome.json, tsconfig.json (checkJs), .pre-commit-config.yaml
-- [ ] Write types/hermes-plugin-sdk.d.ts covering the SDK surfaces ClaimCoach uses (PC-3), with a header comment citing the verified SDK docs
-- [ ] Implement tests/fakes/fake_model_server.py (OpenAI-compatible /v1/models and /v1/chat/completions with canned responses) and desktop/tests/fake_ctx.mjs
-- [ ] Add a pytest socket guard fixture that fails on non-loopback connections
-- [ ] Add tests test_us_1_4_make_check_passes, test_us_1_4_type_error_fails_gate, test_us_1_4_plugin_js_typechecks, test_us_1_4_plugin_js_registers_contributions, test_us_1_4_plugin_js_allowed_imports, test_us_1_4_offline_tests_use_fake_server
-- [ ] Record evidence/US-1.4/test-report.md
+- [x] Add Makefile `check` target, pyproject.toml (ruff, mypy strict, pytest, coverage ≥ 85% fail-under), biome.json, tsconfig.json (checkJs), .pre-commit-config.yaml
+- [x] Write types/hermes-plugin-sdk.d.ts covering the SDK surfaces ClaimCoach uses (PC-3), with a header comment citing the verified SDK docs
+- [x] Implement tests/fakes/fake_model_server.py (OpenAI-compatible /v1/models and /v1/chat/completions with canned responses) and desktop/tests/fake_ctx.mjs
+- [x] Add a pytest socket guard fixture that fails on non-loopback connections
+- [x] Add tests test_us_1_4_make_check_passes, test_us_1_4_type_error_fails_gate, test_us_1_4_plugin_js_typechecks, test_us_1_4_plugin_js_registers_contributions, test_us_1_4_plugin_js_allowed_imports, test_us_1_4_offline_tests_use_fake_server
+- [x] Record evidence/US-1.4/test-report.md
 
 Open Questions:
 - None
 
 ### US-1.5: Evidence Template, Runbook Skeletons, and ADR-0001
 
-Status: READY
+Status: DONE
 
 As a developer
 I want the evidence template, runbook skeletons, and the first ADR in place
@@ -1115,11 +1115,11 @@ Dependencies:
 - US-1.1
 
 Tasks:
-- [ ] Create evidence/TEMPLATE/test-report.md and a short evidence/README.md explaining UNVERIFIED vs PASS
-- [ ] Create the runbook skeletons listed in the scenario, including docs/runbooks/phi-purge.md and docs/runbooks/phi-incident.md
-- [ ] Write docs/adr/0001-worker-sidecar.md
-- [ ] Add tests test_us_1_5_evidence_template_contract, test_us_1_5_runbooks_have_sections, test_us_1_5_adr_0001_present
-- [ ] Record evidence/US-1.5/test-report.md
+- [x] Create evidence/TEMPLATE/test-report.md and a short evidence/README.md explaining UNVERIFIED vs PASS
+- [x] Create the runbook skeletons listed in the scenario, including docs/runbooks/phi-purge.md and docs/runbooks/phi-incident.md
+- [x] Write docs/adr/0001-worker-sidecar.md
+- [x] Add tests test_us_1_5_evidence_template_contract, test_us_1_5_runbooks_have_sections, test_us_1_5_adr_0001_present
+- [x] Record evidence/US-1.5/test-report.md
 
 Open Questions:
 - What are the PHI incident-response steps and notification obligations for docs/runbooks/phi-incident.md? PRD §10 states the HIPAA posture but not the incident procedure.
@@ -1128,7 +1128,7 @@ Open Questions:
 
 ### US-2.1: Model Role Registry in models.yaml
 
-Status: READY
+Status: DONE
 
 As a developer
 I want a typed models.yaml mapping each model role to its directory, venv, command, and port
@@ -1161,17 +1161,17 @@ Dependencies:
 - US-1.2
 
 Tasks:
-- [ ] Implement claimcoach/models/registry.py with `ModelRole` (enum), `ModelSpec`, and `ModelRegistry` Pydantic models; docstrings cite US-2.1 and BR-11
-- [ ] Ship a default models.yaml written to the plugin data dir on first run
-- [ ] Add tests test_us_2_1_every_role_registered, test_us_2_1_paths_resolve_under_models_home, test_us_2_1_ports_outside_range_rejected
-- [ ] Record evidence/US-2.1/test-report.md
+- [x] Implement claimcoach/models/registry.py with `ModelRole` (enum), `ModelSpec`, and `ModelRegistry` Pydantic models; docstrings cite US-2.1 and BR-11
+- [x] Ship a default models.yaml written to the plugin data dir on first run
+- [x] Add tests test_us_2_1_every_role_registered, test_us_2_1_paths_resolve_under_models_home, test_us_2_1_ports_outside_range_rejected
+- [x] Record evidence/US-2.1/test-report.md
 
 Open Questions:
 - None
 
 ### US-2.2: Lazy Start, Health Check, and Idle Unload
 
-Status: READY
+Status: DONE
 
 As a biller
 I want model servers to start on first use and stop when idle
@@ -1203,17 +1203,17 @@ Dependencies:
 - US-2.1
 
 Tasks:
-- [ ] Implement claimcoach/models/manager.py with typed `ModelStatus` and an async `ModelManager` (start, health, stop, idle sweep)
-- [ ] Add tests test_us_2_2_server_starts_on_first_use, test_us_2_2_unhealthy_server_not_used, test_us_2_2_idle_servers_unloaded using the fake model server
-- [ ] Update docs/runbooks/worker-start-stop-health.md with model-server sections
-- [ ] Record evidence/US-2.2/test-report.md
+- [x] Implement claimcoach/models/manager.py with typed `ModelStatus` and an async `ModelManager` (start, health, stop, idle sweep)
+- [x] Add tests test_us_2_2_server_starts_on_first_use, test_us_2_2_unhealthy_server_not_used, test_us_2_2_idle_servers_unloaded using the fake model server
+- [x] Update docs/runbooks/worker-start-stop-health.md with model-server sections
+- [x] Record evidence/US-2.2/test-report.md
 
 Open Questions:
 - What is the default idle timeout for ClaimCoach? The PRD does not state it.
 
 ### US-2.3: Memory Guard and Queueing
 
-Status: READY
+Status: DONE
 
 As a biller
 I want ClaimCoach to queue model loads that would exceed the memory rules
@@ -1246,17 +1246,17 @@ Dependencies:
 - US-2.2
 
 Tasks:
-- [ ] Implement claimcoach/models/memory_guard.py with typed `ResidencyPolicy` and a size-tier table derived from models.yaml; docstrings cite BR-12
-- [ ] Add tests test_us_2_3_two_large_models_never_resident, test_us_2_3_voxtral_loads_alone, test_us_2_3_queued_work_reports_state
-- [ ] Update docs/runbooks/troubleshooting.md (memory pressure)
-- [ ] Record evidence/US-2.3/test-report.md
+- [x] Implement claimcoach/models/memory_guard.py with typed `ResidencyPolicy` and a size-tier table derived from models.yaml; docstrings cite BR-12
+- [x] Add tests test_us_2_3_two_large_models_never_resident, test_us_2_3_voxtral_loads_alone, test_us_2_3_queued_work_reports_state
+- [x] Update docs/runbooks/troubleshooting.md (memory pressure)
+- [x] Record evidence/US-2.3/test-report.md
 
 Open Questions:
 - Should the guard also account for memory used by other apps' model servers (§11 mentions "other apps' models loaded"), and how is that measured?
 
 ### US-2.4: Missing-Model Detection, Confirmed Download, and Reranker Conversion
 
-Status: READY
+Status: DONE
 
 As a biller
 I want to see which required models are missing and download them only after I confirm
@@ -1294,11 +1294,11 @@ Dependencies:
 - US-2.1
 
 Tasks:
-- [ ] Implement claimcoach/models/acquire.py with typed `DownloadRequest`, `ConversionRequest`, `AcquireResult`
-- [ ] Add REST routes for status, download, and convert behind explicit confirmation flags
-- [ ] Add tests test_us_2_4_missing_models_reported, test_us_2_4_download_requires_confirmation, test_us_2_4_declined_download_no_network, test_us_2_4_reranker_converted_locally
-- [ ] Write docs/runbooks/model-download-convert.md
-- [ ] Record evidence/US-2.4/test-report.md
+- [x] Implement claimcoach/models/acquire.py with typed `DownloadRequest`, `ConversionRequest`, `AcquireResult`
+- [x] Add REST routes for status, download, and convert behind explicit confirmation flags
+- [x] Add tests test_us_2_4_missing_models_reported, test_us_2_4_download_requires_confirmation, test_us_2_4_declined_download_no_network, test_us_2_4_reranker_converted_locally
+- [x] Write docs/runbooks/model-download-convert.md
+- [x] Record evidence/US-2.4/test-report.md
 
 Open Questions:
 - None
