@@ -122,29 +122,29 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-2.4#4 | Write docs/runbooks/model-download-convert.md | DONE | US-2.4 |
 | US-2.4#5 | Record evidence/US-2.4/test-report.md | DONE | US-2.4 |
 | EPIC-3 | PHI Boundary and Redaction | — | — |
-| US-3.1 | PHI Span Detector with Regex Validators | READY | EPIC-3 |
-| US-3.1#1 | Implement claimcoach/redact/detector.py (Qwen3-8B JSON span prompt) and claimcoach/redact… | TODO | US-3.1 |
-| US-3.1#2 | Generate a synthetic PHI fixture set under tests/fixtures/phi/ (no real PHI) | TODO | US-3.1 |
-| US-3.1#3 | Add tests test_us_3_1_spans_carry_category (marked models), test_us_3_1_redacted_text_rep… | TODO | US-3.1 |
-| US-3.1#4 | Record evidence/US-3.1/test-report.md | TODO | US-3.1 |
-| US-3.2 | Handler-Level Redaction of Agent Tool Results | READY | EPIC-3 |
-| US-3.2#1 | Implement claimcoach/agent/guard.py with a typed redact_tool_result() decorator applied t… | TODO | US-3.2 |
-| US-3.2#2 | Add tests test_us_3_2_tool_results_phi_free_without_hook, test_us_3_2_hook_re_redacts, te… | TODO | US-3.2 |
-| US-3.2#3 | Record evidence/US-3.2/test-report.md | TODO | US-3.2 |
-| US-3.3 | PHI Flows Bypass the Agent Transcript | READY | EPIC-3 |
-| US-3.3#1 | Implement the case API client in plugin.js as a typed (JSDoc) module that only wraps ctx.… | TODO | US-3.3 |
-| US-3.3#2 | Add tests test_us_3_3_pane_uses_only_plugin_rest (node --test), test_us_3_3_case_processi… | TODO | US-3.3 |
-| US-3.3#3 | Record evidence/US-3.3/test-report.md | TODO | US-3.3 |
-| US-3.4 | PHI-Free Logs and Events | READY | EPIC-3 |
-| US-3.4#1 | Implement claimcoach/logging.py (JSON formatter + redaction filter) and typed event paylo… | TODO | US-3.4 |
-| US-3.4#2 | Add tests test_us_3_4_logs_json_without_document_text, test_us_3_4_events_carry_no_phi | TODO | US-3.4 |
-| US-3.4#3 | Record evidence/US-3.4/test-report.md | TODO | US-3.4 |
+| US-3.1 | PHI Span Detector with Regex Validators | DONE | EPIC-3 |
+| US-3.1#1 | Implement claimcoach/redact/detector.py (Qwen3-8B JSON span prompt) and claimcoach/redact… | DONE | US-3.1 |
+| US-3.1#2 | Generate a synthetic PHI fixture set under tests/fixtures/phi/ (no real PHI) | DONE | US-3.1 |
+| US-3.1#3 | Add tests test_us_3_1_spans_carry_category (marked models), test_us_3_1_redacted_text_rep… | DONE | US-3.1 |
+| US-3.1#4 | Record evidence/US-3.1/test-report.md | DONE | US-3.1 |
+| US-3.2 | Handler-Level Redaction of Agent Tool Results | DONE | EPIC-3 |
+| US-3.2#1 | Implement claimcoach/agent/guard.py with a typed redact_tool_result() decorator applied t… | DONE | US-3.2 |
+| US-3.2#2 | Add tests test_us_3_2_tool_results_phi_free_without_hook, test_us_3_2_hook_re_redacts, te… | DONE | US-3.2 |
+| US-3.2#3 | Record evidence/US-3.2/test-report.md | DONE | US-3.2 |
+| US-3.3 | PHI Flows Bypass the Agent Transcript | DONE | EPIC-3 |
+| US-3.3#1 | Implement the case API client in plugin.js as a typed (JSDoc) module that only wraps ctx.… | DONE | US-3.3 |
+| US-3.3#2 | Add tests test_us_3_3_pane_uses_only_plugin_rest (node --test), test_us_3_3_case_processi… | DONE | US-3.3 |
+| US-3.3#3 | Record evidence/US-3.3/test-report.md | DONE | US-3.3 |
+| US-3.4 | PHI-Free Logs and Events | DONE | EPIC-3 |
+| US-3.4#1 | Implement claimcoach/logging.py (JSON formatter + redaction filter) and typed event paylo… | DONE | US-3.4 |
+| US-3.4#2 | Add tests test_us_3_4_logs_json_without_document_text, test_us_3_4_events_carry_no_phi | DONE | US-3.4 |
+| US-3.4#3 | Record evidence/US-3.4/test-report.md | DONE | US-3.4 |
 | US-3.5 | Richer Agent Access When the Hermes Model Is Local | NEEDS CLARIFICATION | EPIC-3 |
 | US-3.5#1 | Define the setting in ClaimCoachSettings and config_schema once the scope is decided | TODO | US-3.5 |
-| US-3.6 | Uploaded Text Treated as Data in Prompts | READY | EPIC-3 |
-| US-3.6#1 | Implement claimcoach/prompts/builder.py with a typed PromptParts model and a single data-… | TODO | US-3.6 |
-| US-3.6#2 | Add test test_us_3_6_prompts_place_text_in_data_section | TODO | US-3.6 |
-| US-3.6#3 | Record evidence/US-3.6/test-report.md | TODO | US-3.6 |
+| US-3.6 | Uploaded Text Treated as Data in Prompts | DONE | EPIC-3 |
+| US-3.6#1 | Implement claimcoach/prompts/builder.py with a typed PromptParts model and a single data-… | DONE | US-3.6 |
+| US-3.6#2 | Add test test_us_3_6_prompts_place_text_in_data_section | DONE | US-3.6 |
+| US-3.6#3 | Record evidence/US-3.6/test-report.md | DONE | US-3.6 |
 | EPIC-4 | Corpus Scopes and Storage | — | — |
 | US-4.1 | Global and User Scope Stores | READY | EPIC-4 |
 | US-4.1#1 | Implement claimcoach/corpus/paths.py and claimcoach/corpus/store.py with typed CorpusScop… | TODO | US-4.1 |
@@ -1307,7 +1307,7 @@ Open Questions:
 
 ### US-3.1: PHI Span Detector with Regex Validators
 
-Status: READY
+Status: DONE
 
 As a biller
 I want PHI in my documents detected by category
@@ -1336,10 +1336,10 @@ Dependencies:
 - US-2.2
 
 Tasks:
-- [ ] Implement claimcoach/redact/detector.py (Qwen3-8B JSON span prompt) and claimcoach/redact/validators.py (regex for SSN, MRN, DOB, phone, member ID) with typed `PhiCategory`, `PhiSpan`, `RedactionResult`
-- [ ] Generate a synthetic PHI fixture set under tests/fixtures/phi/ (no real PHI)
-- [ ] Add tests test_us_3_1_spans_carry_category (marked models), test_us_3_1_redacted_text_replaces_spans
-- [ ] Record evidence/US-3.1/test-report.md
+- [x] Implement claimcoach/redact/detector.py (Qwen3-8B JSON span prompt) and claimcoach/redact/validators.py (regex for SSN, MRN, DOB, phone, member ID) with typed `PhiCategory`, `PhiSpan`, `RedactionResult`
+- [x] Generate a synthetic PHI fixture set under tests/fixtures/phi/ (no real PHI)
+- [x] Add tests test_us_3_1_spans_carry_category (marked models), test_us_3_1_redacted_text_replaces_spans
+- [x] Record evidence/US-3.1/test-report.md
 
 Open Questions:
 - Are regex matches added to the redaction set independently of the model's spans (union), or used only to confirm model-proposed spans?
@@ -1347,7 +1347,7 @@ Open Questions:
 
 ### US-3.2: Handler-Level Redaction of Agent Tool Results
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want every ClaimCoach agent tool to redact its own result before returning it
@@ -1380,16 +1380,16 @@ Dependencies:
 - US-3.1
 
 Tasks:
-- [ ] Implement claimcoach/agent/guard.py with a typed `redact_tool_result()` decorator applied to every handler, and the `transform_tool_result` hook registration; docstrings cite BR-3 and PC-7
-- [ ] Add tests test_us_3_2_tool_results_phi_free_without_hook, test_us_3_2_hook_re_redacts, test_us_3_2_failing_hook_does_not_expose_phi
-- [ ] Record evidence/US-3.2/test-report.md
+- [x] Implement claimcoach/agent/guard.py with a typed `redact_tool_result()` decorator applied to every handler, and the `transform_tool_result` hook registration; docstrings cite BR-3 and PC-7
+- [x] Add tests test_us_3_2_tool_results_phi_free_without_hook, test_us_3_2_hook_re_redacts, test_us_3_2_failing_hook_does_not_expose_phi
+- [x] Record evidence/US-3.2/test-report.md
 
 Open Questions:
 - None
 
 ### US-3.3: PHI Flows Bypass the Agent Transcript
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want case uploads and case work to go pane → plugin_api → worker only
@@ -1418,16 +1418,16 @@ Dependencies:
 - US-1.4
 
 Tasks:
-- [ ] Implement the case API client in plugin.js as a typed (JSDoc) module that only wraps ctx.rest
-- [ ] Add tests test_us_3_3_pane_uses_only_plugin_rest (node --test), test_us_3_3_case_processing_adds_nothing_to_sessions
-- [ ] Record evidence/US-3.3/test-report.md
+- [x] Implement the case API client in plugin.js as a typed (JSDoc) module that only wraps ctx.rest
+- [x] Add tests test_us_3_3_pane_uses_only_plugin_rest (node --test), test_us_3_3_case_processing_adds_nothing_to_sessions
+- [x] Record evidence/US-3.3/test-report.md
 
 Open Questions:
 - None
 
 ### US-3.4: PHI-Free Logs and Events
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want logs and plugin events to contain no PHI or document text
@@ -1456,9 +1456,9 @@ Dependencies:
 - US-3.1
 
 Tasks:
-- [ ] Implement claimcoach/logging.py (JSON formatter + redaction filter) and typed event payload models in claimcoach/events.py
-- [ ] Add tests test_us_3_4_logs_json_without_document_text, test_us_3_4_events_carry_no_phi
-- [ ] Record evidence/US-3.4/test-report.md
+- [x] Implement claimcoach/logging.py (JSON formatter + redaction filter) and typed event payload models in claimcoach/events.py
+- [x] Add tests test_us_3_4_logs_json_without_document_text, test_us_3_4_events_carry_no_phi
+- [x] Record evidence/US-3.4/test-report.md
 
 Open Questions:
 - None
@@ -1497,10 +1497,11 @@ Tasks:
 Open Questions:
 - What exactly does "richer agent access" allow (unredacted fields? full documents?)
 - How does ClaimCoach determine that the user's Hermes model is a local endpoint, and what happens if the model changes to a cloud provider while the setting is on?
+- Delivered meanwhile (2026-10-31, `openspec/changes/archive/2026-10-31-us-3-5-richer-agent-access-setting/`): the setting exists, is off by default, and is shown in the statusbar, but grants nothing — agent tool results stay redacted — until these questions are answered.
 
 ### US-3.6: Uploaded Text Treated as Data in Prompts
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want document text to be isolated as data in every prompt
@@ -1522,9 +1523,9 @@ Dependencies:
 - US-1.2
 
 Tasks:
-- [ ] Implement claimcoach/prompts/builder.py with a typed `PromptParts` model and a single data-block encoder used by every pipeline prompt
-- [ ] Add test test_us_3_6_prompts_place_text_in_data_section
-- [ ] Record evidence/US-3.6/test-report.md
+- [x] Implement claimcoach/prompts/builder.py with a typed `PromptParts` model and a single data-block encoder used by every pipeline prompt
+- [x] Add test test_us_3_6_prompts_place_text_in_data_section
+- [x] Record evidence/US-3.6/test-report.md
 
 Open Questions:
 - None
