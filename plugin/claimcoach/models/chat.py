@@ -1,18 +1,23 @@
 """OpenAI-compatible chat completions against a local model server.
 
-Implements: US-3.1 (the PHI detector's model call). Rules: BR-1 (loopback only: the endpoint comes
-from ``ModelManager.use``; proxies are never honored), BR-10 (only a ``BuiltPrompt`` can be sent,
-so every prompt goes through the US-3.6 data-block encoder), BR-14 (errors carry no model output).
+Implements: US-3.1 (the PHI detector's model call), US-5.2 (page images for the extraction model
+as OpenAI ``image_url`` parts with ``data:`` URLs; the extraction role names its served model).
+Rules: BR-1 (loopback only: the endpoint comes from ``ModelManager.use``; proxies are never
+honored), BR-10 (only a ``BuiltPrompt`` can be sent, so every prompt goes through the US-3.6
+data-block encoder), BR-14 (errors carry no model output).
 """
 
 from __future__ import annotations
 
-from typing import Final
+import base64
+from collections.abc import Sequence
+from typing import Any, Final
 
 import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from claimcoach.models.manager import ModelEndpoint, ModelUnavailableError
+from claimcoach.models.types import ModelRole
 from claimcoach.prompts.builder import BuiltPrompt
 
 __all__ = ["DEFAULT_MODEL_ID", "ChatReply", "chat_completion"]
@@ -53,11 +58,39 @@ class ChatReply(BaseModel):
     truncated: bool
 
 
-async def chat_completion(
+def _model_id(endpoint: ModelEndpoint) -> str:
+    # mlx_lm.server answers to its default id; mlx_vlm.server (the extraction role) loads the
+    # model a request names, so it is sent the directory its server was started with.
+    if endpoint.role is ModelRole.EXTRACTION and endpoint.model_path:
+        return endpoint.model_path
+    return DEFAULT_MODEL_ID
+
+
+def _messages(prompt: BuiltPrompt, images: Sequence[bytes]) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = [message.model_dump() for message in prompt.messages]
+    if images:
+        # The image parts follow the user message's text, which ends with its data blocks; the
+        # system message's data rule covers them too (BR-10).
+        user = messages[-1]
+        user["content"] = [
+            {"type": "text", "text": user["content"]},
+            *(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{base64.b64encode(png).decode()}"},
+                }
+                for png in images
+            ),
+        ]
+    return messages
+
+
+async def chat_completion(  # noqa: PLR0913 - one request: endpoint, prompt, images, limits
     endpoint: ModelEndpoint,
     prompt: BuiltPrompt,
     *,
     max_tokens: int,
+    images: Sequence[bytes] = (),
     timeout: float = 120.0,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> ChatReply:
@@ -67,6 +100,7 @@ async def chat_completion(
         endpoint: Loopback endpoint held through ``ModelManager.use``.
         prompt: Messages built by ``build_prompt``.
         max_tokens: Completion budget.
+        images: PNG images appended to the user message (vision models only).
         timeout: Seconds for the whole request.
         transport: Optional httpx transport for tests.
 
@@ -78,8 +112,8 @@ async def chat_completion(
             with a body that is not a chat completion.
     """
     body = {
-        "model": DEFAULT_MODEL_ID,
-        "messages": [message.model_dump() for message in prompt.messages],
+        "model": _model_id(endpoint),
+        "messages": _messages(prompt, images),
         "temperature": 0.0,
         "max_tokens": max_tokens,
         "stream": False,

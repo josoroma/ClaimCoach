@@ -1,7 +1,7 @@
 """Corpus errors and the envelope codes the worker answers them with.
 
 Implements: US-4.1 (``IndexStaleError``, ``CaseNotFoundError``, ``ProfileNotFoundError``), US-4.2
-(``CorpusKeyError``).
+(``CorpusKeyError``), US-5.1 (``CaseClosedError``).
 Rules: ES-8 (each error maps to one fixed envelope code), BR-14 (no error carries document text,
 key material, or tool output).
 """
@@ -13,6 +13,7 @@ from typing import ClassVar
 from claimcoach.api.models import ErrorCode
 
 __all__ = [
+    "CaseClosedError",
     "CaseNotFoundError",
     "CorpusError",
     "CorpusKeyError",
@@ -51,3 +52,10 @@ class ProfileNotFoundError(CorpusError):
 
     code: ClassVar[ErrorCode] = "profile_not_found"
     status_code: ClassVar[int] = 404
+
+
+class CaseClosedError(CorpusError):
+    """The case is closed or purged, so its content can no longer change (US-5.1)."""
+
+    code: ClassVar[ErrorCode] = "case_closed"
+    status_code: ClassVar[int] = 409

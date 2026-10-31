@@ -14,3 +14,4 @@ ES-6: every runbook has **Preconditions, Steps (copy-paste commands), Verificati
 | [phi-purge](phi-purge.md) | US-4.5 | skeleton |
 | [phi-incident](phi-incident.md) | Product Manager decision | skeleton, needs clarification |
 | [phi-redaction](phi-redaction.md) | US-3.1, US-3.2 | complete |
+| [case-intake-extraction](case-intake-extraction.md) | US-5.1, US-5.2 | complete |

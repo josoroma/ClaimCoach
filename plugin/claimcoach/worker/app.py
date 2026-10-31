@@ -4,7 +4,9 @@ Implements: US-1.2 (requests without the token get 401 + envelope), US-1.3 (work
 ``/health``; unhandled errors become a generic envelope), US-2.2 (model routes, idle sweeper and
 model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI model), US-3.4
 (a request ID per request, in every log line and the ``X-Request-ID`` header), US-4.1 to US-4.6
-(``/corpus`` routes; the scheduled retention purge runs in the lifespan). Rules: ES-8
+(``/corpus`` routes; the scheduled retention purge runs in the lifespan), US-5.1 (``/cases``
+routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` events; running jobs
+are cancelled on shutdown). Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
 """
@@ -15,7 +17,7 @@ import asyncio
 import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -24,15 +26,19 @@ from starlette.exceptions import HTTPException
 
 from claimcoach import __version__
 from claimcoach.api.models import ErrorCode, HealthResponse, envelope
+from claimcoach.cases.errors import CaseError
+from claimcoach.cases.service import CaseService
 from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.retention import RetentionJob
 from claimcoach.corpus.service import CorpusService
 from claimcoach.logs import get_logger, new_request_id, request_id_var
 from claimcoach.models.acquire import Acquirer
-from claimcoach.models.manager import ModelError, ModelManager
+from claimcoach.models.manager import EndpointProvider, ModelError, ModelManager
+from claimcoach.pipeline.extract import Extractor
+from claimcoach.pipeline.jobs import JobRegistry
 from claimcoach.redact.detector import PhiDetector
 from claimcoach.redact.redactor import Redactor
-from claimcoach.worker import corpus_routes, model_routes, redact_routes
+from claimcoach.worker import case_routes, corpus_routes, model_routes, redact_routes
 
 __all__ = ["create_app", "get_health", "router"]
 
@@ -96,12 +102,35 @@ def _closer(corpus: CorpusService) -> Callable[[], Awaitable[None]]:
     return close
 
 
+def _mount_corpus(
+    app: FastAPI,
+    corpus: CorpusService,
+    vision: EndpointProvider | None,
+    tasks: list[Callable[[], Coroutine[Any, Any, None]]],
+    shutdowns: list[Callable[[], Awaitable[None]]],
+) -> None:
+    """Mount the corpus and case routes, the scheduled purge, extraction, and the stores' close."""
+    app.state.corpus = corpus
+    tasks.append(RetentionJob(corpus.purge_all).run)
+    cases = CaseService(corpus)
+    app.state.cases = cases
+    if vision is not None:
+        jobs = JobRegistry(Extractor(cases, vision))
+        app.state.jobs = jobs
+        shutdowns.append(jobs.shutdown)  # cancel extraction before the stores close
+        app.include_router(case_routes.jobs_router)
+    shutdowns.append(_closer(corpus))
+    app.include_router(corpus_routes.router)
+    app.include_router(case_routes.router)
+
+
 def create_app(
     token: str,
     models: ModelManager | None = None,
     *,
     redactor: Redactor | None = None,
     corpus: CorpusService | None = None,
+    vision: EndpointProvider | None = None,
 ) -> FastAPI:
     """Build the worker app that accepts only ``Authorization: Bearer <token>``.
 
@@ -111,8 +140,11 @@ def create_app(
             and the app's lifespan runs the idle sweeper and stops every model server on shutdown.
         redactor: The redactor behind ``/redact``; defaults to the PHI model of ``models``. Tests
             pass one over a fake model server to get ``/redact`` without a model manager.
-        corpus: The corpus scopes; when given, the ``/corpus`` routes are mounted, the lifespan
-            runs the scheduled retention purge (US-4.5), and the stores close on shutdown.
+        corpus: The corpus scopes; when given, the ``/corpus`` and ``/cases`` routes are mounted,
+            the lifespan runs the scheduled retention purge (US-4.5), and the stores close on
+            shutdown.
+        vision: The extraction model provider; defaults to ``models.use``. With ``corpus`` it
+            mounts extraction (US-5.2). Tests pass one over a fake model server.
 
     Returns:
         The ASGI app.
@@ -169,13 +201,13 @@ def create_app(
         # FastAPI's default 422 body echoes the rejected input, which may be case content (BR-14).
         return _error("invalid_request", 422)
 
-    @app.exception_handler(ModelError)
-    async def model_error(_request: Request, exc: ModelError) -> Response:
-        return _error(exc.code, exc.status_code)
+    async def coded_error(_request: Request, exc: Exception) -> Response:
+        # Each of these error types names its own fixed envelope code and status.
+        coded = cast("ModelError | CorpusError | CaseError", exc)
+        return _error(coded.code, coded.status_code)
 
-    @app.exception_handler(CorpusError)
-    async def corpus_error(_request: Request, exc: CorpusError) -> Response:
-        return _error(exc.code, exc.status_code)
+    for coded_type in (ModelError, CorpusError, CaseError):
+        app.add_exception_handler(coded_type, coded_error)
 
     app.include_router(router)
     tasks: list[Callable[[], Coroutine[Any, Any, None]]] = []
@@ -198,10 +230,9 @@ def create_app(
         app.state.redactor = redactor
         app.include_router(redact_routes.router)
     if corpus is not None:
-        app.state.corpus = corpus
-        tasks.append(RetentionJob(corpus.purge_all).run)
-        shutdowns.append(_closer(corpus))
-        app.include_router(corpus_routes.router)
+        if vision is None and models is not None:
+            vision = models.use
+        _mount_corpus(app, corpus, vision, tasks, shutdowns)
     if tasks:
         app.router.lifespan_context = _lifespan(tasks, shutdowns)
     return app

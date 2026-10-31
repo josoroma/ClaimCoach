@@ -6,8 +6,9 @@ Defines when and how case content is purged from the user scope and what survive
 ## Requirements
 
 ### Requirement: Expired case content is purged
-The worker SHALL purge, at start and every 6 hours, the documents, chunks, and vectors of every case
-closed more than `retention_days` (default 90) ago, in every profile's user scope.
+The worker SHALL purge, at start and every 6 hours, the documents, chunks, vectors, and case items
+(attached source files and anything derived from them) of every case closed more than
+`retention_days` (default 90) ago, in every profile's user scope.
 
 #### Scenario: Expired source documents are purged
 - **WHEN** the purge job runs on a case closed 91 days ago with the default retention setting
@@ -16,6 +17,10 @@ closed more than `retention_days` (default 90) ago, in every profile's user scop
 #### Scenario: A case inside the retention period is kept
 - **WHEN** the purge job runs on a case closed 89 days ago with the default retention setting
 - **THEN** its documents, chunks, and vectors remain
+
+#### Scenario: Expired attached files are purged
+- **WHEN** the purge job runs on a case closed 91 days ago that holds only attached source files
+- **THEN** the files are deleted and the case lists no source documents
 
 ### Requirement: Outcomes survive de-identified
 A purged case's outcome SHALL remain and SHALL contain no PHI.

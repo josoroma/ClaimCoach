@@ -11,6 +11,7 @@ dependencies = [
   "httpx>=0.28",
   "numpy>=2.3",
   "pydantic>=2.13",
+  "pymupdf>=1.26,<2",
   "pyyaml>=6.0",
   "uvicorn>=0.38",
 ]
@@ -89,7 +90,12 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = ["--strict-markers", "--strict-config", "-ra"]
 xfail_strict = true
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # PyMuPDF's SWIG types warn on import (Python 3.12); raised as an error inside the C module's
+  # init, that warning crashes the interpreter instead of failing a test.
+  "ignore:builtin type .* has no __module__ attribute:DeprecationWarning",
+]
 markers = [
   "models: needs real local models under MODELS_HOME (excluded from make check)",
   "gate: exercises make check itself (run by make verify, never inside make check)",

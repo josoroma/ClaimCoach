@@ -18,7 +18,17 @@ import pytest
 from tests.conftest import PLUGIN_DIR
 
 THIRD_PARTY = frozenset(
-    {"cryptography", "fastapi", "httpx", "numpy", "pydantic", "starlette", "uvicorn", "yaml"}
+    {
+        "cryptography",
+        "fastapi",
+        "httpx",
+        "numpy",
+        "pydantic",
+        "pymupdf",
+        "starlette",
+        "uvicorn",
+        "yaml",
+    }
 )
 """Declared dependencies (pyproject ``[project] dependencies``) and starlette, fastapi's base."""
 

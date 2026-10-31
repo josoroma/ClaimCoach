@@ -38,9 +38,21 @@ from tests.conftest import PLUGIN_DIR, free_port_in_range, python_for_worker
 TOKEN = "proxy-test-token"
 PHI = "Jane Doe DOB 1970-01-01 MRN 0042"
 PREFIX = "/api/plugins/claimcoach"
-GATEWAY_ROUTES = {"/health", "/models/status", "/models/download", "/models/convert", "/settings"}
-"""US-1.3 health, the EPIC-2 model routes (US-2.2 status, US-2.4 download/convert), and US-3.5
-settings."""
+GATEWAY_ROUTES = {
+    "/health",
+    "/models/status",
+    "/models/download",
+    "/models/convert",
+    "/settings",
+    "/cases",
+    "/cases/{case_id}",
+    "/cases/{case_id}/documents",
+    "/cases/{case_id}/paste",
+    "/cases/{case_id}/process",
+    "/cases/{case_id}/fields",
+}
+"""US-1.3 health, the EPIC-2 model routes (US-2.2 status, US-2.4 download/convert), US-3.5
+settings, the US-5.1 case intake routes, and the US-5.2 process and confirm routes."""
 
 
 def gateway_app(client: WorkerClient) -> FastAPI:

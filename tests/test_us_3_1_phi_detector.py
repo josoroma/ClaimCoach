@@ -294,6 +294,8 @@ async def test_us_3_1_detector_prompt_keeps_document_in_data_section(
     await detector_for(phi_server).detect(document["text"])
     request = phi_server.requests[-1]
     system, user = (m.content for m in request.messages)
+    assert isinstance(system, str)
+    assert isinstance(user, str)  # text only: the PHI model gets no image parts
 
     assert request.model == DEFAULT_MODEL_ID
     assert [m.role for m in request.messages] == ["system", "user"]

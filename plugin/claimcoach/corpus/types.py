@@ -3,10 +3,11 @@
 Implements: US-4.1 (``CorpusScope``, ``Document``, ``Chunk``, ``CaseRecord``, ``IndexInfo``,
 ``ScopeStatus``, ``ReindexRequest``), US-4.4 (``RetrievalQuery`` with a required ``case_id``,
 ``RetrievedChunk``), US-4.5 (``CaseOutcome``, ``OutcomeRecord``, ``PurgeRequest``,
-``PurgeReport``), US-4.6 (``AuditAction``, ``AuditEntry``). Rules: ES-1 (Pydantic v2,
-``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry IDs, counts, and
-dates only; document text appears only in ``Document``, ``Chunk``, and ``RetrievedChunk``, which
-never leave the worker).
+``PurgeReport``), US-4.6 (``AuditAction``, ``AuditEntry``), US-5.1 (``CaseItem``,
+``CaseItemKind``), US-5.2 (``case_extracted`` and ``field_confirmed`` audit actions). Rules:
+ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
+IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
+``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
 
 This module imports neither SQLite nor numpy, so the gateway and the Hermes CLI can use it.
 """
@@ -35,6 +36,8 @@ __all__ = [
     "AuditEntry",
     "AuditResponse",
     "CaseId",
+    "CaseItem",
+    "CaseItemKind",
     "CaseOutcome",
     "CaseRecord",
     "Chunk",
@@ -177,6 +180,28 @@ class CaseRecord(_Strict):
     opened_at: Timestamp
     closed_at: Timestamp | None = None
     purged_at: Timestamp | None = None
+
+
+CaseItemKind = Literal["source", "extraction"]
+"""A case item: an attached source file (US-5.1) or the case's structured extraction (US-5.2)."""
+
+
+class CaseItem(_Strict):
+    """A case item's sealed payload, opened; the item's bytes are read separately.
+
+    Attributes:
+        case_id: Owning case.
+        item_id: Opaque ID, unique within the case.
+        kind: What the item is.
+        created_at: When it was first stored.
+        payload: The item's JSON description (PHI; encrypted at rest).
+    """
+
+    case_id: CaseId
+    item_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    kind: CaseItemKind
+    created_at: Timestamp
+    payload: bytes
 
 
 class CaseOutcome(StrEnum):
@@ -322,6 +347,10 @@ class AuditAction(StrEnum):
     CASE_CREATED = "case_created"
     CASE_OPENED = "case_opened"
     DOCUMENT_ADDED = "document_added"
+    CASE_EXTRACTED = "case_extracted"
+    """Extraction stored the case's structured fields (US-5.2)."""
+    FIELD_CONFIRMED = "field_confirmed"
+    """The biller confirmed a field's value (US-5.2)."""
     CASE_CLOSED = "case_closed"
     OUTCOME_RECORDED = "outcome_recorded"
     CASE_PURGED = "case_purged"

@@ -56,7 +56,7 @@ describe('US-3.3 pane case actions use only plugin REST calls', () => {
     const ctx = createFakeCtx({ rest: caseBackend });
     plugin.register(ctx);
     const { state } = await uploadFromPane(ctx);
-    assert.deepEqual(state, { state: 'ready', caseId: 'case_0001' });
+    assert.deepEqual(state, { state: 'ready', caseId: 'case_0001', documents: [], fields: [] });
 
     assert.deepEqual(
       ctx.recorded.restRequests.map((r) => [r.method, r.path]),
@@ -102,6 +102,7 @@ describe('US-3.3 case processing adds nothing to agent sessions', () => {
     assert.deepEqual(hooks.states[0].updates.at(-1), {
       state: 'processing',
       caseId: 'case_0001',
+      progress: 0,
     });
     assert.deepEqual(ctx.recorded.restRequests.at(-1), {
       path: '/cases/case_0001/process',
@@ -146,7 +147,7 @@ describe('case API and pane states', () => {
     const answers = [];
     const rest = (path, opts) =>
       new Promise((resolve) => answers.push(() => resolve(caseBackend(path, opts))));
-    hooks.seed = [{ state: 'ready', caseId: 'case_0001' }];
+    hooks.seed = [{ state: 'ready', caseId: 'case_0001', documents: [], fields: [] }];
     const pane = CasePane({ rest });
     pane.props.children[4].props.onClick(); // first Process
     pane.props.children[4].props.onClick(); // double click
@@ -158,7 +159,7 @@ describe('case API and pane states', () => {
     assert.deepEqual(updates, [
       { state: 'busy' },
       { state: 'busy' },
-      { state: 'processing', caseId: 'case_0001' },
+      { state: 'processing', caseId: 'case_0001', progress: 0 },
     ]);
   });
 

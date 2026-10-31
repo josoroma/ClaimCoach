@@ -72,6 +72,12 @@ declare module '@hermes/plugin-sdk' {
     /** Newer hosts only; feature-detect with `?.`. */
     registerSettingsPage?: (page: PluginSettingsPage) => () => void;
     rest: <T = unknown>(path: string, opts?: PluginRestOptions) => Promise<T>;
+    /**
+     * Gateway event stream by type, retired with the plugin ("The plugin contract"; "Pushing
+     * events to your desktop half": `plugin.<id>.<event>` from `broadcast_plugin_event`).
+     * Optional here because ClaimCoach feature-detects it (US-5.2).
+     */
+    onEvent?: (type: string, listener: (event: { payload?: unknown }) => void) => () => void;
     onDispose: (fn: () => void) => void;
   }
 

@@ -98,10 +98,13 @@ class ModelEndpoint:
     Attributes:
         role: The role.
         base_url: OpenAI-style base URL, e.g. ``http://127.0.0.1:18202/v1``.
+        model_path: The model directory the server was started with; ``mlx_vlm.server`` resolves
+            a request's ``model`` field as a path (US-5.2).
     """
 
     role: ModelRole
     base_url: str
+    model_path: str | None = None
 
 
 EndpointProvider = Callable[[ModelRole], AbstractAsyncContextManager[ModelEndpoint]]
@@ -299,7 +302,9 @@ class ModelManager:
             raise ModelUnavailableError  # never serve files a job is still writing
         await self._acquire(server)
         try:
-            yield ModelEndpoint(role=role, base_url=f"http://{LOOPBACK}:{server.port}/v1")
+            yield ModelEndpoint(
+                role=role, base_url=f"http://{LOOPBACK}:{server.port}/v1", model_path=str(model)
+            )
         finally:
             await self._release(server)
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="US-5.2 unreadable fields are highlighted" time="0.002318" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T17:02:07.733Z" hostname="iX-00277">
+		<testcase name="test_us_5_2_pane_unreadable_fields_highlighted" time="0.001815" classname="US-5.2 unreadable fields are highlighted" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-5.2 confirmed fields are stored as confirmed" time="0.002475" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T17:02:07.735Z" hostname="iX-00277">
+		<testcase name="test_us_5_2_pane_confirmed_fields_stored" time="0.002306" classname="US-5.2 confirmed fields are stored as confirmed" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-5.2 extraction progress is pushed as events" time="0.001046" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T17:02:07.736Z" hostname="iX-00277">
+		<testcase name="test_us_5_2_pane_receives_progress_events" time="0.000897" classname="US-5.2 extraction progress is pushed as events" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.120853" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.119792" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.119151" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.118544" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 7 -->
+	<!-- suites 3 -->
+	<!-- pass 7 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 131.981458 -->
+</testsuites>

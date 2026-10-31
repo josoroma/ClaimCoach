@@ -3,7 +3,9 @@
 Implements: US-1.2 (worker 401 envelope), US-1.3 (``ApiError``, ``ErrorEnvelope``,
 ``HealthResponse``), US-2.2 to US-2.4 (model error codes), US-3.1 and US-3.2
 (``redaction_failed``), US-3.5 (``SettingsResponse``), US-4.1 (``index_stale``,
-``case_not_found``, ``profile_not_found``), US-4.2 (``corpus_unavailable``). Rules: ES-1
+``case_not_found``, ``profile_not_found``), US-4.2 (``corpus_unavailable``), US-5.1
+(``document_too_large``, ``unsupported_document``, ``case_closed``), US-5.2
+(``no_documents``, ``job_not_found``, ``extraction_failed``, ``processing_timeout``). Rules: ES-1
 (Pydantic v2 for every REST body), ES-8 (typed success model or the envelope ``{"ok": false,
 "error": {"code", "message"}}``), BR-14 (messages are fixed strings and never carry document text).
 """
@@ -41,6 +43,13 @@ ErrorCode = Literal[
     "index_stale",
     "case_not_found",
     "profile_not_found",
+    "document_too_large",
+    "unsupported_document",
+    "case_closed",
+    "no_documents",
+    "job_not_found",
+    "extraction_failed",
+    "processing_timeout",
 ]
 """Closed set of error codes the desktop half can switch on."""
 
@@ -61,6 +70,13 @@ ERROR_MESSAGES: Final[dict[ErrorCode, str]] = {
     "index_stale": "The corpus index was built with another embedding model; reindex it first.",
     "case_not_found": "No such case in this profile.",
     "profile_not_found": "This profile has no ClaimCoach case store.",
+    "document_too_large": "The document is larger than ClaimCoach accepts (16 MiB per file).",
+    "unsupported_document": "ClaimCoach accepts PDF, PNG, JPEG, and plain-text documents only.",
+    "case_closed": "This case is closed, so it takes no new documents or changes.",
+    "no_documents": "Add a source document to the case before processing it.",
+    "job_not_found": "No such ClaimCoach job.",
+    "extraction_failed": "The documents could not be read; enter the case fields by hand.",
+    "processing_timeout": "Processing took too long and was stopped; process the case again.",
 }
 """One fixed, PHI-free message per code; no caller text is ever echoed (BR-14)."""
 

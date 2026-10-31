@@ -4,7 +4,9 @@ Implements: US-1.3 (one ``WorkerClient`` with typed methods; ``httpx.HTTPError``
 ``ValidationError`` caught explicitly, no bare ``except``), US-2.2 and US-2.4 (model status,
 download, and conversion calls; the worker's own model error codes reach the desktop half), US-3.2
 (``redact`` for the agent-tool guard), US-4.1 to US-4.6 (corpus status, import, view,
-reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command).
+reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command), US-5.1 (case
+creation, open, upload, and paste calls; an upload is forwarded as the raw multipart body), US-5.2
+(start extraction, long-poll a job's events, confirm a field).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -12,12 +14,14 @@ error keeps only its code; the message is the fixed one for that code).
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Final, Literal, TypeVar
+from typing import Final, Literal, NamedTuple, TypeVar
 
 import httpx
 from pydantic import BaseModel, ValidationError
 
 from claimcoach.api.models import ErrorCode, ErrorEnvelope, HealthResponse
+from claimcoach.cases.extraction import FieldConfirmation, JobEvents, JobStarted
+from claimcoach.cases.models import Case, DocumentAdded, PastedText
 from claimcoach.corpus.bundle import CorpusBundle, CorpusViewResponse, ImportResult
 from claimcoach.corpus.types import (
     AuditResponse,
@@ -36,8 +40,11 @@ from claimcoach.models.types import (
 from claimcoach.redact.types import RedactRequest, RedactResponse
 
 __all__ = [
+    "CASE_TIMEOUT",
+    "POLL_TIMEOUT",
     "RELAYED_CODES",
     "InvalidWorkerResponseError",
+    "RawBody",
     "WorkerClient",
     "WorkerError",
     "WorkerFailedError",
@@ -57,8 +64,25 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "index_stale": 409,
     "case_not_found": 404,
     "profile_not_found": 404,
+    "document_too_large": 413,
+    "unsupported_document": 415,
+    "case_closed": 409,
+    "no_documents": 409,
+    "job_not_found": 404,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
+
+CASE_TIMEOUT: Final = 60.0
+"""Seconds per case call: the first one may wait on a Keychain prompt, an upload seals 16 MiB."""
+POLL_TIMEOUT: Final = 35.0
+"""Seconds per job-events poll: longer than the worker's longest wait (25 s)."""
+
+
+class RawBody(NamedTuple):
+    """A request body forwarded as received (an upload's multipart body)."""
+
+    content: bytes
+    content_type: str
 
 
 class WorkerError(Exception):
@@ -220,14 +244,107 @@ class WorkerClient:
         params = {"profile": profile} | ({} if case_id is None else {"case_id": case_id})
         return await self._request("GET", "/corpus/audit", AuditResponse, params=params)
 
-    async def _request(
+    async def create_case(self, profile: str) -> Case:
+        """Create an open, empty case in ``profile`` (US-5.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "POST", "/cases", Case, params={"profile": profile}, timeout=CASE_TIMEOUT
+        )
+
+    async def get_case(self, profile: str, case_id: str) -> Case:
+        """Return a case with its source documents (US-5.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "GET", f"/cases/{case_id}", Case, params={"profile": profile}, timeout=CASE_TIMEOUT
+        )
+
+    async def upload_document(
+        self, profile: str, case_id: str, body: bytes, content_type: str
+    ) -> DocumentAdded:
+        """Forward an upload's raw ``multipart/form-data`` body to the worker (US-5.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing is stored then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/documents",
+            DocumentAdded,
+            RawBody(body, content_type),
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def paste_text(self, profile: str, case_id: str, body: PastedText) -> DocumentAdded:
+        """Attach pasted text to a case (US-5.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing is stored then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/paste",
+            DocumentAdded,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def start_extraction(self, profile: str, case_id: str) -> JobStarted:
+        """Start extracting a case; progress comes from ``job_events`` (US-5.2).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/extract",
+            JobStarted,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def job_events(self, job_id: str, after: int, wait: float) -> JobEvents:
+        """Return a job's events after position ``after``, waiting up to ``wait`` (US-5.2).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        params = {"after": str(after), "wait": str(wait)}
+        return await self._request(
+            "GET", f"/jobs/{job_id}/events", JobEvents, params=params, timeout=POLL_TIMEOUT
+        )
+
+    async def confirm_field(self, profile: str, case_id: str, body: FieldConfirmation) -> Case:
+        """Store the biller's value for one field as confirmed (US-5.2).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing changes then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/fields",
+            Case,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def _request(  # noqa: PLR0913 - the one funnel: method, path, model, body, query, timeout
         self,
         method: Literal["GET", "POST"],
         path: str,
         model: type[ModelT],
-        body: BaseModel | None = None,
+        body: BaseModel | RawBody | None = None,
         *,
         params: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> ModelT:
         token = self._token_provider()
         if token is None:
@@ -236,12 +353,14 @@ class WorkerClient:
             async with httpx.AsyncClient(
                 base_url=self._base_url,
                 transport=self._transport,
-                timeout=self._timeout,
+                timeout=timeout or self._timeout,
                 trust_env=False,  # never route the token or case data through a proxy
             ) as client:
                 headers = {"Authorization": f"Bearer {token}"}
-                content = None
-                if body is not None:
+                content: str | bytes | None = None
+                if isinstance(body, RawBody):
+                    content, headers["Content-Type"] = body.content, body.content_type
+                elif body is not None:
                     headers["Content-Type"] = "application/json"
                     content = body.model_dump_json()
                 response = await client.request(

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.121163" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testsuite name="US-5.1 a PDF or image is attached to a new case" time="0.004467" disabled="0" errors="0" tests="2" failures="0" skipped="0" timestamp="2026-10-31T17:01:59.898Z" hostname="iX-00277">
+		<testcase name="test_us_5_1_pane_drop_attaches_pdf_or_image_to_new_case" time="0.003305" classname="US-5.1 a PDF or image is attached to a new case" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+		<testcase name="test_us_5_1_pane_drop_adds_to_the_open_case" time="0.000558" classname="US-5.1 a PDF or image is attached to a new case" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-5.1 pasted 835 text is attached to a case" time="0.000675" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T17:01:59.903Z" hostname="iX-00277">
+		<testcase name="test_us_5_1_pane_pasted_835_attached" time="0.000578" classname="US-5.1 pasted 835 text is attached to a case" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.118417" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.117944" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.117255" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 7 -->
+	<!-- suites 2 -->
+	<!-- pass 7 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 131.34975 -->
+</testsuites>

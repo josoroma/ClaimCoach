@@ -5,7 +5,9 @@ records its embedding model and refuses searches and inserts once that model cha
 (user-scope bodies, chunks, and vectors are encrypted per row; a key check fails closed), US-4.4
 (user-scope ``search`` and ``chunks`` require a ``case_id`` and filter in SQL), US-4.5
 (``close_case``, de-identified ``outcomes``, ``purge_case_content``), US-4.6 (append-only
-``audit_log``; ``open_case`` audits). Rules: BR-5, BR-6, BR-7, BR-13, BR-14.
+``audit_log``; ``open_case`` audits), US-5.1 (``case_items``: a case's attached source files and
+derived items, sealed per row, refused once the case is closed, deleted by the purge). Rules: BR-5,
+BR-6, BR-7, BR-13, BR-14.
 
 Both files use ``secure_delete`` so deleted PHI pages are zeroed, and a purge truncates the WAL.
 Vectors are float32, normalized to unit length, so cosine similarity is a dot product.
@@ -29,6 +31,7 @@ import numpy.typing as npt
 
 from claimcoach.corpus.crypto import Cipher
 from claimcoach.corpus.errors import (
+    CaseClosedError,
     CaseNotFoundError,
     CorpusError,
     CorpusKeyError,
@@ -38,6 +41,8 @@ from claimcoach.corpus.paths import DATABASE, INDEX
 from claimcoach.corpus.types import (
     AuditAction,
     AuditEntry,
+    CaseItem,
+    CaseItemKind,
     CaseOutcome,
     CaseRecord,
     Chunk,
@@ -82,6 +87,11 @@ CREATE TABLE IF NOT EXISTS main.outcomes (
     case_id TEXT PRIMARY KEY REFERENCES cases(case_id),
     outcome TEXT NOT NULL CHECK (outcome IN ('overturned', 'upheld', 'written_off')),
     recorded_at TEXT NOT NULL
+) STRICT;
+CREATE TABLE IF NOT EXISTS main.case_items (
+    case_id TEXT NOT NULL REFERENCES cases(case_id), item_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('source', 'extraction')), created_at TEXT NOT NULL,
+    payload BLOB NOT NULL, data BLOB, PRIMARY KEY (case_id, item_id)
 ) STRICT;
 CREATE TABLE IF NOT EXISTS main.audit_log (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, action TEXT NOT NULL,
@@ -588,6 +598,15 @@ class CorpusStore:
             self._audit(db, AuditAction.CASE_CREATED, case_id)
         return record
 
+    def case_record(self, case_id: str) -> CaseRecord:
+        """Return the case's lifecycle dates without auditing an access (no content is read).
+
+        Raises:
+            CaseNotFoundError: No such case.
+        """
+        with self._lock:
+            return self._case_row(self._db, case_id)
+
     def open_case(self, case_id: str) -> CaseRecord:
         """Return the case record; every call appends a ``case_opened`` audit entry (US-4.6).
 
@@ -648,6 +667,82 @@ class CorpusStore:
             recorded_at=datetime.fromisoformat(row[1]),
         )
 
+    # --- case items (user scope, US-5.1) ----------------------------------------------------
+
+    def put_case_item(
+        self, item: CaseItem, data: bytes | None = None, *, audit: AuditAction
+    ) -> CaseItem:
+        """Store (or replace) one item of an open case, sealed, with an audit entry.
+
+        Args:
+            item: The item; ``created_at`` is kept from the first store when it is replaced.
+            data: Its bytes, if any (an attached file).
+            audit: The audit action to record.
+
+        Returns:
+            The item as stored.
+
+        Raises:
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case is closed or purged.
+        """
+        case_id, item_id = item.case_id, item.item_id
+        context = _ctx("case_items", case_id, item_id)
+        with self._tx() as db:
+            record = self._case_row(db, case_id)
+            if record.closed_at is not None or record.purged_at is not None:
+                raise CaseClosedError
+            row = db.execute(
+                "SELECT created_at FROM main.case_items WHERE case_id = ? AND item_id = ?",
+                (case_id, item_id),
+            ).fetchone()
+            if row is not None:
+                item = item.model_copy(update={"created_at": datetime.fromisoformat(row[0])})
+            db.execute(
+                "INSERT OR REPLACE INTO main.case_items VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    case_id,
+                    item_id,
+                    item.kind,
+                    _iso(item.created_at),
+                    self._seal(item.payload, f"{context}:payload"),
+                    None if data is None else self._seal(data, f"{context}:data"),
+                ),
+            )
+            self._audit(db, audit, case_id)
+        return item
+
+    def case_items(self, case_id: str, kind: CaseItemKind) -> list[CaseItem]:
+        """Return the case's items of ``kind``, oldest first, without their bytes."""
+        with self._lock:
+            self._case_row(self._db, case_id)
+            rows = self._db.execute(
+                "SELECT item_id, created_at, payload FROM main.case_items "
+                "WHERE case_id = ? AND kind = ? ORDER BY created_at, item_id",
+                (case_id, kind),
+            ).fetchall()
+        return [
+            CaseItem(
+                case_id=case_id,
+                item_id=item_id,
+                kind=kind,
+                created_at=datetime.fromisoformat(created_at),
+                payload=self._unseal(payload, f"{_ctx('case_items', case_id, item_id)}:payload"),
+            )
+            for item_id, created_at, payload in rows
+        ]
+
+    def case_item_data(self, case_id: str, item_id: str) -> bytes | None:
+        """Return an item's bytes; ``None`` when it has none or does not exist."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT data FROM main.case_items WHERE case_id = ? AND item_id = ?",
+                (case_id, item_id),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return self._unseal(row[0], f"{_ctx('case_items', case_id, item_id)}:data")
+
     def expired_cases(self, cutoff: datetime) -> list[str]:
         """Return the cases closed at or before ``cutoff`` that still hold content (US-4.5).
 
@@ -656,7 +751,8 @@ class CorpusStore:
         with self._lock:
             rows = self._db.execute(
                 "SELECT case_id FROM main.cases WHERE closed_at IS NOT NULL AND closed_at <= ? "
-                "AND EXISTS (SELECT 1 FROM main.documents d WHERE d.case_id = cases.case_id) "
+                "AND (EXISTS (SELECT 1 FROM main.documents d WHERE d.case_id = cases.case_id) "
+                "OR EXISTS (SELECT 1 FROM main.case_items i WHERE i.case_id = cases.case_id)) "
                 "ORDER BY case_id",
                 (_iso(cutoff),),
             ).fetchall()
@@ -669,7 +765,7 @@ class CorpusStore:
         at: datetime | None = None,
         reason: Literal["retention", "request"] = "retention",
     ) -> tuple[int, int, int]:
-        """Delete every document of the case with its chunks and vectors (audited).
+        """Delete the case's documents with their chunks and vectors, and its items (audited).
 
         The case row, its outcome, and its audit entries remain. Both WAL files are truncated
         afterwards so no deleted page image stays on disk; a checkpoint that a concurrent reader
@@ -682,7 +778,7 @@ class CorpusStore:
                 (``case_purged_on_request``).
 
         Returns:
-            ``(documents, chunks, vectors)`` deleted.
+            ``(documents, chunks, vectors)`` deleted; attached source files count as documents.
 
         Raises:
             CaseNotFoundError: No such case.
@@ -690,7 +786,12 @@ class CorpusStore:
         with self._tx() as db:
             self._case_row(db, case_id)
             doc_ids = db.execute("SELECT doc_id FROM main.documents WHERE case_id = ?", (case_id,))
-            counts = self._delete_documents(db, [row[0] for row in doc_ids])
+            documents, chunks, vectors = self._delete_documents(db, [row[0] for row in doc_ids])
+            (sources,) = db.execute(
+                "SELECT count(*) FROM main.case_items WHERE case_id = ? AND kind = 'source'",
+                (case_id,),
+            ).fetchone()
+            db.execute("DELETE FROM main.case_items WHERE case_id = ?", (case_id,))
             db.execute(
                 "UPDATE main.cases SET purged_at = ? WHERE case_id = ?",
                 (_iso(at or utc_now()), case_id),
@@ -699,7 +800,7 @@ class CorpusStore:
             purged = AuditAction.CASE_PURGED if by_policy else AuditAction.CASE_PURGED_ON_REQUEST
             self._audit(db, purged, case_id)
         self.checkpoint()
-        return counts
+        return documents + sources, chunks, vectors
 
     def checkpoint(self) -> bool:
         """Truncate both WAL files; return ``False`` (and log) when a reader blocked it."""

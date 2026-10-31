@@ -35,6 +35,12 @@ CASE ?=
 FROM ?=
 TO ?=
 BACKUP_DIR ?= $(HOME)/ClaimCoach-backups
+# Case targets (EPIC-5): CASE a case ID; FILE a local document; PROFILE as above; FIELD and VALUE
+# a field path (payer_name, lines.0.service_date, …) and the value to confirm for it.
+FIELD ?=
+VALUE ?=
+# Through the environment, never spliced into shell text: a value may hold quotes.
+export FIELD VALUE
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -66,6 +72,13 @@ REQUIRE_SCOPE = $(if $(and $(filter 1,$(words $(SCOPE))),$(filter $(SCOPE),globa
 REQUIRE_CORPUS_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
 	echo "$@ deletes or replaces corpus data and cannot be undone; re-run with CONFIRM=yes"; exit 2; }
 
+# Case targets talk to the worker for one profile: PROFILE, or the active one.
+CASE_PROFILE = $(or $(PROFILE),$(shell $(UV) run python -c \
+	'from claimcoach.corpus.paths import active_profile; print(active_profile())'))
+REQUIRE_CASE = [[ "$(CASE)" =~ ^[A-Za-z0-9_-]{1,64}$$ ]] || { \
+	echo "usage: make $@ CASE=<case id>$(if $(filter case-add case-paste,$@), FILE=<document>)"; exit 2; }
+REQUIRE_CASE_FILE = test -f "$(FILE)" || { echo "usage: make $@ CASE=<case id> FILE=<document>"; exit 2; }
+
 # Story slug for test filters: US-3.1 -> us_3_1.
 STORY_SLUG = $(shell echo '$(STORY)' | tr 'A-Z.-' 'a-z__')
 REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make $@ STORY=US-x.y"; exit 2; }
@@ -77,6 +90,7 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         models-init models-check models-status models-load models-unload models-download \
         models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
+        case-new case-add case-paste case-show case-process case-confirm \
         clean
 
 help: ## List targets
@@ -317,6 +331,54 @@ corpus-key-import: ## Put a backed-up key into the Keychain: make corpus-key-imp
 	@test -f "$(FROM)" || { echo "usage: make corpus-key-import FROM=<key file> CONFIRM=yes"; exit 2; }
 	@$(REQUIRE_CORPUS_CONFIRM)
 	@$(CORPUS_CLI) key-import --from "$(FROM)" --confirm $(if $(PROFILE),--profile "$(PROFILE)")
+
+# --- Cases (docs/runbooks/case-intake-extraction.md) ----------------------------------------------
+# These print case content (filenames, extracted fields) to this terminal only; nothing is logged.
+
+case-new: ## Create an empty case and print its ID: make case-new [PROFILE=p]
+	@$(WORKER_CURL) -X POST "$(WORKER_URL)/cases?profile=$(CASE_PROFILE)" | python3 -m json.tool
+
+case-add: ## Attach a PDF, PNG, JPEG, or text file: make case-add CASE=id FILE=eob.pdf
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_CASE_FILE)
+	@$(WORKER_CURL) -X POST -F "file=@\"$(FILE)\"" \
+	  "$(WORKER_URL)/cases/$(CASE)/documents?profile=$(CASE_PROFILE)" | python3 -m json.tool
+
+case-paste: ## Attach a text file's content as pasted text (835 or letter): make case-paste CASE=id FILE=era.835
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_CASE_FILE)
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' --data-binary @- \
+	  "$(WORKER_URL)/cases/$(CASE)/paste?profile=$(CASE_PROFILE)" < <(python3 -c 'import json, sys; \
+	    json.dump({"text": sys.stdin.read()}, sys.stdout)' < "$(FILE)") | python3 -m json.tool
+
+case-show: ## Show a case with its source documents (audited case_opened): make case-show CASE=id
+	@$(REQUIRE_CASE)
+	@$(WORKER_CURL) "$(WORKER_URL)/cases/$(CASE)?profile=$(CASE_PROFILE)" | python3 -m json.tool
+
+case-process: ## Extract a case and print its progress events until done: make case-process CASE=id
+	@$(REQUIRE_CASE)
+	@job=$$($(WORKER_CURL) -X POST "$(WORKER_URL)/cases/$(CASE)/extract?profile=$(CASE_PROFILE)" \
+	  | python3 -c 'import json, sys; b = json.load(sys.stdin); \
+	    print(b["job_id"]) if b.get("ok") else sys.exit("error: " + b["error"]["code"])') || exit 1; \
+	after=0; while :; do \
+	  body=$$($(WORKER_CURL) "$(WORKER_URL)/jobs/$$job/events?after=$$after&wait=20") || exit 1; \
+	  out=$$(printf '%s' "$$body" | python3 -c 'import json, sys; b = json.load(sys.stdin); \
+	    [print("%-11s %4.0f%%  %s" % (e["stage"], 100 * e["progress"], e.get("error_code") or ""), \
+	      file=sys.stderr) for e in b["events"]]; \
+	    last = b["events"][-1]["stage"] if b["events"] else ""; \
+	    print(int(sys.argv[1]) + len(b["events"]), int(b["finished"]), last)' "$$after"); \
+	  read -r after finished last <<< "$$out"; \
+	  if [ "$$finished" = 1 ]; then [ "$$last" != failed ]; exit; fi; \
+	done
+
+case-confirm: ## Confirm a field's value: make case-confirm CASE=id FIELD=claim_id VALUE=CLAIM-77
+	@$(REQUIRE_CASE)
+	@[ -n "$$FIELD" ] && [ -n "$$VALUE" ] || { \
+	  echo "usage: make $@ CASE=<case id> FIELD=<field path> VALUE=<value>"; exit 2; }
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' --data-binary @- \
+	  "$(WORKER_URL)/cases/$(CASE)/fields?profile=$(CASE_PROFILE)" < <(python3 -c 'import json, os, sys; \
+	      json.dump({"path": os.environ["FIELD"], "value": os.environ["VALUE"]}, sys.stdout)') \
+	  | python3 -m json.tool
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

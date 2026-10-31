@@ -14,6 +14,8 @@ US-2.2 also launches it as a model-server *process* from ``models.yaml``::
 US-3.1 passes ``--model default_model --reply-file reply.json`` to stand in for the PHI model (a
 file, because ``models.yaml`` reads ``{...}`` in a command as a placeholder).
 
+US-5.2 accepts OpenAI content parts (text plus ``image_url``) for the vision model.
+
 US-4.1 and US-4.4 add ``/v1/embeddings`` (a deterministic hashed bag of words, ``EMBED_DIM``
 long, so texts that share words are near each other) and ``/v1/rerank`` (the share of query words a
 document contains). ``embed_overrides`` pins the vector of an exact input text, so a test can make
@@ -82,7 +84,8 @@ class ChatMessage(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     role: Literal["system", "user", "assistant", "tool"]
-    content: str
+    content: str | list[dict[str, Any]]
+    """Text, or OpenAI content parts (``text`` and ``image_url``; US-5.2 page images)."""
 
 
 class ChatRequest(BaseModel):
