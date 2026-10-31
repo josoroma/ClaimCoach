@@ -2,7 +2,9 @@
 
 Implements: US-4.3 (``corpus import FILE`` validates a local bundle and sends it to the worker;
 ``corpus list`` shows provenance and the stale flag; US-6.2 and US-6.3 add a card's required
-documents and appeal limit), US-4.1 (``status``, ``reindex``, ``backup``,
+documents and appeal limit; the worker-backed commands take ``--port``, so a worker started on
+another ``WORKER_PORT`` is reached, and send the worker token only to the port the launcher
+recorded for the running worker), US-4.1 (``status``, ``reindex``, ``backup``,
 ``restore``), US-4.2 (``key-export``, ``key-import``: back up and restore a profile's Keychain
 key), US-4.5 (``purge``), US-4.6 (``audit``). Rules: BR-1 (a local file only), BR-14
 (the commands print IDs, counts, dates, and global reference titles; a failure prints its error
@@ -30,6 +32,7 @@ from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.paths import active_profile, hermes_root
 from claimcoach.corpus.types import CorpusScope, PurgeRequest, ReindexRequest
 from claimcoach.paths import app_data_dir
+from claimcoach.settings import PORT_RANGE
 from claimcoach.worker.config import WorkerConfig
 from claimcoach.worker.launcher import worker_status
 from claimcoach.worker.token import read_token
@@ -59,9 +62,31 @@ class CliRegistrar(Protocol):
     ) -> object: ...
 
 
-def _client() -> WorkerClient:
-    config = WorkerConfig(data_dir=app_data_dir())
-    return WorkerClient(config.base_url, lambda: read_token(config.token_path), timeout=CLI_TIMEOUT)
+def _client(port: int) -> WorkerClient:
+    config = WorkerConfig(data_dir=app_data_dir(), port=port)
+
+    def token() -> str | None:
+        # The token is sent only where the launcher recorded the running worker: a mistyped
+        # --port that names a model server or another process gets nothing (worker_unavailable).
+        handle = worker_status(config)
+        if handle is None or handle.base_url != config.base_url:
+            return None
+        return read_token(config.token_path)
+
+    return WorkerClient(config.base_url, token, timeout=CLI_TIMEOUT)
+
+
+def _port(value: str) -> int:
+    """``--port``: a port in ClaimCoach's range (BR-11), checked before anything is sent."""
+    try:
+        port = int(value)
+    except ValueError:
+        port = -1
+    if port not in PORT_RANGE:
+        raise argparse.ArgumentTypeError(
+            f"not a ClaimCoach port ({PORT_RANGE.start}-{PORT_RANGE.stop - 1})"
+        )
+    return port
 
 
 GROUP_DEST: Final = "claimcoach_group"
@@ -77,18 +102,36 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     groups = parser.add_subparsers(dest=GROUP_DEST, required=True)
     corpus = groups.add_parser("corpus", help="ClaimCoach corpus scopes")
     commands = corpus.add_subparsers(dest=COMMAND_DEST, required=True)
-    imp = commands.add_parser("import", help="import a YAML or JSON bundle into the global scope")
+    # The commands that call the worker take its port; the local ones (files, Keychain) do not.
+    worker = argparse.ArgumentParser(add_help=False)
+    worker.add_argument(
+        "--port",
+        type=_port,
+        default=PORT_RANGE.start,
+        help=f"the worker's port (default {PORT_RANGE.start}; make passes WORKER_PORT)",
+    )
+    imp = commands.add_parser(
+        "import", help="import a YAML or JSON bundle into the global scope", parents=[worker]
+    )
     imp.add_argument("file", type=Path)
-    commands.add_parser("list", help="list the global corpus with source and verified-on dates")
-    commands.add_parser("status", help="show both scopes and their index model")
-    reindex = commands.add_parser("reindex", help="re-embed a scope under the configured model")
+    commands.add_parser(
+        "list", help="list the global corpus with source and verified-on dates", parents=[worker]
+    )
+    commands.add_parser("status", help="show both scopes and their index model", parents=[worker])
+    reindex = commands.add_parser(
+        "reindex", help="re-embed a scope under the configured model", parents=[worker]
+    )
     reindex.add_argument("--scope", choices=[s.value for s in CorpusScope], required=True)
     reindex.add_argument("--profile", help="user scope's profile (default: the active one)")
-    purge = commands.add_parser("purge", help="run the retention purge now, or purge one case")
+    purge = commands.add_parser(
+        "purge", help="run the retention purge now, or purge one case", parents=[worker]
+    )
     purge.add_argument("--profile", help="only this profile (default: every profile)")
     purge.add_argument("--case", dest="case_id", help="purge this case now (needs --confirm)")
     purge.add_argument("--confirm", action="store_true", help="approve a single-case purge")
-    audit = commands.add_parser("audit", help="show a profile's case-access audit log")
+    audit = commands.add_parser(
+        "audit", help="show a profile's case-access audit log", parents=[worker]
+    )
     audit.add_argument("--profile", help="profile (default: the active one)")
     audit.add_argument("--case", dest="case_id", help="only this case")
     back = commands.add_parser("backup", help="copy both scopes into a new folder")
@@ -224,7 +267,7 @@ def run(
         if command in _LOCAL:
             lines = _local_call(command, args)
         else:
-            lines = runner(_worker_call(args, client or _client()))
+            lines = runner(_worker_call(args, client or _client(args.port)))
     except ValidationError:
         out("error: invalid arguments")
         return 2

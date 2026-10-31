@@ -65,8 +65,10 @@ REQUIRE_ROLE = $(if $(and $(filter 1,$(words $(ROLE))),$(filter $(ROLE),$(MODEL_
 REQUIRE_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
 	echo "$@ fetches or writes model files under $(MODELS_HOME); re-run with CONFIRM=yes"; exit 2; }
 
-# The corpus commands of `hermes claimcoach corpus`, run from this checkout (US-4.x).
+# The corpus commands of `hermes claimcoach corpus`, run from this checkout (US-4.x). The ones that
+# call the worker take CORPUS_PORT, so they reach it on WORKER_PORT like every other worker target.
 CORPUS_CLI := $(UV) run python -m claimcoach.cli corpus
+CORPUS_PORT = --port $(WORKER_PORT)
 REQUIRE_SCOPE = $(if $(and $(filter 1,$(words $(SCOPE))),$(filter $(SCOPE),global user)),:,\
 	$(error usage: make $@ SCOPE=<global|user> [PROFILE=<name>]))
 REQUIRE_CORPUS_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
@@ -315,26 +317,27 @@ phi-fixtures: ## Regenerate the synthetic PHI fixture set (tests/fixtures/phi/ph
 # --- Corpus (docs/runbooks/corpus-import-reindex-backup-restore.md, phi-purge.md) ---------------
 
 corpus-status: ## Show both corpus scopes: paths, counts, encryption, index embedding model
-	@$(CORPUS_CLI) status
+	@$(CORPUS_CLI) status $(CORPUS_PORT)
 
 corpus-import: ## Import a local bundle into the global scope: make corpus-import FILE=rules.yaml
 	@test -f "$(FILE)" || { echo "usage: make corpus-import FILE=<bundle.yaml|.yml|.json>"; exit 2; }
-	@$(CORPUS_CLI) import "$(FILE)"
+	@$(CORPUS_CLI) import "$(FILE)" $(CORPUS_PORT)
 
 corpus-list: ## List the global corpus with source, verified-on date, and the STALE flag
-	@$(CORPUS_CLI) list
+	@$(CORPUS_CLI) list $(CORPUS_PORT)
 
 corpus-reindex: ## Re-embed a scope after a model change: make corpus-reindex SCOPE=global|user
 	@$(REQUIRE_SCOPE)
-	$(CORPUS_CLI) reindex --scope $(SCOPE) $(if $(PROFILE),--profile "$(PROFILE)")
+	$(CORPUS_CLI) reindex --scope $(SCOPE) $(if $(PROFILE),--profile "$(PROFILE)") $(CORPUS_PORT)
 
 corpus-purge: ## Retention purge now; one case: make corpus-purge PROFILE=p CASE=id CONFIRM=yes
 	@if [ -n "$(CASE)" ]; then $(REQUIRE_CORPUS_CONFIRM); fi
 	@$(CORPUS_CLI) purge $(if $(PROFILE),--profile "$(PROFILE)") \
-	  $(if $(CASE),--case "$(CASE)" --confirm)
+	  $(if $(CASE),--case "$(CASE)" --confirm) $(CORPUS_PORT)
 
 corpus-audit: ## Show the case-access audit log: make corpus-audit [PROFILE=p] [CASE=id]
-	@$(CORPUS_CLI) audit $(if $(PROFILE),--profile "$(PROFILE)") $(if $(CASE),--case "$(CASE)")
+	@$(CORPUS_CLI) audit $(if $(PROFILE),--profile "$(PROFILE)") $(if $(CASE),--case "$(CASE)") \
+	  $(CORPUS_PORT)
 
 corpus-backup: ## Back up both scopes (online, encrypted as stored): make corpus-backup [BACKUP_DIR=d]
 	@mkdir -p "$(BACKUP_DIR)" && chmod 700 "$(BACKUP_DIR)"

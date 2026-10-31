@@ -13,7 +13,13 @@ Every command below also runs as `hermes claimcoach corpus <command>` once the p
 
 ## Preconditions
 
-- The worker is running for import, list, status, reindex, purge, and audit (`make start`).
+- The worker is running for import, list, status, reindex, purge, and audit (`make start`). The
+  desktop pane and the gateway always use 18200, so another port is for a scratch or test worker
+  only. Such a worker needs its own `HERMES_HOME` (one data dir runs one worker), and both
+  `HERMES_HOME` and `WORKER_PORT` go to these targets too; they send the port as `--port`
+  (`hermes claimcoach corpus list --port 18213` outside make). The token is sent only to the port
+  the launcher recorded for the running worker; any other port answers `worker_unavailable`.
+  Backup, restore, and the key commands do not use the worker port.
 - The `embedding` model is present (`make models-check`); import and reindex embed with it.
 - The worker is **stopped** for restore (`make stop`).
 - Profile names are Hermes profile names (lowercase letters, digits, `-`, `_`); a name with no

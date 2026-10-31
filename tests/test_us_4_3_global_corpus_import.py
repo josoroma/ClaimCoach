@@ -13,13 +13,14 @@ import json
 import os
 import subprocess
 import sys
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
 import yaml
+from fastapi import FastAPI
 from pydantic import ValidationError
 
 from claimcoach import cli
@@ -36,9 +37,14 @@ from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.importer import import_bundle
 from claimcoach.corpus.service import CorpusService
 from claimcoach.models.manager import ModelUnavailableError
-from tests.conftest import HERMES_ROOT, REPO_ROOT
+from claimcoach.paths import app_data_dir
+from claimcoach.worker.app import create_app
+from claimcoach.worker.config import WorkerConfig, WorkerHandle
+from claimcoach.worker.token import issue_token
+from tests.conftest import HERMES_ROOT, REPO_ROOT, free_port_in_range
 from tests.fakes.corpus import TOKEN, add_case_document, corpus_client, make_service
 from tests.fakes.fake_model_server import FakeModelServer
+from tests.fakes.live_app import LiveApp
 from tests.fakes.phi import static_models
 from tests.fakes.registrar import FakeRegistrar
 from tests.test_us_1_1_plugin_package import load_agent_half, probe_hermes
@@ -327,7 +333,7 @@ def test_us_4_3_hermes_claimcoach_corpus_import_help(hermes_python: Path, tmp_pa
         check=False,
     )
     assert done.returncode == 0, done.stderr[-2000:]
-    assert "usage: hermes claimcoach corpus import [-h] file" in done.stdout
+    assert "usage: hermes claimcoach corpus import [-h] [--port PORT] file" in done.stdout
 
 
 # --- The other CLI subcommands ------------------------------------------------------------------
@@ -423,3 +429,136 @@ async def test_us_4_3_client_corpus_calls(service: CorpusService) -> None:
         assert view.items == []
         audit = await client.corpus_audit("default", "c9")
         assert audit.entries == []
+
+
+# --- Fix: the corpus CLI honors WORKER_PORT (fix-corpus-cli-worker-port) -------------------------
+
+
+def corpus_cli(*argv: str) -> tuple[int, list[str]]:
+    """Run ``python -m claimcoach.cli corpus …`` in-process, as ``make corpus-*`` does."""
+    lines: list[str] = []
+    code = cli.run(cli.build_parser().parse_args(["corpus", *argv]), out=lines.append)
+    return code, lines
+
+
+def running_worker_at(monkeypatch: pytest.MonkeyPatch, port: int) -> None:
+    """Make the launcher report a running worker on ``port`` (its PID file, as ``start`` writes)."""
+    handle = WorkerHandle(
+        pid=os.getpid(),
+        base_url=f"http://127.0.0.1:{port}",
+        token_path=WorkerConfig(data_dir=app_data_dir()).token_path,
+        started_at=datetime.now(UTC),
+    )
+    monkeypatch.setattr(cli, "worker_status", lambda _config: handle)
+
+
+def test_us_4_3_corpus_cli_reaches_a_worker_on_another_port(
+    tmp_path: Path, service: CorpusService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A worker on 18201-18219 is reached with ``--port``, as ``make WORKER_PORT=…`` passes it."""
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+    token = issue_token(WorkerConfig(data_dir=app_data_dir()).token_path)
+    bundle = write_bundle(tmp_path / "rules.yaml", [rule_card()])
+    port = free_port_in_range(18201)
+    running_worker_at(monkeypatch, port)
+    with LiveApp(create_app(token, corpus=service), port=port) as live:
+        assert live.port == port
+        imported = corpus_cli("import", str(bundle), "--port", str(port))
+        listed = corpus_cli("list", "--port", str(port))
+    assert imported == (0, ["imported 1 rule_card (1 chunks)"])
+    assert listed[0] == 0
+    assert any("Aetna/timely_filing" in line for line in listed[1])
+
+
+@pytest.mark.parametrize("recorded", [18200, None])
+def test_us_4_3_corpus_cli_sends_the_token_only_to_the_recorded_worker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recorded: int | None
+) -> None:
+    """Review regression: a ``--port`` that names another process (a model server, a mistyped
+    port) or no running worker gets no request, so the token never leaves for it."""
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+    issue_token(WorkerConfig(data_dir=app_data_dir()).token_path)
+    if recorded is None:
+        monkeypatch.setattr(cli, "worker_status", lambda _config: None)
+    else:
+        running_worker_at(monkeypatch, recorded)
+    seen: list[str] = []
+    listener = FastAPI()
+
+    @listener.middleware("http")
+    async def record(request: Any, call_next: Any) -> Any:
+        seen.append(request.headers.get("authorization", ""))
+        return await call_next(request)
+
+    port = free_port_in_range(18201)
+    with LiveApp(listener, port=port):
+        assert corpus_cli("list", "--port", str(port)) == (1, ["error: worker_unavailable"])
+    assert seen == [], "nothing was sent to the other port"
+
+
+def test_us_4_3_corpus_cli_port_defaults_and_scope() -> None:
+    parser = cli.build_parser()
+    for command in (
+        ["import", "x.yaml"],
+        ["list"],
+        ["status"],
+        ["reindex", "--scope", "global"],
+        ["purge"],
+        ["audit"],
+    ):
+        assert parser.parse_args(["corpus", *command]).port == 18200, command
+        assert parser.parse_args(["corpus", *command, "--port", "18219"]).port == 18219
+    for local in (
+        ["backup", "--to", "d"],
+        ["restore", "--from", "d"],
+        ["key-export", "--to", "k"],
+        ["key-import", "--from", "k"],
+    ):
+        with pytest.raises(SystemExit):
+            parser.parse_args(["corpus", *local, "--port", "18201"])
+
+
+@pytest.mark.parametrize("port", ["80", "18220", "18199", "abc", "-1"])
+def test_us_4_3_corpus_cli_refuses_a_port_outside_the_range(
+    port: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exited:
+        cli.main(["corpus", "list", "--port", port])
+    assert exited.value.code == 2
+    assert "not a ClaimCoach port (18200-18219)" in capsys.readouterr().err
+
+
+def test_us_4_3_corpus_targets_pass_worker_port() -> None:
+    def dry(target: str, *extra: str) -> str:
+        return subprocess.run(
+            ["make", "-n", target, "WORKER_PORT=18213", *extra],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            env={**os.environ, "HERMES_HOME": "/nonexistent"},
+        ).stdout
+
+    for target, extra in (
+        ("corpus-status", ()),
+        ("corpus-list", ()),
+        ("corpus-import", ("FILE=Makefile",)),
+        ("corpus-reindex", ("SCOPE=global",)),
+        ("corpus-purge", ()),
+        ("corpus-audit", ()),
+    ):
+        assert "--port 18213" in dry(target, *extra), target
+    local: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("corpus-backup", ()),
+        ("corpus-restore", ("FROM=/nonexistent", "CONFIRM=yes")),
+        ("corpus-key-export", ("TO=/nonexistent/key",)),
+        ("corpus-key-import", ("FROM=/nonexistent/key", "CONFIRM=yes")),
+    )
+    for name, settings in local:
+        assert "--port" not in dry(name, *settings), "the local commands take no port"
+
+
+def test_us_4_3_corpus_runbook_names_the_worker_port() -> None:
+    runbook = (REPO_ROOT / "docs/runbooks/corpus-import-reindex-backup-restore.md").read_text()
+    for fact in ("WORKER_PORT", "--port", "always use 18200", "its own `HERMES_HOME`"):
+        assert fact in runbook, fact
