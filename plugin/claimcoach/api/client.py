@@ -1,37 +1,55 @@
 """The single httpx client the gateway uses to reach the worker.
 
 Implements: US-1.3 (one ``WorkerClient`` with typed methods; ``httpx.HTTPError`` and
-``ValidationError`` caught explicitly, no bare ``except``). Rules: ES-1, ES-8, PC-4 (the gateway
-only proxies; heavy work runs in the worker).
+``ValidationError`` caught explicitly, no bare ``except``), US-2.2 and US-2.4 (model status,
+download, and conversion calls; the worker's own model error codes reach the desktop half).
+Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
+error keeps only its code; the message is the fixed one for that code).
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import ClassVar, TypeVar
+from typing import Final, Literal, TypeVar
 
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from claimcoach.api.models import ErrorCode, HealthResponse
+from claimcoach.api.models import ErrorCode, ErrorEnvelope, HealthResponse
+from claimcoach.models.types import (
+    AcquireResult,
+    ConversionRequest,
+    DownloadRequest,
+    ModelsStatusResponse,
+)
 
 __all__ = [
+    "RELAYED_CODES",
     "InvalidWorkerResponseError",
     "WorkerClient",
     "WorkerError",
     "WorkerFailedError",
+    "WorkerRejectedError",
     "WorkerUnauthorizedError",
     "WorkerUnavailableError",
 ]
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
+RELAYED_CODES: Final[dict[ErrorCode, int]] = {
+    "invalid_request": 422,
+    "model_unavailable": 503,
+    "model_busy": 409,
+    "conversion_unavailable": 409,
+}
+"""Worker error codes the desktop half acts on, with the status the gateway answers them with."""
+
 
 class WorkerError(Exception):
     """A worker call failed; ``code`` and ``status_code`` say how to answer the desktop half."""
 
-    code: ClassVar[ErrorCode]
-    status_code: ClassVar[int]
+    code: ErrorCode = "worker_error"
+    status_code: int = 502
 
 
 class WorkerUnavailableError(WorkerError):
@@ -53,6 +71,16 @@ class WorkerFailedError(WorkerError):
 
     code = "worker_error"
     status_code = 502
+
+
+class WorkerRejectedError(WorkerError):
+    """The worker refused the request with one of ``RELAYED_CODES``."""
+
+    def __init__(self, code: ErrorCode) -> None:
+        """Keep the worker's code and its gateway status; never the worker's message."""
+        super().__init__(code)
+        self.code = code
+        self.status_code = RELAYED_CODES[code]
 
 
 class InvalidWorkerResponseError(WorkerError):
@@ -93,9 +121,39 @@ class WorkerClient:
         Raises:
             WorkerError: The call failed; the subclass names why.
         """
-        return await self._get("/health", HealthResponse)
+        return await self._request("GET", "/health", HealthResponse)
 
-    async def _get(self, path: str, model: type[ModelT]) -> ModelT:
+    async def models_status(self) -> ModelsStatusResponse:
+        """Return the status of every model role.
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("GET", "/models/status", ModelsStatusResponse)
+
+    async def download_model(self, request: DownloadRequest) -> AcquireResult:
+        """Ask the worker to download a role's model (only runs when ``confirm`` is true).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("POST", "/models/download", AcquireResult, request)
+
+    async def convert_model(self, request: ConversionRequest) -> AcquireResult:
+        """Ask the worker to convert a role's model locally (only when ``confirm`` is true).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("POST", "/models/convert", AcquireResult, request)
+
+    async def _request(
+        self,
+        method: Literal["GET", "POST"],
+        path: str,
+        model: type[ModelT],
+        body: BaseModel | None = None,
+    ) -> ModelT:
         token = self._token_provider()
         if token is None:
             raise WorkerUnavailableError
@@ -106,14 +164,34 @@ class WorkerClient:
                 timeout=self._timeout,
                 trust_env=False,  # never route the token or case data through a proxy
             ) as client:
-                response = await client.get(path, headers={"Authorization": f"Bearer {token}"})
+                headers = {"Authorization": f"Bearer {token}"}
+                content = None
+                if body is not None:
+                    headers["Content-Type"] = "application/json"
+                    content = body.model_dump_json()
+                response = await client.request(method, path, headers=headers, content=content)
         except httpx.HTTPError as exc:
             raise WorkerUnavailableError from exc
         if response.status_code == httpx.codes.UNAUTHORIZED:
             raise WorkerUnauthorizedError
         if response.is_error:
-            raise WorkerFailedError
+            raise _rejection(response)
         try:
             return model.model_validate_json(response.content)
         except ValidationError as exc:
             raise InvalidWorkerResponseError from exc
+
+
+def _rejection(response: httpx.Response) -> WorkerError:
+    """Relay a worker error whose envelope carries a code the desktop half acts on.
+
+    The status must be the one that code is answered with, so an unexpected failure that happens
+    to carry such a code still maps to ``worker_error``.
+    """
+    try:
+        code = ErrorEnvelope.model_validate_json(response.content).error.code
+    except ValidationError:
+        return WorkerFailedError()
+    if RELAYED_CODES.get(code) == response.status_code:
+        return WorkerRejectedError(code)
+    return WorkerFailedError()

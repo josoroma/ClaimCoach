@@ -21,6 +21,9 @@ PYTEST_MARKERS ?= not models and not gate
 # Extra files for mypy; the gate self-test injects a deliberately broken module here.
 MYPY_EXTRA ?=
 STORY ?=
+# Model targets: ROLE is a models.yaml role; downloads and conversions also need CONFIRM=yes (BR-1).
+ROLE ?=
+CONFIRM ?=
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -28,10 +31,29 @@ ENTRY_POINTS := plugin/__init__.py plugin/_bootstrap.py plugin/dashboard/plugin_
 
 export MODELS_HOME HERMES_HOME
 
+WORKER_URL := http://127.0.0.1:$(WORKER_PORT)
+# curl to the worker with this launch's token. The header goes through a file descriptor so `ps`
+# never shows the token, and proxies are bypassed so no proxy ever sees it. pipefail is set here
+# because macOS ships GNU Make 3.81, which ignores .SHELLFLAGS: an error envelope piped through
+# json.tool must still fail the target.
+WORKER_CURL = set -o pipefail; token_file="$(HERMES_HOME)/plugin-data/claimcoach/worker/token"; \
+	test -s "$$token_file" || { echo "no token at $$token_file; is the worker running?"; exit 1; }; \
+	curl -sS --fail-with-body --noproxy '*' \
+	  -H @<(printf 'Authorization: Bearer %s\n' "$$(cat "$$token_file")")
+# ModelRole values. ROLE is checked by make itself, before any shell sees it.
+MODEL_ROLES := extraction phi_detection classification embedding rerank explanation drafting \
+	transcription
+REQUIRE_ROLE = $(if $(and $(filter 1,$(words $(ROLE))),$(filter $(ROLE),$(MODEL_ROLES))),:,\
+	$(error usage: make $@ ROLE=<one of: $(MODEL_ROLES)>))
+REQUIRE_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
+	echo "$@ fetches or writes model files under $(MODELS_HOME); re-run with CONFIRM=yes"; exit 2; }
+
 .PHONY: help install check verify lint typecheck test test-py test-js fmt coverage-html \
         evidence evidence-check openspec-validate validate \
         plugin-link plugin-unlink plugin-enable plugin-disable \
-        worker-venv worker-start worker-stop worker-status worker-health clean
+        worker-venv worker-start worker-stop worker-status worker-health \
+        models-init models-check models-status models-load models-unload models-download \
+        models-convert clean
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -95,7 +117,8 @@ evidence-check: ## Validate every evidence/US-x.y report and JUnit file
 	@if [ -x "$(OHMYORCH)" ]; then \
 	  for r in evidence/US-*/test-report.md; do \
 	    s=$$(basename "$$(dirname "$$r")"); \
-	    "$(OHMYORCH)" --project-root "$(CURDIR)" validate-test-report --quiet --report "$$r" --story "$$s"; \
+	    "$(OHMYORCH)" --project-root "$(CURDIR)" validate-test-report --quiet --report "$$r" --story "$$s" \
+	      || { echo "OhMyOrch rejected $$r"; exit 1; }; \
 	  done; \
 	else echo "OhMyOrch not found at $(OHMYORCH); skipped its validator"; fi
 
@@ -138,10 +161,39 @@ worker-status: ## Print the running worker's handle (exit 1 when stopped)
 	$(UV) run python -m claimcoach.worker.launcher status --port $(WORKER_PORT)
 
 worker-health: ## GET /health on the worker with the current token
-	@token_file="$(HERMES_HOME)/plugin-data/claimcoach/worker/token"; \
-	test -s "$$token_file" || { echo "no token at $$token_file; is the worker running?"; exit 1; }; \
-	curl -fsS --noproxy '*' -H @<(printf 'Authorization: Bearer %s\n' "$$(cat "$$token_file")") \
-	  "http://127.0.0.1:$(WORKER_PORT)/health"; echo  # header via fd, so ps never shows the token
+	@$(WORKER_CURL) "$(WORKER_URL)/health"; echo
+
+# --- Local models (docs/runbooks/model-download-convert.md, worker-start-stop-health.md) ---------
+
+models-init: ## Write the default models.yaml to the data dir (never overwrites an edited one)
+	$(UV) run python -m claimcoach.models init
+
+models-check: ## Validate models.yaml and list each role's port, weights, and venv (offline)
+	$(UV) run python -m claimcoach.models check
+
+models-status: ## GET /models/status from the running worker
+	@$(WORKER_CURL) "$(WORKER_URL)/models/status" | python3 -m json.tool
+
+models-load: ## Start a role's model server and wait until healthy: make models-load ROLE=classification
+	@$(REQUIRE_ROLE)
+	@$(WORKER_CURL) -X POST "$(WORKER_URL)/models/$(ROLE)/load" | python3 -m json.tool
+
+models-unload: ## Stop a role's model server now: make models-unload ROLE=classification
+	@$(REQUIRE_ROLE)
+	@$(WORKER_CURL) -X POST "$(WORKER_URL)/models/$(ROLE)/unload" | python3 -m json.tool
+
+models-download: ## Download a role's model into MODELS_HOME: make models-download ROLE=x CONFIRM=yes
+	@$(REQUIRE_ROLE)
+	@$(REQUIRE_CONFIRM)
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' \
+	  -d '{"role": "$(ROLE)", "confirm": true}' "$(WORKER_URL)/models/download" | python3 -m json.tool
+
+models-convert: override ROLE := $(or $(ROLE),rerank)
+models-convert: ## Convert the reranker to local MLX 4-bit: make models-convert CONFIRM=yes
+	@$(REQUIRE_ROLE)
+	@$(REQUIRE_CONFIRM)
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' \
+	  -d '{"role": "$(ROLE)", "confirm": true}' "$(WORKER_URL)/models/convert" | python3 -m json.tool
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

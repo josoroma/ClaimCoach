@@ -38,6 +38,8 @@ from tests.conftest import PLUGIN_DIR, free_port_in_range, python_for_worker
 TOKEN = "proxy-test-token"
 PHI = "Jane Doe DOB 1970-01-01 MRN 0042"
 PREFIX = "/api/plugins/claimcoach"
+GATEWAY_ROUTES = {"/health", "/models/status", "/models/download", "/models/convert"}
+"""US-1.3 health plus the EPIC-2 model routes (US-2.2 status, US-2.4 download/convert)."""
 
 
 def gateway_app(client: WorkerClient) -> FastAPI:
@@ -267,7 +269,7 @@ def load_plugin_api() -> ModuleType:
 def test_us_1_3_plugin_api_loads_standalone() -> None:
     module = load_plugin_api()
     assert module.router is routes.router
-    assert {r.path for r in module.router.routes if isinstance(r, APIRoute)} == {"/health"}
+    assert {r.path for r in module.router.routes if isinstance(r, APIRoute)} == GATEWAY_ROUTES
 
 
 def test_us_1_3_plugin_api_reports_missing_bootstrap(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -295,7 +297,7 @@ def test_us_1_3_plugin_api_loads_in_gateway_python(hermes_python: Path) -> None:
         [str(hermes_python), "-c", script], capture_output=True, text=True, check=True, timeout=60
     )
     payload = json.loads(result.stdout)
-    assert payload["routes"] == ["/health"]
+    assert payload["routes"] == sorted(GATEWAY_ROUTES)
     # Tripwire: if Hermes moves its gateway to a newer Python, revisit the 3.11 floor
     # (pyproject target-version / python_version, ADR-0001 Consequences).
     assert payload["python"] == [3, 11]

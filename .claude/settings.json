@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make help)",
+      "Bash(make check)",
+      "Bash(make verify)",
+      "Bash(make lint)",
+      "Bash(make typecheck)",
+      "Bash(make test)",
+      "Bash(make test-py)",
+      "Bash(make test-js)",
+      "Bash(make fmt)",
+      "Bash(make evidence *)",
+      "Bash(make evidence-check)",
+      "Bash(make openspec-validate)",
+      "Bash(make models-status)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run ruff *)",
+      "Bash(uv run mypy *)",
+      "Bash(openspec list *)",
+      "Bash(openspec show *)",
+      "Bash(openspec status *)",
+      "Bash(openspec validate *)",
+      "Bash(openspec instructions *)",
+      "Bash(npm test *)",
+      "Bash(npm exec --no -- biome *)",
+      "Bash(npm exec --no -- tsc *)"
+    ],
+    "deny": [
+      "Bash(make models-download *)",
+      "Bash(make models-convert *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-openspec.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-python.sh",
+            "timeout": 60,
+            "statusMessage": "ruff format + fix"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-context.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

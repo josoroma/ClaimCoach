@@ -5,21 +5,31 @@ ES-4 (offline tests use a fake OpenAI-compatible server; real-model tests are ma
 
 It runs uvicorn on ``127.0.0.1`` with an ephemeral port in a daemon thread, so code under test
 talks to it over a real loopback socket exactly as it would talk to ``mlx_lm.server``.
+
+US-2.2 also launches it as a model-server *process* from ``models.yaml``::
+
+    python -m tests.fakes.fake_model_server --host 127.0.0.1 --port 18202 [--health error]
+        [--ignore-sigterm]
 """
 
 from __future__ import annotations
 
+import argparse
+import signal
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from types import TracebackType
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel, ConfigDict
 
-__all__ = ["DEFAULT_REPLY", "ChatMessage", "ChatRequest", "FakeModelServer"]
+__all__ = ["DEFAULT_REPLY", "ChatMessage", "ChatRequest", "FakeModelServer", "Health", "main"]
+
+Health = Literal["ok", "error", "text", "no-data"]
+"""How ``/v1/models`` answers: a model list, HTTP 503, plain text, or JSON without ``data``."""
 
 DEFAULT_REPLY = '{"ok": true}'
 
@@ -47,15 +57,22 @@ class FakeModelServer:
 
     Args:
         replies: Canned assistant reply per model id; unknown models get ``DEFAULT_REPLY``.
+        port: Port to bind; ``0`` picks a free one.
+        health: How ``/v1/models`` answers.
     """
 
-    def __init__(self, replies: Mapping[str, str] | None = None) -> None:
+    def __init__(
+        self, replies: Mapping[str, str] | None = None, *, port: int = 0, health: Health = "ok"
+    ) -> None:
         """Build the app; call ``start()`` (or use as a context manager) to serve it."""
         self.replies: dict[str, str] = dict(replies or {})
         self.requests: list[ChatRequest] = []
+        self.health = health
         self.app = self._build_app()
         self._server = uvicorn.Server(
-            uvicorn.Config(self.app, host="127.0.0.1", port=0, log_level="warning", lifespan="off")
+            uvicorn.Config(
+                self.app, host="127.0.0.1", port=port, log_level="warning", lifespan="off"
+            )
         )
         self._thread = threading.Thread(target=self._server.run, daemon=True)
         self.port = 0
@@ -68,8 +85,14 @@ class FakeModelServer:
     def _build_app(self) -> FastAPI:
         app = FastAPI()
 
-        @app.get("/v1/models")
-        def models() -> dict[str, Any]:
+        @app.get("/v1/models", response_model=None)
+        def models() -> dict[str, Any] | Response:
+            if self.health == "error":
+                return Response("loading", status_code=503)
+            if self.health == "text":
+                return Response("not json", media_type="text/plain")
+            if self.health == "no-data":
+                return {"object": "list"}
             ids = sorted(self.replies) or ["fake-model"]
             return {
                 "object": "list",
@@ -125,3 +148,30 @@ class FakeModelServer:
     ) -> None:
         """Stop serving."""
         self.stop()
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Serve until SIGTERM, like a model server the worker launched."""
+    parser = argparse.ArgumentParser(prog="python -m tests.fakes.fake_model_server")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, required=True)
+    parser.add_argument("--model", default="fake-model")
+    parser.add_argument("--health", choices=get_args(Health), default="ok")
+    parser.add_argument("--ignore-sigterm", action="store_true")
+    args = parser.parse_args(argv)
+    if args.host != "127.0.0.1":
+        parser.error("the fake only binds 127.0.0.1")
+    stop = threading.Event()
+    if args.ignore_sigterm:
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    else:
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    server = FakeModelServer({args.model: DEFAULT_REPLY}, port=args.port, health=args.health)
+    server.start()
+    stop.wait()
+    server.stop()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

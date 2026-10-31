@@ -1,0 +1,103 @@
+# ClaimCoach model registry (US-2.1). Copied to <hermes root>/plugin-data/claimcoach/models.yaml
+# on first worker start; edit that copy, not this file.
+#
+# Weights are read in place from MODELS_HOME (default ~/Models) and never copied (BR-11).
+# Ports: 18200 is the worker; model servers use 18201-18219. Roles on one port share one server.
+# Command placeholders: {venv} {model} {host} {port}. {host} is always 127.0.0.1.
+version: 1
+
+# Seconds a server may sit unused before it is stopped (US-2.2).
+idle_timeout_s: 600
+# Longest a load may wait for the memory guard before failing with model_busy (US-2.3).
+queue_timeout_s: 900
+
+# Never two servers with tier_b >= large_tier_b resident at once (BR-12).
+residency:
+  large_tier_b: 14
+
+# Confirmed downloads and local conversion (US-2.4). Run only after the user confirms.
+acquire:
+  download: ["{models_home}/.venvs/mlx-lm/bin/hf", "download", "{repo_id}", "--local-dir", "{target}"]
+  convert:
+    - "{models_home}/.venvs/mlx-lm/bin/mlx_lm.convert"
+    - "--hf-path"
+    - "{source}"
+    - "--mlx-path"
+    - "{target}"
+    - "-q"
+    - "--q-bits"
+    - "{q_bits}"
+
+roles:
+  extraction:
+    repo_id: mlx-community/Qwen3-VL-8B-Instruct-4bit
+    model_dir: Qwen3-VL-8B-Instruct-4bit
+    venv: mlx-vlm
+    command: ["{venv}/bin/mlx_vlm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18201
+    tier_b: 8
+
+  # PHI detection and classification share one Qwen3-8B server.
+  phi_detection:
+    repo_id: mlx-community/Qwen3-8B-4bit
+    model_dir: Qwen3-8B-4bit
+    venv: mlx-lm
+    command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18202
+    tier_b: 8
+
+  classification:
+    repo_id: mlx-community/Qwen3-8B-4bit
+    model_dir: Qwen3-8B-4bit
+    venv: mlx-lm
+    command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18202
+    tier_b: 8
+
+  # Embedding and rerank serving commands are provisional until EPIC-4 (retrieval).
+  embedding:
+    repo_id: mlx-community/Qwen3-Embedding-8B-4bit-DWQ
+    model_dir: Qwen3-Embedding-8B-4bit-DWQ
+    venv: mlx-lm
+    command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18203
+    tier_b: 8
+
+  rerank:
+    convert:
+      source_repo_id: Qwen/Qwen3-Reranker-8B
+      source_dir: Qwen3-Reranker-8B
+      q_bits: 4
+    model_dir: Qwen3-Reranker-8B-MLX-4bit
+    venv: mlx-lm
+    command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18204
+    tier_b: 8
+
+  explanation:
+    repo_id: mlx-community/Qwen3-14B-4bit
+    model_dir: Qwen3-14B-4bit
+    venv: mlx-lm
+    command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18205
+    tier_b: 14
+
+  drafting:
+    repo_id: Youssofal/Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed
+    model_dir: Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed
+    venv: mtplx
+    command: ["{venv}/bin/mtplx", "serve", "--model", "{model}", "--host", "{host}", "--port", "{port}", "--no-auth"]
+    port: 18206
+    tier_b: 27
+    startup_timeout_s: 600
+
+  # v1.1 batch transcription (EPIC-11); runs only when nothing else is loaded.
+  transcription:
+    repo_id: mlx-community/Voxtral-Small-24B-2507-4bit
+    model_dir: Voxtral-Small-24B-2507-4bit
+    venv: mlx-vlm
+    command: ["{venv}/bin/python", "-m", "mlx_audio.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    port: 18207
+    tier_b: 24
+    runs_alone: true
+    startup_timeout_s: 600

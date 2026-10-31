@@ -45,6 +45,11 @@ APP_ROOT: Final = Path(__file__).resolve().parents[2]
 TERM_GRACE: Final = 5.0
 """Seconds a worker that failed to start gets to exit after SIGTERM before SIGKILL."""
 
+STOP_TIMEOUT: Final = 30.0
+"""Seconds a running worker gets to exit after SIGTERM. Its shutdown drains requests for up to
+``GRACEFUL_SHUTDOWN`` (5 s), then stops download jobs and model servers concurrently (up to 10 s
+each); SIGKILL earlier would orphan the model servers (US-2.2)."""
+
 _PS: Final = "/bin/ps"
 
 _SPAWNED: dict[int, subprocess.Popen[bytes]] = {}
@@ -197,7 +202,7 @@ def _wait_gone(pid: int, timeout: float) -> bool:
     return True
 
 
-def stop_worker(config: WorkerConfig, *, timeout: float = 10.0) -> bool:
+def stop_worker(config: WorkerConfig, *, timeout: float = STOP_TIMEOUT) -> bool:
     """Stop the running worker with SIGTERM and remove its PID and token files.
 
     Args:
