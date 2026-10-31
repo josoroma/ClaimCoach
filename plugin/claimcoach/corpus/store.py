@@ -643,6 +643,16 @@ class CorpusStore:
         with self._lock:
             return self._case_row(self._db, case_id)
 
+    def record(self, case_id: str, action: AuditAction) -> None:
+        """Append an audit entry for an action that changes nothing stored (US-7.2: an export).
+
+        Raises:
+            CaseNotFoundError: No such case.
+        """
+        with self._tx() as db:
+            self._case_row(db, case_id)
+            self._audit(db, action, case_id)
+
     def open_case(self, case_id: str) -> CaseRecord:
         """Return the case record; every call appends a ``case_opened`` audit entry (US-4.6).
 

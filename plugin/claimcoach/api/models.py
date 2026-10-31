@@ -6,7 +6,8 @@ Implements: US-1.2 (worker 401 envelope), US-1.3 (``ApiError``, ``ErrorEnvelope`
 ``case_not_found``, ``profile_not_found``), US-4.2 (``corpus_unavailable``), US-5.1
 (``document_too_large``, ``unsupported_document``, ``case_closed``), US-5.2
 (``no_documents``, ``job_not_found``, ``extraction_failed``, ``processing_timeout``), US-6.1
-(``not_extracted``, ``diagnosis_failed``). Rules: ES-1
+(``not_extracted``, ``diagnosis_failed``), US-7.1 (``not_diagnosed``, ``no_letter_template``,
+``drafting_failed``), US-7.2 (``not_drafted``, ``draft_edited``). Rules: ES-1
 (Pydantic v2 for every REST body), ES-8 (typed success model or the envelope ``{"ok": false,
 "error": {"code", "message"}}``), BR-14 (messages are fixed strings and never carry document text).
 """
@@ -53,6 +54,11 @@ ErrorCode = Literal[
     "processing_timeout",
     "not_extracted",
     "diagnosis_failed",
+    "not_diagnosed",
+    "no_letter_template",
+    "drafting_failed",
+    "not_drafted",
+    "draft_edited",
 ]
 """Closed set of error codes the desktop half can switch on."""
 
@@ -83,6 +89,14 @@ ERROR_MESSAGES: Final[dict[ErrorCode, str]] = {
     "not_extracted": "Process the case so its fields are extracted before diagnosing it.",
     "diagnosis_failed": "The local model's answer could not be used; check the case's fields, "
     "then diagnose it again.",
+    "not_diagnosed": "Diagnose the case, or diagnose it again after its fields changed, before "
+    "drafting the appeal.",
+    "no_letter_template": "No appeal letter template is in the global corpus; ask the manager to "
+    "import one.",
+    "drafting_failed": "The local model's draft could not be used; draft the appeal again.",
+    "not_drafted": "Draft the appeal before editing or exporting it.",
+    "draft_edited": "The draft was edited while a new one was being drafted, so the edits were "
+    "kept; draft again to replace them.",
 }
 """One fixed, PHI-free message per code; no caller text is ever echoed (BR-14)."""
 

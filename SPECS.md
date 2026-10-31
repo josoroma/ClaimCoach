@@ -194,18 +194,18 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-6.3#2 | Add test test_us_6_3_deadline_from_rule_card | DONE | US-6.3 |
 | US-6.3#3 | Record evidence/US-6.3/test-report.md | DONE | US-6.3 |
 | EPIC-7 | Appeal Drafting and Export | — | — |
-| US-7.1 | Draft the Appeal Letter | READY | EPIC-7 |
-| US-7.1#1 | Implement claimcoach/letters/draft.py with typed DraftRequest, AppealDraft | TODO | US-7.1 |
-| US-7.1#2 | Add tests test_us_7_1_draft_from_rule_card_and_template, test_us_7_1_draft_carries_review… | TODO | US-7.1 |
-| US-7.1#3 | Record evidence/US-7.1/test-report.md | TODO | US-7.1 |
-| US-7.2 | Edit and Export the Draft | READY | EPIC-7 |
-| US-7.2#1 | Implement claimcoach/letters/export.py with typed ExportRequest (format enum PDF, DOCX) a… | TODO | US-7.2 |
-| US-7.2#2 | Add tests test_us_7_2_edits_saved, test_us_7_2_export_pdf, test_us_7_2_export_docx | TODO | US-7.2 |
-| US-7.2#3 | Record evidence/US-7.2/test-report.md | TODO | US-7.2 |
-| US-7.3 | No Send or Submit Anywhere | READY | EPIC-7 |
-| US-7.3#1 | Add a route-table test and a contribution-label test; document the rule in the module doc… | TODO | US-7.3 |
-| US-7.3#2 | Add tests test_us_7_3_no_send_contribution, test_us_7_3_no_transmitting_route | TODO | US-7.3 |
-| US-7.3#3 | Record evidence/US-7.3/test-report.md | TODO | US-7.3 |
+| US-7.1 | Draft the Appeal Letter | DONE | EPIC-7 |
+| US-7.1#1 | Implement claimcoach/letters/draft.py with typed DraftRequest, AppealDraft | DONE | US-7.1 |
+| US-7.1#2 | Add tests test_us_7_1_draft_from_rule_card_and_template, test_us_7_1_draft_carries_review… | DONE | US-7.1 |
+| US-7.1#3 | Record evidence/US-7.1/test-report.md | DONE | US-7.1 |
+| US-7.2 | Edit and Export the Draft | DONE | EPIC-7 |
+| US-7.2#1 | Implement claimcoach/letters/export.py with typed ExportRequest (format enum PDF, DOCX) a… | DONE | US-7.2 |
+| US-7.2#2 | Add tests test_us_7_2_edits_saved, test_us_7_2_export_pdf, test_us_7_2_export_docx | DONE | US-7.2 |
+| US-7.2#3 | Record evidence/US-7.2/test-report.md | DONE | US-7.2 |
+| US-7.3 | No Send or Submit Anywhere | DONE | EPIC-7 |
+| US-7.3#1 | Add a route-table test and a contribution-label test; document the rule in the module doc… | DONE | US-7.3 |
+| US-7.3#2 | Add tests test_us_7_3_no_send_contribution, test_us_7_3_no_transmitting_route | DONE | US-7.3 |
+| US-7.3#3 | Record evidence/US-7.3/test-report.md | DONE | US-7.3 |
 | US-7.4 | Corrected Claim Draft | NEEDS CLARIFICATION | EPIC-7 |
 | US-7.4#1 | Define the corrected-claim output once its format is decided | TODO | US-7.4 |
 | EPIC-8 | Outcomes, Manager Dashboard, and Export | — | — |
@@ -1975,7 +1975,7 @@ Open Questions:
 
 ### US-7.1: Draft the Appeal Letter
 
-Status: READY
+Status: DONE
 
 As a biller
 I want an appeal letter drafted from the payer's rule card and a template
@@ -2005,16 +2005,16 @@ Dependencies:
 - US-2.3
 
 Tasks:
-- [ ] Implement claimcoach/letters/draft.py with typed `DraftRequest`, `AppealDraft`
-- [ ] Add tests test_us_7_1_draft_from_rule_card_and_template, test_us_7_1_draft_carries_review_label
-- [ ] Record evidence/US-7.1/test-report.md
+- [x] Implement claimcoach/letters/draft.py with typed `DraftRequest`, `AppealDraft`
+- [x] Add tests test_us_7_1_draft_from_rule_card_and_template, test_us_7_1_draft_carries_review_label
+- [x] Record evidence/US-7.1/test-report.md
 
 Open Questions:
 - None
 
 ### US-7.2: Edit and Export the Draft
 
-Status: READY
+Status: DONE
 
 As a biller
 I want to edit the draft in the pane and export it as PDF or DOCX
@@ -2046,16 +2046,20 @@ Dependencies:
 - US-7.1
 
 Tasks:
-- [ ] Implement claimcoach/letters/export.py with typed `ExportRequest` (format enum PDF, DOCX) and the pane editor in plugin.js
-- [ ] Add tests test_us_7_2_edits_saved, test_us_7_2_export_pdf, test_us_7_2_export_docx
-- [ ] Record evidence/US-7.2/test-report.md
+- [x] Implement claimcoach/letters/export.py with typed `ExportRequest` (format enum PDF, DOCX) and the pane editor in plugin.js
+- [x] Add tests test_us_7_2_edits_saved, test_us_7_2_export_pdf, test_us_7_2_export_docx
+- [x] Record evidence/US-7.2/test-report.md
 
 Open Questions:
 - Where is the exported file written: a user-chosen folder via ctx.files.requestFolder(), or the plugin data dir?
+  Resolved (openspec us-7-2-edit-export-draft, design decision 4): Hermes v0.22.5 has no
+  `ctx.files`; the worker writes the export to the profile's `plugin-data/claimcoach/exports/`
+  folder for 15 minutes (or until the worker stops), and the pane hands it to the SDK's
+  `captureGatewayFileDownload()` save dialog, where the biller picks the folder.
 
 ### US-7.3: No Send or Submit Anywhere
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want ClaimCoach to have no send or submit capability
@@ -2084,9 +2088,9 @@ Dependencies:
 - US-7.2
 
 Tasks:
-- [ ] Add a route-table test and a contribution-label test; document the rule in the module docstrings citing BR-4
-- [ ] Add tests test_us_7_3_no_send_contribution, test_us_7_3_no_transmitting_route
-- [ ] Record evidence/US-7.3/test-report.md
+- [x] Add a route-table test and a contribution-label test; document the rule in the module docstrings citing BR-4
+- [x] Add tests test_us_7_3_no_send_contribution, test_us_7_3_no_transmitting_route
+- [x] Record evidence/US-7.3/test-report.md
 
 Open Questions:
 - None

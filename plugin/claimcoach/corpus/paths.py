@@ -1,12 +1,15 @@
 """Where the two corpus scopes live.
 
 Implements: US-4.1 (global scope under the Hermes root, user scope under the active profile's
-plugin data dir). Rules: BR-13, PC-6, PRD §9.
+plugin data dir), US-7.2 (each profile's short-lived ``exports`` folder, next to its user scope).
+Rules: BR-13, PC-6, PRD §9.
 
 * ``global``: ``<hermes root>/plugin-data/claimcoach/global/``, shared by every profile.
 * ``user``: ``plugin_data_dir("claimcoach")/user/``, i.e. ``<profile home>/plugin-data/claimcoach/
   user/``, where a profile's home is ``<root>/profiles/<name>`` and the default profile's home is
   the root itself.
+* ``exports``: ``<profile home>/plugin-data/claimcoach/exports/``, a profile's exported drafts,
+  each deleted 15 minutes after it is written (US-7.2).
 
 The gateway and the Hermes CLI resolve the *active* profile; the app-wide worker addresses a user
 scope by a validated profile name instead, so a request can never point it at another directory.
@@ -26,13 +29,16 @@ from claimcoach.paths import app_data_dir, plugin_data_dir
 
 __all__ = [
     "DATABASE",
+    "EXPORTS_DIR",
     "GLOBAL_DIR",
     "INDEX",
     "USER_DIR",
     "InvalidProfileError",
     "active_profile",
+    "exports_dirs",
     "global_scope_dir",
     "hermes_root",
+    "profile_exports_dir",
     "profile_home",
     "profile_user_scope_dir",
     "user_scope_dir",
@@ -41,6 +47,7 @@ __all__ = [
 
 GLOBAL_DIR: Final = "global"
 USER_DIR: Final = "user"
+EXPORTS_DIR: Final = "exports"
 DATABASE: Final = "corpus.sqlite3"
 """A directory is an initialized scope once it holds this file."""
 INDEX: Final = "index.sqlite3"
@@ -120,9 +127,17 @@ def profile_user_scope_dir(profile: str, root: Path | None = None, *, create: bo
     return _secure(path) if create else path
 
 
-def user_scopes(root: Path | None = None) -> dict[str, Path]:
-    """Return every initialized user scope under ``root``, by profile name, default first."""
-    base = root or hermes_root()
+def profile_exports_dir(profile: str, root: Path | None = None) -> Path:
+    """Return (and create, mode 0700) ``profile``'s exports folder (US-7.2).
+
+    Raises:
+        InvalidProfileError: ``profile`` is not a Hermes profile name.
+    """
+    return _secure(profile_home(profile, root) / "plugin-data" / PLUGIN_NAME / EXPORTS_DIR)
+
+
+def _profile_homes(base: Path) -> list[tuple[str, Path]]:
+    """Every profile home under ``base``, by profile name, default first."""
     candidates = [(DEFAULT_PROFILE, base)]
     profiles = base / "profiles"
     if profiles.is_dir():
@@ -131,8 +146,22 @@ def user_scopes(root: Path | None = None) -> dict[str, Path]:
             for home in profiles.iterdir()
             if home.is_dir() and _PROFILE.fullmatch(home.name) and home.name != DEFAULT_PROFILE
         )
+    return candidates
+
+
+def exports_dirs(root: Path | None = None) -> list[Path]:
+    """Return every profile's existing exports folder under ``root`` (US-7.2)."""
+    return [
+        folder
+        for _name, home in _profile_homes(root or hermes_root())
+        if (folder := home / "plugin-data" / PLUGIN_NAME / EXPORTS_DIR).is_dir()
+    ]
+
+
+def user_scopes(root: Path | None = None) -> dict[str, Path]:
+    """Return every initialized user scope under ``root``, by profile name, default first."""
     scopes: dict[str, Path] = {}
-    for name, home in candidates:
+    for name, home in _profile_homes(root or hermes_root()):
         scope = home / "plugin-data" / PLUGIN_NAME / USER_DIR
         if (scope / DATABASE).is_file():
             scopes[name] = scope

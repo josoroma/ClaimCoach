@@ -3,7 +3,8 @@
 Implements: US-5.2 (``JobRegistry``: one job per case at a time; each stage appends a
 ``CaseProgressEvent``; ``events`` waits for new ones so the gateway can relay them through
 ``broadcast_plugin_event``), US-6.1 (a second job kind, ``diagnose``, run by a ``Runner``; still
-one job per case, so a diagnosis never reads an extraction being rewritten). Rules: PC-4 (heavy
+one job per case, so a diagnosis never reads an extraction being rewritten), US-7.1 (a third kind,
+``draft``, whose runner the route binds to the draft request). Rules: PC-4 (heavy
 work in the worker, push updates through the gateway), BR-14 (events hold IDs, a stage enum, a
 fraction, and an error code only; a failure is logged by error type and job kind only).
 
@@ -40,12 +41,13 @@ _log = get_logger("claimcoach.jobs")
 _FAILED: Final[dict[JobKind, ErrorCode]] = {
     "extract": "extraction_failed",
     "diagnose": "diagnosis_failed",
+    "draft": "drafting_failed",
 }
 """The code a job of each kind ends with when it fails for an unexpected reason."""
 
 
 class Runner(Protocol):
-    """One kind of case job: ``Extractor`` (US-5.2) or ``Diagnoser`` (US-6.1)."""
+    """A kind of case job: ``Extractor`` (US-5.2), ``Diagnoser`` (US-6.1), ``Drafter`` (US-7.1)."""
 
     async def run(self, profile: str, case_id: str, report: Report) -> object:
         """Do the work for one case, calling ``report`` for each stage; ends with ``done``."""
@@ -100,11 +102,26 @@ class JobRegistry:
                 return JobStarted(case_id=case_id, job_id=job.job_id, kind=job.kind)
         return None
 
-    def start(self, profile: str, case_id: str, kind: JobKind = "extract") -> JobStarted:
+    def start(
+        self,
+        profile: str,
+        case_id: str,
+        kind: JobKind = "extract",
+        *,
+        runner: Runner | None = None,
+    ) -> JobStarted:
         """Start a job of ``kind`` on the case, or return the job already working on it.
 
-        Call ``CaseService.check_extractable`` (or ``check_diagnosable``) first: a job reports
-        refusals only as events. The returned ``kind`` is the running job's, which may differ.
+        Call ``CaseService.check_extractable`` (or ``check_diagnosable``, or ``Drafter.check``)
+        first: a job reports refusals only as events. The returned ``kind`` is the running job's,
+        which may differ.
+
+        Args:
+            profile: The case's profile.
+            case_id: The case.
+            kind: What the job does.
+            runner: Runs this job instead of the runner registered for ``kind`` (a ``Drafter``
+                bound to its draft request).
 
         Raises:
             ModelUnavailableError: No runner for ``kind`` (a worker started without models).
@@ -112,7 +129,7 @@ class JobRegistry:
         running = self.running(profile, case_id)
         if running is not None:
             return running
-        runner = self._runners.get(kind)
+        runner = runner or self._runners.get(kind)
         if runner is None:
             raise ModelUnavailableError
         job = _Job(job_id=new_job_id(), profile=profile, case_id=case_id, kind=kind)

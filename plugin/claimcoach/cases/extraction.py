@@ -5,7 +5,7 @@ Implements: US-5.2 (``FieldStatus``, ``Extracted``, ``Adjustment``, ``ClaimLine`
 confirmations across a re-run; ``FieldConfirmation``; ``JobStarted``; ``JobEvents``), US-6.1
 (``CaseExtraction.digest``, so a diagnosis knows what it read; ``JobKind``), US-6.3
 (``CaseExtraction.denial_date``, the date the appeal clock counts from; ``IsoDate``: dates are
-read only as ``YYYY-MM-DD``). Rules: ES-1
+read only as ``YYYY-MM-DD``), US-7.1 (the ``draft`` job kind). Rules: ES-1
 (Pydantic v2, ``extra="forbid"``, frozen), BR-14 (these models hold case content: they travel
 worker → gateway → pane only and are never logged or put in an event).
 
@@ -299,12 +299,12 @@ class FieldConfirmation(_Strict):
     value: str = Field(min_length=1, max_length=200)
 
 
-JobKind = Literal["extract", "diagnose"]
-"""What a case job does: extraction (US-5.2) or diagnosis (US-6.1)."""
+JobKind = Literal["extract", "diagnose", "draft"]
+"""What a case job does: extraction (US-5.2), diagnosis (US-6.1), or drafting (US-7.1)."""
 
 
 class JobStarted(_Strict):
-    """``POST /cases/{case_id}/process`` or ``/diagnose``: the job working on the case.
+    """``POST /cases/{case_id}/process``, ``/diagnose``, or ``/draft``: the job working on the case.
 
     Attributes:
         ok: Always ``True``.

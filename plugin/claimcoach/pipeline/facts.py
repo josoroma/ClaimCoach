@@ -2,9 +2,11 @@
 
 Implements: US-6.1 (``case_facts``: the payer, the amounts, and per line the procedure code,
 adjustments, and remark codes; ``code_notes_text``), US-6.2 (``rule_cards_text``,
-``required_documents_text``). Rules: BR-5 (only this case's own fields and global reference text),
+``required_documents_text``), US-7.1 (``letter_facts``: what a letter must cite, the claim number
+and the dates included). Rules: BR-5 (only this case's own fields and global reference text),
 BR-10 (callers put each text in a data block), data minimization (US-6.1 design decision 3: the
-claim number and the service dates stay out).
+claim number and the service dates stay out of diagnosis prompts; US-7.1 design decision 4: a
+letter cannot leave them out).
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ __all__ = [
     "NOTE_CHARS",
     "case_facts",
     "code_notes_text",
+    "letter_facts",
     "required_documents_text",
     "rule_cards_text",
     "value_of",
@@ -63,6 +66,21 @@ def case_facts(extraction: CaseExtraction) -> dict[str, Any]:
                 "remark_codes": [value_of(code) for code in line.rarc_codes],
             }
             for line in extraction.lines
+        ],
+    }
+
+
+def letter_facts(extraction: CaseExtraction) -> dict[str, Any]:
+    """Return what an appeal letter cites: the diagnosis facts plus the claim number and dates."""
+    facts = case_facts(extraction)
+    return {
+        "payer": facts["payer"],
+        "claim_number": value_of(extraction.claim_id),
+        "denial_date": value_of(extraction.denial_date),
+        **{name: value for name, value in facts.items() if name not in {"payer", "lines"}},
+        "lines": [
+            {"service_date": value_of(line.service_date), **facts_line}
+            for line, facts_line in zip(extraction.lines, facts["lines"], strict=True)
         ],
     }
 

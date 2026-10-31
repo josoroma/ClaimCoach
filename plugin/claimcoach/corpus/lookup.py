@@ -2,7 +2,8 @@
 
 Implements: US-6.1 (``code_entries``: the code knowledge-base entries for a case's CARC, RARC, and
 group codes, read by key), US-6.2 (``rule_card_of``; ``payer_rule_cards``: the rule cards of the
-payer whose name matches the case's payer). Rules: BR-5 (only the global scope is read here, never
+payer whose name matches the case's payer), US-7.1 (``letter_template``: the first stored of the
+template IDs a draft asks for). Rules: BR-5 (only the global scope is read here, never
 another case), BR-14 (nothing here logs content; a malformed card is logged by error type).
 
 The keys are the ones ``CodeEntry.key`` gives at import (US-4.3): ``CARC/197``, ``RARC/N286``,
@@ -17,13 +18,13 @@ import json
 from collections.abc import Sequence
 from typing import Final, get_args
 
-from claimcoach.corpus.bundle import STRUCTURED_CARD_FIELDS, RuleCard, payer_words
+from claimcoach.corpus.bundle import STRUCTURED_CARD_FIELDS, LetterTemplate, RuleCard, payer_words
 from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.store import CorpusStore
 from claimcoach.corpus.types import CorpusScope, Document
 from claimcoach.logs import get_logger
 
-__all__ = ["code_entries", "payer_rule_cards", "payer_words", "rule_card_of"]
+__all__ = ["code_entries", "letter_template", "payer_rule_cards", "payer_words", "rule_card_of"]
 
 _TOPICS: Final = get_args(RuleCard.model_fields["topic"].annotation)
 _log = get_logger("claimcoach.corpus")
@@ -112,3 +113,33 @@ def payer_rule_cards(store: CorpusStore, payer: str | None) -> list[RuleCard]:
             if kept is None or (card.verified_on, card.key) > (kept.verified_on, kept.key):
                 by_topic[card.topic] = card
     return [by_topic[topic] for topic in _TOPICS if topic in by_topic]
+
+
+def letter_template(store: CorpusStore, template_ids: Sequence[str]) -> LetterTemplate | None:
+    """Return the first of ``template_ids`` the global corpus holds, or ``None`` (US-7.1).
+
+    A stored template that does not validate is skipped, as a malformed rule card is.
+
+    Raises:
+        CorpusError: ``store`` is not the global scope.
+    """
+    if store.scope is not CorpusScope.GLOBAL:
+        raise CorpusError("letter templates live in the global scope")
+    found: dict[str, LetterTemplate] = {}
+    for document in store.documents(kind="letter_template"):
+        try:
+            template = LetterTemplate.model_validate(
+                {
+                    "kind": "letter_template",
+                    "template_id": document.metadata["key"],
+                    "title": document.title,
+                    "body": document.text,
+                    "source": document.metadata["source"],
+                    "verified_on": document.metadata["verified_on"],
+                }
+            )
+        except (KeyError, ValueError) as exc:  # pydantic's ValidationError is a ValueError
+            _log.warning("a stored letter template did not validate: %s", type(exc).__name__)
+            continue
+        found[template.template_id] = template
+    return next((found[name] for name in template_ids if name in found), None)

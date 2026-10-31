@@ -39,8 +39,12 @@ BACKUP_DIR ?= $(HOME)/ClaimCoach-backups
 # a field path (payer_name, lines.0.service_date, …) and the value to confirm for it.
 FIELD ?=
 VALUE ?=
+# Draft targets (EPIC-7): TEMPLATE a letter template ID (default: chosen by the denial reason);
+# FORMAT pdf or docx; TO a file or folder to copy the export to (default: print where it is).
+TEMPLATE ?=
+FORMAT ?=
 # Through the environment, never spliced into shell text: a value may hold quotes.
-export FIELD VALUE
+export FIELD VALUE TEMPLATE TO
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -80,12 +84,19 @@ CASE_PROFILE = $(or $(PROFILE),$(shell $(UV) run python -c \
 REQUIRE_CASE = [[ "$(CASE)" =~ ^[A-Za-z0-9_-]{1,64}$$ ]] || { \
 	echo "usage: make $@ CASE=<case id>$(if $(filter case-add case-paste,$@), FILE=<document>)"; exit 2; }
 REQUIRE_CASE_FILE = test -f "$(FILE)" || { echo "usage: make $@ CASE=<case id> FILE=<document>"; exit 2; }
+# TEMPLATE goes through the environment into JSON (the worker validates it); FORMAT is checked by
+# make itself, before any shell sees it.
+DRAFT_BODY = $(if $(TEMPLATE),-H 'Content-Type: application/json' --data-binary @<(python3 -c \
+	'import json, os, sys; json.dump({"template_id": os.environ["TEMPLATE"]}, sys.stdout)'))
+REQUIRE_FORMAT = $(if $(and $(filter 1,$(words $(FORMAT))),$(filter $(FORMAT),pdf docx)),:,\
+	$(error usage: make $@ CASE=<case id> FORMAT=<pdf|docx> [TO=<file or folder>]))
 
-# Start a case job ($(1): extract or diagnose, US-5.2 and US-6.1) and print its progress events
-# until it ends; the target fails when the job ends `failed`, or when the case was already running
-# a job of the other kind (one job per case), which is followed instead and named on stderr.
+# Start a case job ($(1): extract, diagnose, or draft, US-5.2, US-6.1, US-7.1; $(2): extra curl
+# arguments, such as a JSON body) and print its progress events until it ends; the target fails
+# when the job ends `failed`, or when the case was already running a job of another kind (one job
+# per case), which is followed instead and named on stderr.
 # Backslash-newlines become spaces here, so every shell and Python statement ends with `;`.
-CASE_JOB = started=$$($(WORKER_CURL) -X POST "$(WORKER_URL)/cases/$(CASE)/$(1)?profile=$(CASE_PROFILE)" \
+CASE_JOB = started=$$($(WORKER_CURL) -X POST $(2) "$(WORKER_URL)/cases/$(CASE)/$(1)?profile=$(CASE_PROFILE)" \
 	  | python3 -c 'import json, sys; b = json.load(sys.stdin); \
 	    print(b["job_id"], b.get("kind", "extract")) if b.get("ok") \
 	    else sys.exit("error: " + b["error"]["code"])') || exit 1; \
@@ -115,6 +126,7 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
         case-new case-add case-paste case-show case-process case-confirm case-diagnose \
+        case-draft case-edit case-export \
         clean
 
 help: ## List targets
@@ -357,7 +369,7 @@ corpus-key-import: ## Put a backed-up key into the Keychain: make corpus-key-imp
 	@$(REQUIRE_CORPUS_CONFIRM)
 	@$(CORPUS_CLI) key-import --from "$(FROM)" --confirm $(if $(PROFILE),--profile "$(PROFILE)")
 
-# --- Cases (docs/runbooks/case-intake-extraction.md, case-diagnosis.md) ---------------------------
+# --- Cases (docs/runbooks/case-intake-extraction.md, case-diagnosis.md, appeal-drafting.md) -------
 # These print case content (filenames, extracted fields) to this terminal only; nothing is logged.
 
 case-new: ## Create an empty case and print its ID: make case-new [PROFILE=p]
@@ -396,6 +408,37 @@ case-confirm: ## Confirm a field's value: make case-confirm CASE=id FIELD=claim_
 	  "$(WORKER_URL)/cases/$(CASE)/fields?profile=$(CASE_PROFILE)" < <(python3 -c 'import json, os, sys; \
 	      json.dump({"path": os.environ["FIELD"], "value": os.environ["VALUE"]}, sys.stdout)') \
 	  | python3 -m json.tool
+
+case-draft: ## Draft a diagnosed case's appeal and print its progress: make case-draft CASE=id [TEMPLATE=t]
+	@$(REQUIRE_CASE)
+	@$(call CASE_JOB,draft,$(DRAFT_BODY))
+
+case-edit: ## Save a text file as the case's draft (US-7.2): make case-edit CASE=id FILE=letter.txt
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_CASE_FILE)
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' --data-binary @- \
+	  "$(WORKER_URL)/cases/$(CASE)/draft/text?profile=$(CASE_PROFILE)" < <(python3 -c 'import json, sys; \
+	    json.dump({"text": sys.stdin.read()}, sys.stdout)' < "$(FILE)") | python3 -m json.tool
+
+# The export is deleted 15 minutes after it is written, or when the worker stops (BR-6); TO copies
+# it out first: created mode 0600, never over an existing file (TO goes through the environment).
+case-export: ## Export the case's draft as PDF or DOCX: make case-export CASE=id FORMAT=pdf [TO=dir]
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_FORMAT)
+	@if [ -n "$$TO" ]; then python3 -c 'import os, sys; target = os.environ["TO"]; \
+	  target = os.path.join(target, sys.argv[1]) if os.path.isdir(target) else target; \
+	  os.path.lexists(target) and sys.exit(f"{target} exists; choose another TO")' \
+	  "appeal-draft-$(CASE).$(FORMAT)" || exit 2; fi
+	@body=$$($(WORKER_CURL) -X POST -H 'Content-Type: application/json' -d '{"format": "$(FORMAT)"}' \
+	  "$(WORKER_URL)/cases/$(CASE)/export?profile=$(CASE_PROFILE)") || { echo "$$body"; exit 1; }; \
+	printf '%s' "$$body" | python3 -m json.tool; \
+	if [ -n "$$TO" ]; then printf '%s' "$$body" | python3 -c 'import json, os, sys; \
+	  body = json.load(sys.stdin); target = os.environ["TO"]; \
+	  target = os.path.join(target, body["filename"]) if os.path.isdir(target) else target; \
+	  data = open(body["path"], "rb").read(); \
+	  fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600) \
+	    if not os.path.lexists(target) else sys.exit(f"{target} exists; choose another TO"); \
+	  os.write(fd, data); os.close(fd); print("copied to", target)' || exit 1; fi
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

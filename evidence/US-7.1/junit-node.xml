@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="US-7.1 draft is generated from rule card and template" time="0.004670" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T20:20:30.607Z" hostname="iX-00277">
+		<testcase name="test_us_7_1_pane_draft_from_rule_card_and_template" time="0.003985" classname="US-7.1 draft is generated from rule card and template" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.1 draft carries the human-review label" time="0.000274" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T20:20:30.612Z" hostname="iX-00277">
+		<testcase name="test_us_7_1_pane_draft_carries_review_label" time="0.000195" classname="US-7.1 draft carries the human-review label" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/case_diagnosis.test.mjs" time="0.170803" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.169534" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.174021" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.168875" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.173250" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.185138" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 8 -->
+	<!-- suites 2 -->
+	<!-- pass 8 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 199.903583 -->
+</testsuites>

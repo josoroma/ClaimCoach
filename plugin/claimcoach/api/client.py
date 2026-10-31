@@ -6,7 +6,8 @@ download, and conversion calls; the worker's own model error codes reach the des
 (``redact`` for the agent-tool guard), US-4.1 to US-4.6 (corpus status, import, view,
 reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command), US-5.1 (case
 creation, open, upload, and paste calls; an upload is forwarded as the raw multipart body), US-5.2
-(start extraction, long-poll a job's events, confirm a field), US-6.1 (start a diagnosis).
+(start extraction, long-poll a job's events, confirm a field), US-6.1 (start a diagnosis), US-7.1
+(start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -31,6 +32,7 @@ from claimcoach.corpus.types import (
     ReindexRequest,
     ReindexResult,
 )
+from claimcoach.letters.types import DraftEdit, DraftRequest, ExportedFile, ExportRequest
 from claimcoach.models.types import (
     AcquireResult,
     ConversionRequest,
@@ -70,6 +72,9 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "no_documents": 409,
     "job_not_found": 404,
     "not_extracted": 409,
+    "not_diagnosed": 409,
+    "no_letter_template": 409,
+    "not_drafted": 409,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
 
@@ -321,6 +326,51 @@ class WorkerClient:
             "POST",
             f"/cases/{case_id}/diagnose",
             JobStarted,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def start_draft(self, profile: str, case_id: str, body: DraftRequest) -> JobStarted:
+        """Start drafting a diagnosed case's appeal; progress comes from ``job_events`` (US-7.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/draft",
+            JobStarted,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def edit_draft(self, profile: str, case_id: str, body: DraftEdit) -> Case:
+        """Store the biller's text as the case's draft (US-7.2).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing changes then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/draft/text",
+            Case,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def export_draft(self, profile: str, case_id: str, body: ExportRequest) -> ExportedFile:
+        """Write the case's draft as a PDF or DOCX file on this Mac (US-7.2).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. No file is written then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/export",
+            ExportedFile,
+            body,
             params={"profile": profile},
             timeout=CASE_TIMEOUT,
         )

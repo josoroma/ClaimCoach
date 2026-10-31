@@ -3,7 +3,8 @@
 Implements: US-5.1 (``CaseCreate``, ``PastedText``, ``SourceDocument``, ``Case``,
 ``DocumentAdded``, and the intake limits), US-5.2 (``Case`` carries the extraction and the fields
 that need confirmation), US-6.1 (``Case`` carries the diagnosis and whether it is stale), US-6.3
-(``Case`` carries the appeal deadline). Rules:
+(``Case`` carries the appeal deadline), US-7.1 (``Case`` carries the appeal draft, labeled "draft
+for human review", and whether it is stale). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-2 (these bodies travel pane →
 ``plugin_api.py`` → worker only), BR-14 (they carry case content, so they are never logged and
 never reach an agent tool or an event).
@@ -20,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.extraction import CaseExtraction
 from claimcoach.corpus.types import CaseId, Timestamp
+from claimcoach.letters.types import AppealDraft
 
 __all__ = [
     "MAX_FILE_BYTES",
@@ -102,6 +104,9 @@ class Case(_Strict):
             new extraction), so the pane asks to diagnose again.
         deadline: The appeal deadline, or why it is unknown, computed from the current
             extraction and rule cards whenever the case is read (US-6.3); none before extraction.
+        draft: Its appeal draft, once drafting ran (US-7.1), with the biller's edits (US-7.2).
+        draft_stale: The fields or the diagnosis changed after the draft was made, so the pane
+            asks the biller to check it or draft again.
     """
 
     ok: Literal[True] = True
@@ -114,6 +119,8 @@ class Case(_Strict):
     diagnosis: Diagnosis | None = None
     diagnosis_stale: bool = False
     deadline: AppealDeadline | None = None
+    draft: AppealDraft | None = None
+    draft_stale: bool = False
 
 
 class DocumentAdded(_Strict):

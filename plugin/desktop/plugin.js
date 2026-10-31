@@ -14,16 +14,22 @@
  * Diagnose case button), US-6.2 (the explanation, the likely root cause, the missing-documentation
  * checklist with each item's reason, and the rule cards it came from, flagged when stale), US-6.3
  * (the case's appeal deadline, read with the case, with its limit, denial date, and card, flagged
- * once passed, or why it is unknown; the denial date is a field the biller confirms).
+ * once passed, or why it is unknown; the denial date is a field the biller confirms), US-7.1 (a
+ * Draft appeal button once the case is diagnosed; drafting progress; the draft under the heading
+ * "Draft for human review", with the template and rule cards it came from, flagged when stale),
+ * US-7.2 (the draft in an editor with Save draft, Export PDF, and Export DOCX; an export is saved
+ * through the host's save dialog, where the biller picks the folder), US-7.3 (no contribution or
+ * control sends, submits, faxes, e-mails, or uploads anything to a payer).
  * Rules: PC-1 (opt-in: `defaultEnabled: false`), PC-3 (imports only
  * `@hermes/plugin-sdk`, `react`, `react/jsx-runtime`; optional SDK calls are feature-detected),
  * PC-4, BR-2 (case data goes pane → `ctx.rest` → plugin_api → worker, never the agent transcript),
- * BR-14 (error text from the backend is never shown; a refusal shows a fixed message per code).
+ * BR-4 (every draft is shown labeled "draft for human review"; there is no send or submit control
+ * anywhere, and nothing is sent: an export is a file the biller saves), BR-14 (error text from the backend is never shown; a refusal shows a fixed message per code).
  *
  * The views are placeholders until EPIC-10 (US-10.1..US-10.3) builds them; they already show the
  * worker status so a user can tell whether the backend half is enabled.
  */
-import { PANES_AREA, ROUTES_AREA, SIDEBAR_NAV_AREA, STATUSBAR_AREAS } from '@hermes/plugin-sdk';
+import * as sdk from '@hermes/plugin-sdk';
 import { useEffect, useState } from 'react';
 import { jsx, jsxs } from 'react/jsx-runtime';
 
@@ -55,12 +61,21 @@ export const SETTINGS_REFRESH_MS = 15_000;
  * @typedef {{ reason: DenialReason, likelihood: Likelihood, reasons: string[], codes: string[],
  *   stale: boolean, explanation?: ExplanationView, checklist: ChecklistView[],
  *   cards: RuleCardView[], payerRead: boolean }} DiagnosisView
+ * @typedef {{ text: string, templateId: string, ruleCards: string[], stale: boolean,
+ *   edited: boolean }} DraftView
  * @typedef {{ state: 'ready', caseId: string, documents: DocumentView[], fields: FieldView[],
  *   otherClaims?: number, unreadSources?: number, notice?: Refusal,
- *   diagnosis?: DiagnosisView, deadline?: DeadlineView }} ReadyState
+ *   diagnosis?: DiagnosisView, deadline?: DeadlineView, draft?: DraftView }} ReadyState
+ * @typedef {'extract' | 'diagnose' | 'draft'} JobKind
  * @typedef {{ state: 'idle', notice?: Refusal } | { state: 'busy' } | ReadyState
- *   | { state: 'processing', caseId: string, progress: number, diagnosing?: true }
+ *   | { state: 'processing', caseId: string, progress: number, diagnosing?: true,
+ *       drafting?: true }
  *   | { state: 'unavailable', caseId?: string }} CaseState
+ * @typedef {'pdf' | 'docx'} ExportFormat
+ * @typedef {(path: string, suggestedName: string) => Promise<void>} SaveFile
+ * @typedef {{ state: 'exporting', format: ExportFormat } | { state: 'saved', format: ExportFormat }
+ *   | { state: 'written', format: ExportFormat, path: string, expiresAt: string }
+ *   | { state: 'refused', notice: Refusal } | { state: 'failed' }} ExportResult
  * @typedef {{ caseId: string, stage: string, progress: number, errorCode: string | null }} Progress
  * @typedef {(listener: (payload: unknown) => void) => () => void} SubscribeFn
  */
@@ -87,7 +102,21 @@ export const REFUSALS = Object.freeze({
   not_extracted: 'Process the case so its fields are read before diagnosing it.',
   diagnosis_failed:
     "The local model's answer could not be used; check the case's fields, then diagnose again.",
+  not_diagnosed: 'Diagnose the case (again, if its fields changed) before drafting the appeal.',
+  no_letter_template:
+    'No appeal letter template is in the global corpus; ask the manager to import one.',
+  drafting_failed: "The local model's draft could not be used; draft the appeal again.",
+  not_drafted: 'Draft the appeal before saving or exporting it.',
+  draft_edited:
+    'The draft was edited while a new one was being drafted, so your edits were kept; draft ' +
+    'again to replace them.',
+  invalid_draft: 'The draft needs some text, and at most 20,000 characters.',
 });
+
+/** The label every draft carries (BR-4); a draft the backend sends without it is not shown. */
+export const DRAFT_LABEL = 'draft for human review';
+/** Longest draft the backend stores (US-7.2). */
+export const MAX_LETTER_CHARS = 20_000;
 
 /** Denial reasons as the pane names them (US-6.1: the backend's closed set). */
 export const DENIAL_REASONS = Object.freeze({
@@ -165,6 +194,20 @@ export function createCaseApi(rest) {
     processCase: (caseId) => rest(`${casePath(caseId)}/process`, { method: 'POST', body: {} }),
     /** @param {string} caseId */
     diagnoseCase: (caseId) => rest(`${casePath(caseId)}/diagnose`, { method: 'POST', body: {} }),
+    /** @param {string} caseId */
+    draftCase: (caseId) => rest(`${casePath(caseId)}/draft`, { method: 'POST', body: {} }),
+    /**
+     * @param {string} caseId
+     * @param {string} text
+     */
+    saveDraft: (caseId, text) =>
+      rest(`${casePath(caseId)}/draft/text`, { method: 'POST', body: { text } }),
+    /**
+     * @param {string} caseId
+     * @param {ExportFormat} format
+     */
+    exportDraft: (caseId, format) =>
+      rest(`${casePath(caseId)}/export`, { method: 'POST', body: { format } }),
     /**
      * @param {string} caseId
      * @param {string} path
@@ -447,6 +490,33 @@ export function diagnosisOf(body) {
 }
 
 /**
+ * A case body's appeal draft, when it holds a well-formed one carrying the review label (US-7.1).
+ *
+ * @param {unknown} body
+ * @returns {DraftView | null}
+ */
+export function draftOf(body) {
+  const outer = /** @type {{ draft?: unknown, draft_stale?: unknown } | null} */ (body);
+  const draft = /** @type {{ label?: unknown, text?: unknown, template_id?: unknown,
+   *   rule_cards?: unknown, edited_at?: unknown } | null | undefined} */ (outer?.draft);
+  if (
+    draft?.label !== DRAFT_LABEL ||
+    typeof draft.text !== 'string' ||
+    !draft.text.trim() ||
+    typeof draft.template_id !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    text: draft.text,
+    templateId: draft.template_id,
+    ruleCards: stringsOf(draft.rule_cards),
+    stale: outer?.draft_stale === true,
+    edited: typeof draft.edited_at === 'string',
+  };
+}
+
+/**
  * The ready state for a case body.
  *
  * @param {string} caseId
@@ -472,6 +542,8 @@ function readyFrom(caseId, body) {
   if (diagnosis) ready.diagnosis = diagnosis;
   const deadline = deadlineOf(/** @type {{ deadline?: unknown } | null} */ (body)?.deadline);
   if (deadline) ready.deadline = deadline;
+  const draft = draftOf(body);
+  if (draft) ready.draft = draft;
   return ready;
 }
 
@@ -632,17 +704,29 @@ export async function openCase(api, caseId) {
 }
 
 /**
- * A processing state; one without `diagnosing` is an extraction (US-5.2).
+ * A processing state: `diagnosing` for a diagnosis (US-6.1), `drafting` for a draft (US-7.1),
+ * neither for an extraction (US-5.2).
  *
  * @param {string} caseId
  * @param {number} progress
- * @param {boolean} diagnosing
+ * @param {JobKind} kind
  * @returns {CaseState}
  */
-function processing(caseId, progress, diagnosing) {
-  return diagnosing
-    ? { state: 'processing', caseId, progress, diagnosing: true }
-    : { state: 'processing', caseId, progress };
+function processing(caseId, progress, kind) {
+  if (kind === 'diagnose') return { state: 'processing', caseId, progress, diagnosing: true };
+  if (kind === 'draft') return { state: 'processing', caseId, progress, drafting: true };
+  return { state: 'processing', caseId, progress };
+}
+
+/**
+ * A job body's kind; anything unknown reads as an extraction, as before US-6.1.
+ *
+ * @param {unknown} body
+ * @returns {JobKind}
+ */
+function kindOf(body) {
+  const kind = /** @type {{ kind?: unknown } | null} */ (body)?.kind;
+  return kind === 'diagnose' || kind === 'draft' ? kind : 'extract';
 }
 
 /**
@@ -656,9 +740,7 @@ function processing(caseId, progress, diagnosing) {
  */
 async function startJob(api, caseId, start) {
   try {
-    const body = await start(caseId);
-    const kind = /** @type {{ kind?: unknown } | null} */ (body)?.kind;
-    return processing(caseId, 0, kind === 'diagnose');
+    return processing(caseId, 0, kindOf(await start(caseId)));
   } catch (error) {
     const notice = refusalOf(error);
     return notice === null ? { state: 'unavailable' } : reopenWith(api, caseId, notice);
@@ -685,6 +767,98 @@ export function processCase(api, caseId) {
  */
 export function diagnoseCase(api, caseId) {
   return startJob(api, caseId, api.diagnoseCase);
+}
+
+/**
+ * Draft the diagnosed case's appeal letter (US-7.1). Progress arrives as
+ * `plugin.claimcoach.case.progress`.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @returns {Promise<CaseState>}
+ */
+export function draftCase(api, caseId) {
+  return startJob(api, caseId, api.draftCase);
+}
+
+/**
+ * Store the editor's text as the case's draft, and show the case again (US-7.2).
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {string} text
+ * @returns {Promise<CaseState>}
+ */
+export async function saveDraft(api, caseId, text) {
+  try {
+    const body = await api.saveDraft(caseId, text);
+    return caseIdOf(body) === caseId ? readyFrom(caseId, body) : { state: 'unavailable' };
+  } catch (error) {
+    const code = codeOf(error);
+    const notice = code === 'invalid_request' ? 'invalid_draft' : known(code);
+    return notice === null ? { state: 'unavailable' } : reopenWith(api, caseId, notice);
+  }
+}
+
+/**
+ * Export the stored draft and hand the file to the host's save dialog (US-7.2 decision 4). The
+ * save action is captured before the request, as the SDK asks; without one, the result says where
+ * the file is and until when.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {ExportFormat} format
+ * @param {(() => SaveFile) | undefined} capture `captureGatewayFileDownload`, when the host has it
+ * @returns {Promise<ExportResult>}
+ */
+export async function exportDraft(api, caseId, format, capture) {
+  const save = capture?.();
+  let body;
+  try {
+    body = /** @type {{ case_id?: unknown, path?: unknown, filename?: unknown,
+     *   expires_at?: unknown } | null} */ (await api.exportDraft(caseId, format));
+  } catch (error) {
+    const notice = known(codeOf(error));
+    return notice === null ? { state: 'failed' } : { state: 'refused', notice };
+  }
+  const { path, filename, expires_at: expiresAt } = body ?? {};
+  if (
+    caseIdOf(body) !== caseId ||
+    typeof path !== 'string' ||
+    !path ||
+    typeof filename !== 'string' ||
+    !filename.endsWith(`.${format}`) ||
+    typeof expiresAt !== 'string'
+  ) {
+    return { state: 'failed' };
+  }
+  if (save) {
+    await save(path, filename); // never rejects: the host shows Saved or Download failed
+    return { state: 'saved', format };
+  }
+  return { state: 'written', format, path, expiresAt };
+}
+
+/**
+ * @param {ExportResult} result
+ * @returns {string}
+ */
+export function describeExport(result) {
+  switch (result.state) {
+    case 'exporting':
+      return `Exporting the ${result.format.toUpperCase()}…`;
+    case 'saved':
+      return `The ${result.format.toUpperCase()} went to the save dialog.`;
+    case 'written':
+      return (
+        `The ${result.format.toUpperCase()} is on this Mac at ${result.path} until ` +
+        `${result.expiresAt}; copy it from there before it is removed.`
+      );
+    case 'refused':
+      return REFUSALS[result.notice];
+    default:
+      return 'The export did not finish; check that the worker is running and export again.';
+  }
 }
 
 /**
@@ -759,7 +933,11 @@ export function describeCase(current) {
       return `${notice}Case ${current.caseId}${next}${unread}${others}${stale}`;
     }
     case 'processing': {
-      const verb = current.diagnosing ? 'Diagnosing' : 'Processing';
+      const verb = current.drafting
+        ? 'Drafting the appeal for'
+        : current.diagnosing
+          ? 'Diagnosing'
+          : 'Processing';
       return `${verb} case ${current.caseId} on this Mac… ${Math.round((current.progress ?? 0) * 100)}%`;
     }
     default:
@@ -980,6 +1158,107 @@ export function DiagnosisPanel(diagnosis, today = isoToday()) {
   });
 }
 
+/**
+ * The appeal draft under its review label, in an editor, with Save draft and the exports (US-7.1,
+ * US-7.2). Export is offered only for saved text, because the stored draft is what is exported.
+ *
+ * @param {{ draft: DraftView | undefined, letter: string | null, result: ExportResult | null,
+ *   disabled: boolean, onLetter: (text: string) => void, onSave: () => void,
+ *   onExport: (format: ExportFormat) => void }} props
+ */
+export function DraftPanel({ draft, letter, result, disabled, onLetter, onSave, onExport }) {
+  if (!draft) return null;
+  const text = letter ?? draft.text;
+  const dirty = text !== draft.text;
+  // One export at a time: a double-click would write two files and open two save dialogs.
+  const exporting = result?.state === 'exporting';
+  const cards = draft.ruleCards.length
+    ? ` with the rule cards ${draft.ruleCards.join(', ')}.`
+    : '. No rule card was on file for this payer: check its appeal rules yourself.';
+  return jsxs('section', {
+    'aria-label': 'Appeal draft',
+    'data-stale': draft.stale,
+    children: [
+      jsx('h3', { children: 'Draft for human review' }),
+      jsx('p', { children: `Drafted from the template ${draft.templateId}${cards}` }),
+      draft.stale
+        ? jsx('p', {
+            role: 'note',
+            children: 'The case changed since this draft was made; check it, or draft again.',
+          })
+        : null,
+      jsx('textarea', {
+        'aria-label': 'Appeal letter (draft for human review)',
+        value: text,
+        maxLength: MAX_LETTER_CHARS,
+        disabled,
+        /** @param {{ currentTarget: { value: string } }} event */
+        onChange: (event) => onLetter(event.currentTarget.value),
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled: disabled || !dirty || !text.trim(),
+        onClick: onSave,
+        children: 'Save draft',
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled: disabled || dirty || exporting,
+        onClick: () => onExport('pdf'),
+        children: 'Export PDF',
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled: disabled || dirty || exporting,
+        onClick: () => onExport('docx'),
+        children: 'Export DOCX',
+      }),
+      dirty ? jsx('p', { role: 'note', children: 'Save the draft before exporting it.' }) : null,
+      result
+        ? jsx('p', { role: 'status', 'aria-label': 'Export', children: describeExport(result) })
+        : null,
+    ],
+  });
+}
+
+/** What a job of each kind ends with when its event names no known code. */
+const JOB_FAILED = Object.freeze({
+  extract: 'extraction_failed',
+  diagnose: 'diagnosis_failed',
+  draft: 'drafting_failed',
+});
+
+/**
+ * The kind of job a processing state follows.
+ *
+ * @param {Extract<CaseState, { state: 'processing' }>} state
+ * @returns {JobKind}
+ */
+function kindOfState(state) {
+  return state.drafting ? 'draft' : state.diagnosing ? 'diagnose' : 'extract';
+}
+
+/**
+ * The Draft appeal button's text: drafting again replaces the draft, edits included (US-7.1
+ * decision 7).
+ *
+ * @param {DraftView | undefined} draft
+ */
+export function draftButtonLabel(draft) {
+  if (!draft) return 'Draft appeal';
+  return draft.edited ? 'Draft again (replaces your edits)' : 'Draft again';
+}
+
+/**
+ * Whether the editor holds text the biller has not saved (US-7.2).
+ *
+ * @param {DraftView | undefined} draft
+ * @param {string | null} letter
+ */
+function unsaved(draft, letter) {
+  return draft !== undefined && letter !== null && letter !== draft.text;
+}
+
 /** Does nothing: the disposer of no subscription, and the pane's handler before its first render. */
 function noop() {}
 
@@ -1000,7 +1279,7 @@ export function CasePane({ rest, subscribe = noEvents }) {
   // being processed and this render's event handler to the long-lived event subscription.
   const [life] = useState(
     /** @type {{ live: boolean, action: number, caseId: string | null,
-     *   processing: string | null, diagnosing?: boolean,
+     *   processing: string | null, kind?: JobKind,
      *   onProgress: (payload: unknown) => void }} */ ({
       live: true,
       action: 0,
@@ -1011,6 +1290,9 @@ export function CasePane({ rest, subscribe = noEvents }) {
   );
   const [draft, setDraft] = useState('');
   const [edits, setEdits] = useState(/** @type {Record<string, string>} */ ({}));
+  // The appeal editor's unsaved text (null: the stored draft as it is) and the last export.
+  const [letter, setLetter] = useState(/** @type {string | null} */ (null));
+  const [exported, setExported] = useState(/** @type {ExportResult | null} */ (null));
   useEffect(() => {
     life.live = true;
     return () => {
@@ -1023,16 +1305,23 @@ export function CasePane({ rest, subscribe = noEvents }) {
     life.action += 1;
     const action = life.action;
     setCurrent({ state: 'busy' });
+    setExported(null);
     pending.then((next) => {
       if (!life.live || action !== life.action) return;
       // The last case this pane worked on stays open across failures, so the next document
       // joins it instead of starting a second case. Values typed for another case are dropped.
       if ('caseId' in next && next.caseId) {
-        if (next.caseId !== life.caseId) setEdits({});
+        if (next.caseId !== life.caseId) {
+          setEdits({});
+          setLetter(null);
+        }
         life.caseId = next.caseId;
       }
-      // The job that runs may be another kind than the one asked for (one job per case).
-      if (next.state === 'processing') follow(next.caseId, next.diagnosing === true);
+      // The job that runs may be another kind than the one asked for (one job per case); an
+      // answer that is not a running job leaves no job followed, so a refused start does not
+      // read a later job's events as its own.
+      if (next.state === 'processing') follow(next.caseId, kindOfState(next));
+      else follow(null, 'extract');
       setCurrent(next);
     });
   };
@@ -1041,36 +1330,36 @@ export function CasePane({ rest, subscribe = noEvents }) {
    * arrives before the answer is not missed.
    *
    * @param {string | null} caseId
-   * @param {boolean} diagnosing
+   * @param {JobKind} kind
    */
-  const follow = (caseId, diagnosing) => {
+  const follow = (caseId, kind) => {
     life.processing = caseId;
-    life.diagnosing = diagnosing;
+    life.kind = kind;
   };
   life.onProgress = (payload) => {
     const progress = progressOf(payload);
     const caseId = life.processing;
     if (!life.live || progress === null || caseId === null || progress.caseId !== caseId) return;
+    const kind = life.kind ?? 'extract';
     if (progress.stage === 'done' || progress.stage === 'failed') {
-      const diagnosing = life.diagnosing === true;
-      follow(null, false);
+      follow(null, 'extract');
       setEdits({}); // fresh values replace anything typed before the run
-      const notice =
-        known(progress.errorCode) ?? (diagnosing ? 'diagnosis_failed' : 'extraction_failed');
+      if (kind === 'draft' && progress.stage === 'done') setLetter(null); // the new draft shows
+      const notice = known(progress.errorCode) ?? JOB_FAILED[kind];
       const chained = life.action + 1; // the action settle starts next
       settle(
         progress.stage === 'failed'
           ? reopenWith(api, caseId, notice)
-          : diagnosing
+          : kind !== 'extract'
             ? openCase(api, caseId)
             : afterExtraction(api, caseId, () => {
                 if (!life.live || life.action !== chained) return false;
-                follow(caseId, true);
+                follow(caseId, 'diagnose');
                 return true;
               }),
       );
     } else {
-      setCurrent(processing(caseId, progress.progress, life.diagnosing === true));
+      setCurrent(processing(caseId, progress.progress, kind));
     }
   };
   /** @param {ArrayLike<PickedFile> | null | undefined} files */
@@ -1090,25 +1379,52 @@ export function CasePane({ rest, subscribe = noEvents }) {
   const onDragOver = (event) => event.preventDefault(); // marks the pane as a drop target
   const onProcess = () => {
     if (current.state !== 'ready') return;
-    follow(current.caseId, false);
+    follow(current.caseId, 'extract');
     settle(processCase(api, current.caseId));
   };
   const onDiagnose = () => {
     if (current.state !== 'ready') return;
-    follow(current.caseId, true);
+    follow(current.caseId, 'diagnose');
     settle(diagnoseCase(api, current.caseId));
+  };
+  const onDraftAppeal = () => {
+    if (current.state !== 'ready') return;
+    follow(current.caseId, 'draft');
+    settle(draftCase(api, current.caseId));
+  };
+  const onSaveDraft = () => {
+    if (current.state !== 'ready' || letter === null || !letter.trim()) return;
+    const text = letter;
+    settle(
+      saveDraft(api, current.caseId, text).then((next) => {
+        // A save that was refused keeps the text in the editor, so it need not be typed again.
+        if (life.live && next.state === 'ready' && !next.notice) setLetter(null);
+        return next;
+      }),
+    );
+  };
+  /** @param {ExportFormat} format */
+  const onExport = (format) => {
+    if (current.state !== 'ready' || !current.draft || exported?.state === 'exporting') return;
+    const caseId = current.caseId;
+    setExported({ state: 'exporting', format });
+    exportDraft(api, caseId, format, sdk.captureGatewayFileDownload).then((result) => {
+      if (life.live && life.caseId === caseId) setExported(result);
+    });
   };
   const onRefresh = () => {
     if (life.caseId === null || current.state === 'busy') return;
-    follow(null, false);
+    follow(null, 'extract');
     setEdits({});
     settle(openCase(api, life.caseId));
   };
   const onNewCase = () => {
     life.action += 1; // an upload still running no longer updates the pane
     life.caseId = null;
-    follow(null, false);
+    follow(null, 'extract');
     setEdits({});
+    setLetter(null);
+    setExported(null);
     setCurrent({ state: 'idle' });
   };
   /** @param {{ currentTarget: { value: string } }} event */
@@ -1201,6 +1517,26 @@ export function CasePane({ rest, subscribe = noEvents }) {
       }),
       DeadlineLine(current.state === 'ready' ? current.deadline : undefined, isoToday()),
       DiagnosisPanel(current.state === 'ready' ? current.diagnosis : undefined),
+      jsx('button', {
+        type: 'button',
+        // Unsaved editor text would be lost to the new draft: save it first (US-7.2).
+        disabled:
+          current.state !== 'ready' ||
+          !current.diagnosis ||
+          current.diagnosis.stale === true ||
+          unsaved(current.draft, letter),
+        onClick: onDraftAppeal,
+        children: draftButtonLabel(current.state === 'ready' ? current.draft : undefined),
+      }),
+      jsx(DraftPanel, {
+        draft: current.state === 'ready' ? current.draft : undefined,
+        letter,
+        result: exported,
+        disabled: current.state !== 'ready',
+        onLetter: setLetter,
+        onSave: onSaveDraft,
+        onExport,
+      }),
     ],
   });
 }
@@ -1287,26 +1623,26 @@ const plugin = {
     ctx.registerMany([
       {
         id: 'case-pane',
-        area: PANES_AREA,
+        area: sdk.PANES_AREA,
         title: 'ClaimCoach',
         data: { placement: 'right', width: '380px' },
         render: () => jsx(CasePane, { rest, subscribe }),
       },
       {
         id: 'dashboard',
-        area: ROUTES_AREA,
+        area: sdk.ROUTES_AREA,
         title: 'ClaimCoach dashboard',
         data: { path: DASHBOARD_PATH },
         render: () => jsx(DashboardPage, {}),
       },
       {
         id: 'nav',
-        area: SIDEBAR_NAV_AREA,
+        area: sdk.SIDEBAR_NAV_AREA,
         data: { path: DASHBOARD_PATH, label: 'ClaimCoach', codicon: 'checklist' },
       },
       {
         id: 'local-only',
-        area: STATUSBAR_AREAS.right,
+        area: sdk.STATUSBAR_AREAS.right,
         order: 120,
         render: () => jsx(LocalOnlyIndicator, { rest }),
       },

@@ -17,6 +17,16 @@ declare module '@hermes/plugin-sdk' {
   export const SETTINGS_PLUGINS_AREA: 'settings.plugins';
   export const STATUSBAR_AREAS: { readonly left: string; readonly right: string };
 
+  /**
+   * Capture a gateway file-save action before a REST read; call the action with the file's path on
+   * the gateway and a suggested name to open the native save dialog. It never rejects
+   * (desktop-plugin-sdk.md, "Mental model": `captureGatewayFileDownload()`; exported by
+   * apps/desktop/src/sdk/index.ts). Older hosts lack it, so ClaimCoach feature-detects it (US-7.2).
+   */
+  export const captureGatewayFileDownload:
+    | (() => (path: string, suggestedName: string) => Promise<void>)
+    | undefined;
+
   export interface PluginRestOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;

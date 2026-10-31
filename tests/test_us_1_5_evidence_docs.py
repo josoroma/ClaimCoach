@@ -32,6 +32,7 @@ RUNBOOKS = (
     "phi-redaction",
     "case-intake-extraction",
     "case-diagnosis",
+    "appeal-drafting",
 )
 SECTIONS = ("Preconditions", "Steps", "Verification", "Rollback")
 

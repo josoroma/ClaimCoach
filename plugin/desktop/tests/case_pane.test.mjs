@@ -74,10 +74,25 @@ describe('US-3.3 pane case actions use only plugin REST calls', () => {
 
   test('test_us_3_3_plugin_js_never_references_agent_surfaces', async () => {
     const source = await readFile(PLUGIN_JS, 'utf8');
-    const sdkImport = source.match(/import\s*\{([^}]*)\}\s*from\s*'@hermes\/plugin-sdk'/);
-    assert.ok(sdkImport, 'plugin.js imports the SDK');
-    const names = sdkImport[1].split(',').map((n) => n.trim());
-    assert.ok(!names.includes('host'), 'host is never imported');
+    // A namespace import (US-7.2: a named import of an export an older host lacks would stop the
+    // module from loading), so every SDK member plugin.js reads is checked by name.
+    assert.match(
+      source,
+      /^import \* as sdk from '@hermes\/plugin-sdk';$/m,
+      'plugin.js imports the SDK',
+    );
+    const names = new Set([...source.matchAll(/\bsdk\.(\w+)/g)].map((m) => m[1]));
+    assert.deepEqual(
+      [...names].sort(),
+      [
+        'PANES_AREA',
+        'ROUTES_AREA',
+        'SIDEBAR_NAV_AREA',
+        'STATUSBAR_AREAS',
+        'captureGatewayFileDownload',
+      ],
+      'host is never read',
+    );
     const code = source.replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     for (const surface of [/\bhost\b/, /\bcomposer\b/, /\.request\(/, /\bsessions?\b/]) {
       assert.doesNotMatch(code, surface);

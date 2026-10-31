@@ -375,7 +375,7 @@ describe('US-6.1 the pane diagnoses after extraction', () => {
       });
       await tick();
       assert.equal(latest().notice, notice);
-      assert.equal(hooks.states[1].value.diagnosing, false);
+      assert.equal(hooks.states[1].value.kind, 'extract');
       runCleanups();
     }
   });
@@ -569,7 +569,7 @@ describe('US-6.1 review regressions', () => {
     await tick();
     await tick();
     assert.ok(state.calls.includes(`/cases/${CASE}/diagnose`), 'the diagnosis was requested');
-    assert.equal(hooks.states[1].value.diagnosing, true, 'followed before the answer');
+    assert.equal(hooks.states[1].value.kind, 'diagnose', 'followed before the answer');
     // The classification model is missing: the job fails before the POST is answered.
     ctx.emit(PROGRESS_EVENT, {
       case_id: CASE,
@@ -624,12 +624,12 @@ describe('US-6.1 review regressions', () => {
     const { rest, state } = backend();
     const { ctx, element } = mounted(rest);
     const ready = await openCase(createCaseApi(rest), CASE);
-    const diagnosing = { ...life(), processing: CASE, diagnosing: true };
+    const diagnosing = { ...life(), processing: CASE, kind: 'diagnose' };
     const pane = rerender(element, ready, diagnosing);
     pane.props.children[9].props.onClick(); // Refresh case
-    assert.equal(diagnosing.diagnosing, false);
+    assert.equal(diagnosing.kind, 'extract');
     pane.props.children[at.process].props.onClick();
-    assert.equal(diagnosing.diagnosing, false);
+    assert.equal(diagnosing.kind, 'extract');
     await tick();
     ctx.emit(PROGRESS_EVENT, { case_id: CASE, job_id: EXTRACT, stage: 'done', progress: 1 });
     await tick();

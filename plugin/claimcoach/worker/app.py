@@ -6,7 +6,8 @@ model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI mo
 (a request ID per request, in every log line and the ``X-Request-ID`` header), US-4.1 to US-4.6
 (``/corpus`` routes; the scheduled retention purge runs in the lifespan), US-5.1 (``/cases``
 routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` events; running jobs
-are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider).
+are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider),
+US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper).
 Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
@@ -32,6 +33,8 @@ from claimcoach.cases.service import CaseService
 from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.retention import RetentionJob
 from claimcoach.corpus.service import CorpusService
+from claimcoach.letters.draft import Drafter
+from claimcoach.letters.export import Exports
 from claimcoach.logs import get_logger, new_request_id, request_id_var
 from claimcoach.models.acquire import Acquirer
 from claimcoach.models.manager import EndpointProvider, ModelError, ModelManager
@@ -116,11 +119,16 @@ def _mount_corpus(
     tasks.append(RetentionJob(corpus.purge_all).run)
     cases = CaseService(corpus)
     app.state.cases = cases
+    exports = Exports(corpus.root)
+    app.state.exports = exports
+    tasks.append(exports.run)  # expired exports go even when nobody exports again
+    shutdowns.append(exports.shutdown)  # and every export goes when the worker stops (BR-6)
     if pipeline_models is not None:
         jobs = JobRegistry(
             Extractor(cases, pipeline_models), diagnoser=Diagnoser(cases, pipeline_models)
         )
         app.state.jobs = jobs
+        app.state.drafter = Drafter(cases, pipeline_models)
         shutdowns.append(jobs.shutdown)  # cancel extraction before the stores close
         app.include_router(case_routes.jobs_router)
     shutdowns.append(_closer(corpus))

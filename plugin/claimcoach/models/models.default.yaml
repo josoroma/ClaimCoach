@@ -86,7 +86,9 @@ roles:
     repo_id: Youssofal/Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed
     model_dir: Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed
     venv: mtplx
-    command: ["{venv}/bin/mtplx", "serve", "--model", "{model}", "--host", "{host}", "--port", "{port}", "--no-auth"]
+    # --reasoning off (US-7.1): with the default (auto) hidden reasoning spends the letter's token
+    # budget, and the reply stops before the letter ends.
+    command: ["{venv}/bin/mtplx", "serve", "--model", "{model}", "--host", "{host}", "--port", "{port}", "--no-auth", "--reasoning", "off"]
     port: 18206
     tier_b: 27
     startup_timeout_s: 600

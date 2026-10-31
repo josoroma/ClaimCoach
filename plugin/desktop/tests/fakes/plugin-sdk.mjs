@@ -1,6 +1,8 @@
 /**
- * Fake `@hermes/plugin-sdk`: area constants with the values the SDK docs list (US-1.4), and a
- * `host` that records every property access (US-3.3: the pane must never touch it).
+ * Fake `@hermes/plugin-sdk`: area constants with the values the SDK docs list (US-1.4), a `host`
+ * that records every property access (US-3.3: the pane must never touch it), and US-7.2's
+ * `captureGatewayFileDownload`, which a test installs or removes with `setFileDownload` (older
+ * hosts lack it).
  */
 export const PANES_AREA = 'panes';
 export const ROUTES_AREA = 'routes';
@@ -32,3 +34,11 @@ function recorder(path) {
 }
 
 export const host = recorder('host');
+
+/** @type {(() => (path: string, suggestedName: string) => Promise<void>) | undefined} */
+export let captureGatewayFileDownload;
+
+/** Install (or, with `undefined`, remove) the host's file-save capture. */
+export function setFileDownload(capture) {
+  captureGatewayFileDownload = capture;
+}

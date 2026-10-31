@@ -51,10 +51,13 @@ GATEWAY_ROUTES = {
     "/cases/{case_id}/process",
     "/cases/{case_id}/fields",
     "/cases/{case_id}/diagnose",
+    "/cases/{case_id}/draft",
+    "/cases/{case_id}/draft/text",
+    "/cases/{case_id}/export",
 }
 """US-1.3 health, the EPIC-2 model routes (US-2.2 status, US-2.4 download/convert), US-3.5
-settings, the US-5.1 case intake routes, the US-5.2 process and confirm routes, and the US-6.1
-diagnose route."""
+settings, the US-5.1 case intake routes, the US-5.2 process and confirm routes, the US-6.1
+diagnose route, and the US-7.1 draft and US-7.2 edit and export routes."""
 
 
 def gateway_app(client: WorkerClient) -> FastAPI:

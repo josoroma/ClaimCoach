@@ -2,7 +2,9 @@
 
 Implements: US-5.1 (``MalformedUploadError``, ``UnsupportedDocumentError``,
 ``DocumentTooLargeError``), US-5.2 (``NoDocumentsError``, ``FieldError``, ``JobNotFoundError``),
-US-6.1 (``NotExtractedError``, ``DiagnosisFailedError``).
+US-6.1 (``NotExtractedError``, ``DiagnosisFailedError``), US-7.1 (``NotDiagnosedError``,
+``NoLetterTemplateError``, ``DraftingFailedError``), US-7.2 (``NotDraftedError``,
+``DraftEditedError``).
 Rules: ES-8 (each error maps to one fixed envelope code), BR-14 (no error carries content).
 """
 
@@ -16,10 +18,15 @@ __all__ = [
     "CaseError",
     "DiagnosisFailedError",
     "DocumentTooLargeError",
+    "DraftEditedError",
+    "DraftingFailedError",
     "FieldError",
     "JobNotFoundError",
     "MalformedUploadError",
     "NoDocumentsError",
+    "NoLetterTemplateError",
+    "NotDiagnosedError",
+    "NotDraftedError",
     "NotExtractedError",
     "UnsupportedDocumentError",
 ]
@@ -80,3 +87,38 @@ class DiagnosisFailedError(CaseError):
 
     code: ClassVar[ErrorCode] = "diagnosis_failed"
     status_code: ClassVar[int] = 502
+
+
+class NotDiagnosedError(CaseError):
+    """Drafting needs a diagnosis of the case's current fields (US-7.1)."""
+
+    code: ClassVar[ErrorCode] = "not_diagnosed"
+    status_code: ClassVar[int] = 409
+
+
+class NoLetterTemplateError(CaseError):
+    """No letter template in the global corpus matches the draft request (US-7.1)."""
+
+    code: ClassVar[ErrorCode] = "no_letter_template"
+    status_code: ClassVar[int] = 409
+
+
+class DraftingFailedError(CaseError):
+    """The drafting model's reply held no usable letter (US-7.1)."""
+
+    code: ClassVar[ErrorCode] = "drafting_failed"
+    status_code: ClassVar[int] = 502
+
+
+class DraftEditedError(CaseError):
+    """The biller saved edits while a draft job ran; the job keeps them (US-7.2)."""
+
+    code: ClassVar[ErrorCode] = "draft_edited"
+    status_code: ClassVar[int] = 409
+
+
+class NotDraftedError(CaseError):
+    """Editing or exporting needs the case's draft, and the case has none yet (US-7.2)."""
+
+    code: ClassVar[ErrorCode] = "not_drafted"
+    status_code: ClassVar[int] = 409

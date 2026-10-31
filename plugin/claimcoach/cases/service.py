@@ -3,7 +3,9 @@
 Implements: US-5.1 (``CaseService``: create a case, open it with its source documents, attach an
 uploaded file or pasted text), US-5.2 (the sources extraction reads, the stored extraction, and
 field confirmation), US-6.1 (the extraction diagnosis reads, the stored diagnosis, and whether it is
-stale), US-6.3 (the appeal deadline, computed whenever a case is read). Rules: BR-2 (runs in the
+stale), US-6.3 (the appeal deadline, computed whenever a case is read), US-7.1 (what drafting reads:
+the extraction and its current diagnosis; the stored draft and whether it is stale), US-7.2 (the
+biller's edits to the draft, and the draft an export renders). Rules: BR-2 (runs in the
 worker; the pane reaches it through ``plugin_api.py``), BR-6 and BR-13 (files are sealed into the
 profile's user scope), BR-7 (they are case items, deleted by the retention purge), BR-14 (nothing
 here logs content).
@@ -16,7 +18,7 @@ from __future__ import annotations
 import re
 import secrets
 import threading
-from datetime import date
+from datetime import date, datetime
 from typing import Final
 
 from pydantic import ValidationError
@@ -24,8 +26,11 @@ from pydantic import ValidationError
 from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.errors import (
     DocumentTooLargeError,
+    DraftEditedError,
     FieldError,
     NoDocumentsError,
+    NotDiagnosedError,
+    NotDraftedError,
     NotExtractedError,
 )
 from claimcoach.cases.extraction import CaseExtraction, FieldConfirmation
@@ -37,10 +42,12 @@ from claimcoach.corpus.service import CorpusService
 from claimcoach.corpus.store import CorpusStore
 from claimcoach.corpus.types import AuditAction, CaseItem, CaseRecord, utc_now
 from claimcoach.events import CASE_ID_PATTERN, new_case_id
+from claimcoach.letters.types import AppealDraft, DraftEdit
 from claimcoach.pipeline.deadline import appeal_deadline
 
 __all__ = [
     "DIAGNOSIS_ITEM",
+    "DRAFT_ITEM",
     "EXTRACTION_ITEM",
     "PASTE_CONTENT_TYPE",
     "CaseService",
@@ -52,6 +59,8 @@ EXTRACTION_ITEM: Final = "extraction"
 """The item ID of a case's one extraction."""
 DIAGNOSIS_ITEM: Final = "diagnosis"
 """The item ID of a case's one diagnosis."""
+DRAFT_ITEM: Final = "draft"
+"""The item ID of a case's one appeal draft (US-7.1)."""
 
 
 def new_source_id() -> str:
@@ -98,14 +107,25 @@ class CaseService:
             CaseNotFoundError: No such case.
         """
         store = self.store(profile)
-        record = store.open_case(case_id)
-        extraction = self.extraction(store, case_id)
+        return self._view(store, store.open_case(case_id))
+
+    def _view(
+        self, store: CorpusStore, record: CaseRecord, extraction: CaseExtraction | None = None
+    ) -> Case:
+        """The case as the pane shows it, read from ``store`` (not audited).
+
+        ``extraction`` is the one just stored, when the caller has it, so it is not read again
+        outside the case lock.
+        """
+        case_id = record.case_id
+        extraction = extraction or self.extraction(store, case_id)
         return _case(
             record,
             self.documents(store, case_id),
             extraction,
             self.diagnosis(store, case_id),
-            self.deadline(extraction),
+            deadline=self.deadline(extraction),
+            draft=self.draft(store, case_id),
         )
 
     def deadline(self, extraction: CaseExtraction | None) -> AppealDeadline | None:
@@ -139,6 +159,12 @@ class CaseService:
         """Return the case's stored diagnosis, if diagnosis ran (not audited)."""
         items = store.case_items(case_id, "diagnosis")
         return Diagnosis.model_validate_json(items[0].payload) if items else None
+
+    @staticmethod
+    def draft(store: CorpusStore, case_id: str) -> AppealDraft | None:
+        """Return the case's stored appeal draft, if drafting ran (not audited; US-7.1)."""
+        items = store.case_items(case_id, "draft")
+        return AppealDraft.model_validate_json(items[0].payload) if items else None
 
     def sources(self, profile: str, case_id: str) -> list[tuple[SourceDocument, bytes]]:
         """Return the case's source documents with their bytes, for extraction (US-5.2)."""
@@ -193,6 +219,106 @@ class CaseService:
         store = self._require_open(profile, case_id)
         if self.extraction(store, case_id) is None:
             raise NotExtractedError
+
+    def check_draftable(self, profile: str, case_id: str) -> None:
+        """Refuse drafting before a job starts: the case must be open and diagnosed (US-7.1).
+
+        ``letters.draft.Drafter.check`` adds the diagnosis and template checks.
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case, or an ID events cannot carry (not ``new_case_id``).
+            CaseClosedError: The case is closed or purged.
+        """
+        if not re.fullmatch(CASE_ID_PATTERN, case_id):
+            raise CaseNotFoundError
+        self._require_open(profile, case_id)
+
+    def draft_inputs(self, profile: str, case_id: str) -> tuple[CaseExtraction, Diagnosis]:
+        """Return the extraction and the diagnosis of it that a draft reads (not audited; US-7.1).
+
+        Raises:
+            NotDiagnosedError: No extraction, no diagnosis, or the diagnosis is stale (the fields
+                changed since it ran).
+        """
+        store = self.store(profile)
+        extraction = self.extraction(store, case_id)
+        diagnosis = self.diagnosis(store, case_id)
+        if (
+            extraction is None
+            or diagnosis is None
+            or diagnosis.extraction_digest != extraction.digest()
+        ):
+            raise NotDiagnosedError
+        return extraction, diagnosis
+
+    def save_draft(
+        self,
+        profile: str,
+        case_id: str,
+        draft: AppealDraft,
+        *,
+        started: datetime | None = None,
+    ) -> None:
+        """Store the case's draft, replacing the previous one (audited ``case_drafted``; US-7.1).
+
+        Args:
+            profile: The case's profile.
+            case_id: The case.
+            draft: The new draft.
+            started: When the draft job started; edits saved since then are kept.
+
+        Raises:
+            DraftEditedError: The biller saved edits after ``started``; nothing is replaced.
+            CaseClosedError: The case was closed while drafting ran.
+        """
+        store = self.store(profile)
+        with self._case_lock(profile, case_id):
+            current = self.draft(store, case_id) if started is not None else None
+            edited = None if current is None else current.edited_at
+            if started is not None and edited is not None and edited >= started:
+                raise DraftEditedError
+            store.put_case_item(_draft_item(case_id, draft), audit=AuditAction.CASE_DRAFTED)
+
+    def edit_draft(self, profile: str, case_id: str, edit: DraftEdit) -> Case:
+        """Store the biller's text as the draft's text (audited ``draft_edited``; US-7.2).
+
+        The draft's label, template, and provenance are kept; ``edited_at`` is now.
+
+        Raises:
+            NotDraftedError: The case has no draft.
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case is closed or purged.
+        """
+        store = self._require_open(profile, case_id)
+        with self._case_lock(profile, case_id):
+            current = self.draft(store, case_id)
+            if current is None:
+                raise NotDraftedError
+            edited = AppealDraft.model_validate(
+                current.model_dump() | {"text": edit.text, "edited_at": utc_now()}
+            )
+            store.put_case_item(_draft_item(case_id, edited), audit=AuditAction.DRAFT_EDITED)
+        return self._view(store, store.case_record(case_id))
+
+    def record_export(self, profile: str, case_id: str) -> None:
+        """Audit that the case's draft was written to a file (``draft_exported``; US-7.2)."""
+        self.store(profile).record(case_id, AuditAction.DRAFT_EXPORTED)
+
+    def draft_of(self, profile: str, case_id: str) -> AppealDraft:
+        """Return the draft an export renders (not audited; US-7.2). A closed case still exports.
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            NotDraftedError: The case has no draft (or its content was purged).
+        """
+        store = self.store(profile)
+        store.case_record(case_id)
+        draft = self.draft(store, case_id)
+        if draft is None:
+            raise NotDraftedError
+        return draft
 
     def extraction_of(self, profile: str, case_id: str) -> CaseExtraction:
         """Return the extraction a diagnosis reads (not audited: the job, not a person, reads it).
@@ -253,13 +379,7 @@ class CaseService:
                 raise FieldError from exc
             item = _extraction_item(case_id, confirmed)
             store.put_case_item(item, audit=AuditAction.FIELD_CONFIRMED)
-        return _case(
-            store.case_record(case_id),
-            self.documents(store, case_id),
-            confirmed,
-            self.diagnosis(store, case_id),
-            self.deadline(confirmed),
-        )
+        return self._view(store, store.case_record(case_id), confirmed)
 
     def add_file(self, profile: str, case_id: str, upload: UploadedFile) -> DocumentAdded:
         """Attach an uploaded file; its kind comes from its bytes.
@@ -328,15 +448,32 @@ def _extraction_item(case_id: str, extraction: CaseExtraction) -> CaseItem:
     )
 
 
-def _case(
+def _draft_item(case_id: str, draft: AppealDraft) -> CaseItem:
+    return CaseItem(
+        case_id=case_id,
+        item_id=DRAFT_ITEM,
+        kind="draft",
+        created_at=utc_now(),
+        payload=draft.model_dump_json().encode(),
+    )
+
+
+def _case(  # noqa: PLR0913 - the case and each of its items
     record: CaseRecord,
     documents: list[SourceDocument],
     extraction: CaseExtraction | None = None,
     diagnosis: Diagnosis | None = None,
+    *,
     deadline: AppealDeadline | None = None,
+    draft: AppealDraft | None = None,
 ) -> Case:
-    stale = diagnosis is not None and (
-        extraction is None or diagnosis.extraction_digest != extraction.digest()
+    digest = None if extraction is None else extraction.digest()
+    stale = diagnosis is not None and diagnosis.extraction_digest != digest
+    # A draft is stale once the fields or the diagnosis it argued from changed (US-7.1).
+    draft_stale = draft is not None and (
+        draft.extraction_digest != digest
+        or diagnosis is None
+        or draft.diagnosed_at != diagnosis.diagnosed_at
     )
     return Case(
         case_id=record.case_id,
@@ -348,4 +485,6 @@ def _case(
         diagnosis=diagnosis,
         diagnosis_stale=stale,
         deadline=deadline,
+        draft=draft,
+        draft_stale=draft_stale,
     )

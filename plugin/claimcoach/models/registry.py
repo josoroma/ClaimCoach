@@ -2,7 +2,8 @@
 
 Implements: US-2.1 (``ModelSpec``, ``ModelRegistry``, default file written on first run), US-2.3
 (the size-tier table: ``tier_b``, ``runs_alone``, ``ResidencyPolicy``), US-2.4 (``repo_id``,
-``ConversionSpec``, ``AcquireCommands``, weights presence). Rules: BR-11 (weights read in place
+``ConversionSpec``, ``AcquireCommands``, weights presence), US-7.1 (an unedited pre-US-7.1 copy's
+``drafting`` command gains ``--reasoning off``, once). Rules: BR-11 (weights read in place
 under ``MODELS_HOME``, never copied; ports 18200-18219), BR-12, ES-1.
 
 Paths are validated lexically and never resolved: a model symlinked into ``MODELS_HOME`` stays
@@ -324,11 +325,39 @@ def _describe(name: str, exc: ValidationError) -> str:
     return "\n".join(lines)
 
 
+_OLD_DRAFTING_COMMAND: Final = (
+    '    command: ["{venv}/bin/mtplx", "serve", "--model", "{model}", "--host", "{host}", '
+    '"--port", "{port}", "--no-auth"]\n'
+)
+"""The ``drafting`` command shipped before US-7.1, exactly as the default file spelled it."""
+_DRAFTING_COMMAND: Final = (
+    '    command: ["{venv}/bin/mtplx", "serve", "--model", "{model}", "--host", "{host}", '
+    '"--port", "{port}", "--no-auth", "--reasoning", "off"]\n'
+)
+
+
+def _migrate_drafting_command(path: Path) -> None:
+    """Add ``--reasoning off`` to an unedited pre-US-7.1 ``drafting`` command, once.
+
+    Only the exact line the old default shipped is replaced (written to a temporary file and
+    renamed into place, keeping the file's mode); an edited command is left as the user wrote it
+    (the upgrade runbook says how to add the flag by hand).
+    """
+    text = path.read_text()
+    if text.count(_OLD_DRAFTING_COMMAND) != 1:
+        return
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(text.replace(_OLD_DRAFTING_COMMAND, _DRAFTING_COMMAND))
+    tmp.chmod(path.stat().st_mode & 0o777)
+    tmp.replace(path)
+
+
 def ensure_registry_file(data_dir: Path) -> Path:
     """Write the default ``models.yaml`` into ``data_dir`` unless one is already there.
 
     The default is written to a temporary file and hard-linked into place, so a concurrent
-    start never sees a partial file and an existing (possibly edited) file is never replaced.
+    start never sees a partial file and an existing (possibly edited) file is never replaced;
+    only an unedited pre-US-7.1 ``drafting`` command is migrated (``_migrate_drafting_command``).
 
     Args:
         data_dir: The ClaimCoach data dir.
@@ -338,6 +367,7 @@ def ensure_registry_file(data_dir: Path) -> Path:
     """
     path = data_dir / REGISTRY_FILE
     if path.exists():
+        _migrate_drafting_command(path)
         return path
     data_dir.mkdir(parents=True, exist_ok=True)
     tmp = data_dir / f".{REGISTRY_FILE}.{os.getpid()}.tmp"
