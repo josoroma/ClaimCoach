@@ -170,16 +170,16 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-4.5#4 | Record evidence/US-4.5/test-report.md | DONE | US-4.5 |
 | US-4.6 | Audit Log of Case Access | DONE | EPIC-4 |
 | US-4.6#1 | Implement a typed AuditEntry model and append-only audit store once fields and retention… | DONE | US-4.6 |
-| EPIC-5 | Case Intake and Extraction | — | — |
-| US-5.1 | Create a Case and Add Documents | READY | EPIC-5 |
-| US-5.1#1 | Implement case creation and attachment routes with typed CaseCreate, Case, SourceDocument… | TODO | US-5.1 |
-| US-5.1#2 | Implement the pane drop zone and paste box in plugin.js (JSDoc-typed) | TODO | US-5.1 |
-| US-5.1#3 | Add tests test_us_5_1_pdf_or_image_attached, test_us_5_1_pasted_835_attached | TODO | US-5.1 |
-| US-5.1#4 | Record evidence/US-5.1/test-report.md | TODO | US-5.1 |
-| US-5.2 | Structured Extraction and Field Confirmation | READY | EPIC-5 |
-| US-5.2#1 | Implement claimcoach/pipeline/extract.py (PyMuPDF rasterize → Qwen3-VL-8B per page; 835 p… | TODO | US-5.2 |
-| US-5.2#2 | Add tests test_us_5_2_extraction_fills_case (marked models), test_us_5_2_unreadable_field… | TODO | US-5.2 |
-| US-5.2#3 | Record evidence/US-5.2/test-report.md | TODO | US-5.2 |
+| EPIC-5 | Case Intake and Extraction | DONE | — |
+| US-5.1 | Create a Case and Add Documents | DONE | EPIC-5 |
+| US-5.1#1 | Implement case creation and attachment routes with typed CaseCreate, Case, SourceDocument… | DONE | US-5.1 |
+| US-5.1#2 | Implement the pane drop zone and paste box in plugin.js (JSDoc-typed) | DONE | US-5.1 |
+| US-5.1#3 | Add tests test_us_5_1_pdf_or_image_attached, test_us_5_1_pasted_835_attached | DONE | US-5.1 |
+| US-5.1#4 | Record evidence/US-5.1/test-report.md | DONE | US-5.1 |
+| US-5.2 | Structured Extraction and Field Confirmation | DONE | EPIC-5 |
+| US-5.2#1 | Implement claimcoach/pipeline/extract.py (PyMuPDF rasterize → Qwen3-VL-8B per page; 835 p… | DONE | US-5.2 |
+| US-5.2#2 | Add tests test_us_5_2_extraction_fills_case (marked models), test_us_5_2_unreadable_field… | DONE | US-5.2 |
+| US-5.2#3 | Record evidence/US-5.2/test-report.md | DONE | US-5.2 |
 | EPIC-6 | Diagnosis | — | — |
 | US-6.1 | Denial Classification and Appeal Likelihood | READY | EPIC-6 |
 | US-6.1#1 | Implement claimcoach/pipeline/diagnose.py with typed DenialReason, AppealLikelihood (enum… | TODO | US-6.1 |
@@ -1765,7 +1765,7 @@ Open Questions:
 
 ### US-5.1: Create a Case and Add Documents
 
-Status: READY
+Status: DONE
 
 As a biller
 I want to create a case and drop in the EOB/ERA and denial letter, or paste 835 text
@@ -1794,17 +1794,20 @@ Dependencies:
 - US-4.2
 
 Tasks:
-- [ ] Implement case creation and attachment routes with typed `CaseCreate`, `Case`, `SourceDocument` models in claimcoach/cases/models.py
-- [ ] Implement the pane drop zone and paste box in plugin.js (JSDoc-typed)
-- [ ] Add tests test_us_5_1_pdf_or_image_attached, test_us_5_1_pasted_835_attached
-- [ ] Record evidence/US-5.1/test-report.md
+- [x] Implement case creation and attachment routes with typed `CaseCreate`, `Case`, `SourceDocument` models in claimcoach/cases/models.py
+- [x] Implement the pane drop zone and paste box in plugin.js (JSDoc-typed)
+- [x] Add tests test_us_5_1_pdf_or_image_attached, test_us_5_1_pasted_835_attached
+- [x] Record evidence/US-5.1/test-report.md
 
 Open Questions:
 - Which image formats and maximum file size are supported? (ctx.files text I/O is capped at 4 MiB per PC-3.)
+  Resolved in `openspec/changes/archive/2026-10-31-us-5-1-case-intake/design.md` decision 3: PDF,
+  PNG, JPEG, and UTF-8 text, kind decided from the bytes; at most 16 MiB per file and 4 MiB of
+  pasted text.
 
 ### US-5.2: Structured Extraction and Field Confirmation
 
-Status: READY
+Status: DONE
 
 As a biller
 I want claim lines, codes, dates, and amounts extracted into a structured case with unreadable fields highlighted
@@ -1845,9 +1848,9 @@ Dependencies:
 - US-3.6
 
 Tasks:
-- [ ] Implement claimcoach/pipeline/extract.py (PyMuPDF rasterize → Qwen3-VL-8B per page; 835 parser) with typed `ClaimLine`, `CaseExtraction`, `FieldStatus`
-- [ ] Add tests test_us_5_2_extraction_fills_case (marked models), test_us_5_2_unreadable_fields_highlighted, test_us_5_2_confirmed_fields_stored, test_us_5_2_progress_pushed_as_events
-- [ ] Record evidence/US-5.2/test-report.md
+- [x] Implement claimcoach/pipeline/extract.py (PyMuPDF rasterize → Qwen3-VL-8B per page; 835 parser) with typed `ClaimLine`, `CaseExtraction`, `FieldStatus`
+- [x] Add tests test_us_5_2_extraction_fills_case (marked models), test_us_5_2_unreadable_fields_highlighted, test_us_5_2_confirmed_fields_stored, test_us_5_2_progress_pushed_as_events
+- [x] Record evidence/US-5.2/test-report.md
 
 Open Questions:
 - None
