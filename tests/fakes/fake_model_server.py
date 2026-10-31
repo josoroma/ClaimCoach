@@ -9,7 +9,10 @@ talks to it over a real loopback socket exactly as it would talk to ``mlx_lm.ser
 US-2.2 also launches it as a model-server *process* from ``models.yaml``::
 
     python -m tests.fakes.fake_model_server --host 127.0.0.1 --port 18202 [--health error]
-        [--ignore-sigterm]
+        [--ignore-sigterm] [--reply-file PATH]
+
+US-3.1 passes ``--model default_model --reply-file reply.json`` to stand in for the PHI model (a
+file, because ``models.yaml`` reads ``{...}`` in a command as a placeholder).
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ import signal
 import threading
 import time
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from types import TracebackType
 from typing import Any, Literal, get_args
 
@@ -158,6 +162,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--model", default="fake-model")
     parser.add_argument("--health", choices=get_args(Health), default="ok")
     parser.add_argument("--ignore-sigterm", action="store_true")
+    parser.add_argument("--reply-file", type=Path, help="assistant reply for --model")
     args = parser.parse_args(argv)
     if args.host != "127.0.0.1":
         parser.error("the fake only binds 127.0.0.1")
@@ -166,7 +171,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
     else:
         signal.signal(signal.SIGTERM, lambda *_: stop.set())
-    server = FakeModelServer({args.model: DEFAULT_REPLY}, port=args.port, health=args.health)
+    reply = args.reply_file.read_text() if args.reply_file else DEFAULT_REPLY
+    server = FakeModelServer({args.model: reply}, port=args.port, health=args.health)
     server.start()
     stop.wait()
     server.stop()

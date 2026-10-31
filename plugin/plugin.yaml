@@ -1,4 +1,4 @@
-# ClaimCoach Hermes plugin manifest (v2). US-1.1; PRD §7.9 PC-1, PC-2, PC-5.
+# ClaimCoach Hermes plugin manifest (v2). US-1.1, US-3.2; PRD §7.9 PC-1, PC-2, PC-5, PC-7.
 # config_schema is rendered from claimcoach.settings.ClaimCoachSettings; a test fails on drift.
 name: claimcoach
 version: 0.1.0
@@ -17,6 +17,9 @@ provides_tools:
   - claimcoach_explain_code
   - claimcoach_payer_rules
   - claimcoach_case_summary
+# US-3.2: second PHI guard over claimcoach_* tool results (fail-open, so defense in depth only).
+provides_hooks:
+  - transform_tool_result
 config_schema:
   models_home:
     type: str
@@ -26,3 +29,8 @@ config_schema:
     type: int
     default: 90
     description: Days after a case closes before its source documents are purged.
+  richer_agent_access:
+    type: bool
+    default: false
+    description: 'Richer agent access when your Hermes model is local. Off by default and shown in
+      the statusbar. Reserved: until its scope is decided, agent tool results stay redacted.'

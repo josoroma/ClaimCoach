@@ -20,7 +20,7 @@ declare module '@hermes/plugin-sdk' {
   export interface PluginRestOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;
-    upload?: { filename: string; contentType?: string; bytes: ArrayBuffer | Uint8Array };
+    upload?: { filename: string; contentType?: string; bytes: ArrayBuffer };
     timeoutMs?: number;
   }
 

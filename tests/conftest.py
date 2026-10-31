@@ -5,15 +5,18 @@ Implements: US-1.4 (offline harness). Rules: ES-4, NFR-11.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import socket
 import sys
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from claimcoach import logs
 from tests.fakes import socket_guard
 from tests.fakes.fake_model_server import FakeModelServer
 
@@ -32,6 +35,24 @@ def _socket_guard(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatc
             pytest.fail("allow_network is only valid on tests also marked models")
         return
     socket_guard.install(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def _restore_logging() -> Iterator[None]:
+    """Undo ``configure_logging`` (worker entry points replace the root handlers)."""
+    root = logging.getLogger()
+    handlers, level = list(root.handlers), root.level
+    hooks = (sys.excepthook, threading.excepthook, logs._process_job_id)
+    yield
+    sys.excepthook, threading.excepthook, logs._process_job_id = hooks
+    for handler in list(root.handlers):
+        if handler not in handlers:
+            root.removeHandler(handler)
+    for handler in handlers:
+        if handler not in root.handlers:
+            root.addHandler(handler)
+    root.setLevel(level)
+    logging.captureWarnings(capture=False)
 
 
 @pytest.fixture(scope="session")

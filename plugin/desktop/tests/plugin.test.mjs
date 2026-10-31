@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { beforeEach, describe, test } from 'node:test';
+import { afterEach, beforeEach, describe, test } from 'node:test';
 
 import plugin, {
   CasePane,
@@ -19,7 +19,7 @@ import plugin, {
   WorkerStatus,
 } from '../plugin.js';
 import { byArea, createFakeCtx } from './fake_ctx.mjs';
-import { hooks, resetHooks } from './fakes/react.mjs';
+import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
 const ALLOWED = new Set(['@hermes/plugin-sdk', 'react', 'react/jsx-runtime']);
 const PLUGIN_JS = new URL('../plugin.js', import.meta.url);
@@ -27,6 +27,7 @@ const healthy = async () => ({ ok: true, status: 'ok', version: '0.1.0' });
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 beforeEach(resetHooks);
+afterEach(runCleanups);
 
 describe('US-1.4 registration contract', () => {
   test('test_us_1_4_plugin_js_registers_contributions', () => {
@@ -137,9 +138,9 @@ describe('views', () => {
     }
   });
 
-  test('DashboardPage and LocalOnlyIndicator render static content', () => {
+  test('DashboardPage renders static content and the indicator starts local-only', () => {
     assert.equal(DashboardPage().props.children[0].props.children, 'ClaimCoach dashboard');
-    const indicator = LocalOnlyIndicator();
+    const indicator = LocalOnlyIndicator({ rest: healthy });
     assert.equal(indicator.props.children, 'Local-only');
     assert.match(indicator.props.title, /never leaves this Mac/);
   });

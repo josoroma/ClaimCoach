@@ -24,6 +24,8 @@ STORY ?=
 # Model targets: ROLE is a models.yaml role; downloads and conversions also need CONFIRM=yes (BR-1).
 ROLE ?=
 CONFIRM ?=
+# make redact: a local text file to send through the worker's PHI redactor.
+FILE ?=
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -48,17 +50,39 @@ REQUIRE_ROLE = $(if $(and $(filter 1,$(words $(ROLE))),$(filter $(ROLE),$(MODEL_
 REQUIRE_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
 	echo "$@ fetches or writes model files under $(MODELS_HOME); re-run with CONFIRM=yes"; exit 2; }
 
-.PHONY: help install check verify lint typecheck test test-py test-js fmt coverage-html \
-        evidence evidence-check openspec-validate validate \
-        plugin-link plugin-unlink plugin-enable plugin-disable \
-        worker-venv worker-start worker-stop worker-status worker-health \
+# Story slug for test filters: US-3.1 -> us_3_1.
+STORY_SLUG = $(shell echo '$(STORY)' | tr 'A-Z.-' 'a-z__')
+REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make $@ STORY=US-x.y"; exit 2; }
+
+.PHONY: help doctor install check verify lint typecheck test test-py test-js test-story test-models \
+        fmt coverage-html evidence evidence-check openspec-validate validate \
+        plugin-link plugin-unlink plugin-enable plugin-disable plugin-install gateway-restart \
+        start stop worker-venv worker-start worker-stop worker-status worker-health \
         models-init models-check models-status models-load models-unload models-download \
-        models-convert clean
+        models-convert redact phi-fixtures clean
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # --- Setup ---------------------------------------------------------------------------------------
+
+doctor: ## Check tools, venvs, MODELS_HOME, the plugin link, and the worker (changes nothing)
+	@ok=1; \
+	for tool in $(UV) node $(NPM) $(OPENSPEC) $(HERMES) curl; do \
+	  if command -v "$$tool" >/dev/null 2>&1; then printf '  ok       %s\n' "$$tool"; \
+	  else printf '  missing  %s\n' "$$tool"; ok=0; fi; \
+	done; \
+	if [ -d "$(MODELS_HOME)" ]; then echo "  ok       MODELS_HOME=$(MODELS_HOME)"; \
+	else echo "  missing  MODELS_HOME=$(MODELS_HOME)"; ok=0; fi; \
+	if [ -x "$(WORKER_PYTHON)" ]; then echo "  ok       worker venv $(WORKER_VENV)"; \
+	else echo "  missing  worker venv $(WORKER_VENV) (make worker-venv)"; fi; \
+	if [ -L "$(PLUGIN_LINK)" ]; then echo "  ok       plugin link $(PLUGIN_LINK)"; \
+	else echo "  missing  plugin link $(PLUGIN_LINK) (make plugin-link)"; fi; \
+	if $(UV) run python -m claimcoach.worker.launcher status --port $(WORKER_PORT) >/dev/null 2>&1; \
+	then echo "  ok       worker on $(WORKER_URL)"; else echo "  stopped  worker (make start)"; fi; \
+	echo "Model roles (weights under MODELS_HOME):"; \
+	$(UV) run python -m claimcoach.models check || ok=0; \
+	[ "$$ok" = 1 ]
 
 install: ## Install dev dependencies (uv + npm) and the pre-commit hook
 	$(UV) sync --frozen
@@ -90,6 +114,17 @@ test-py: ## Offline pytest with branch coverage (fails under 100%)
 test-js: ## node --test for desktop/plugin.js with coverage (fails under 100%)
 	$(NPM) test --silent
 
+test-story: ## Offline tests of one story, no coverage gate: make test-story STORY=US-3.1
+	@$(REQUIRE_STORY)
+	$(UV) run pytest -m "$(PYTEST_MARKERS)" -p no:cacheprovider --no-cov -k "$(STORY_SLUG)"
+	@if grep -qs "test_$(STORY_SLUG)_" plugin/desktop/tests/*.mjs; then \
+	  node --import ./plugin/desktop/tests/register-fakes.mjs --test \
+	    --test-name-pattern="$(STORY_SLUG)" plugin/desktop/tests/; \
+	fi
+
+test-models: ## Real-model tests (@pytest.mark.models); each skips when its weights are missing
+	$(UV) run pytest -m models -p no:cacheprovider --no-cov -rs
+
 fmt: ## Apply ruff and biome fixes and formatting
 	$(UV) run ruff check --fix .
 	$(UV) run ruff format .
@@ -101,16 +136,17 @@ coverage-html: ## HTML coverage report in htmlcov/
 # --- Delivery evidence (ES-5) --------------------------------------------------------------------
 
 evidence: ## Record JUnit XML for one story: make evidence STORY=US-1.2
-	@test -n "$(STORY)" || { echo "usage: make evidence STORY=US-x.y"; exit 2; }
+	@$(REQUIRE_STORY)
 	@mkdir -p "evidence/$(STORY)"
-	$(UV) run pytest -m "not models" -p no:cacheprovider \
-	  -k "$$(echo '$(STORY)' | tr 'A-Z.-' 'a-z__')" \
+	$(UV) run pytest -m "not models" -p no:cacheprovider --no-cov -k "$(STORY_SLUG)" \
 	  --junitxml="evidence/$(STORY)/junit.xml" -o junit_suite_name="$(STORY)"
-	@if [ "$(STORY)" = "US-1.4" ]; then \
-	  node --import ./plugin/desktop/tests/register-fakes.mjs --test \
-	    --test-reporter=junit --test-reporter-destination="evidence/$(STORY)/junit-node.xml" \
-	    plugin/desktop/tests/; \
-	fi
+	@# US-1.4 owns the whole node suite; later stories record only their own node tests.
+	@if [ "$(STORY)" = "US-1.4" ]; then pattern=; \
+	elif grep -qs "test_$(STORY_SLUG)_" plugin/desktop/tests/*.mjs; then \
+	  pattern="--test-name-pattern=$(STORY_SLUG)"; else exit 0; fi; \
+	node --import ./plugin/desktop/tests/register-fakes.mjs --test $$pattern \
+	  --test-reporter=junit --test-reporter-destination="evidence/$(STORY)/junit-node.xml" \
+	  plugin/desktop/tests/
 
 evidence-check: ## Validate every evidence/US-x.y report and JUnit file
 	$(UV) run python tools/check_evidence.py evidence
@@ -144,6 +180,17 @@ plugin-enable: ## Enable the Python half (restart the gateway afterwards)
 
 plugin-disable: ## Disable the Python half
 	$(HERMES) plugins disable claimcoach
+
+gateway-restart: ## Restart the Hermes gateway so it reloads plugin_api.py and the agent tools
+	$(HERMES) gateway restart
+
+plugin-install: plugin-link plugin-enable gateway-restart ## Dev install: link, enable, restart
+
+# --- Day to day ----------------------------------------------------------------------------------
+
+start: worker-start worker-health ## Start the worker and check its health
+
+stop: worker-stop ## Stop the worker (it stops every model server it started)
 
 # --- Worker (docs/runbooks/worker-start-stop-health.md) ------------------------------------------
 
@@ -194,6 +241,22 @@ models-convert: ## Convert the reranker to local MLX 4-bit: make models-convert 
 	@$(REQUIRE_CONFIRM)
 	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' \
 	  -d '{"role": "$(ROLE)", "confirm": true}' "$(WORKER_URL)/models/convert" | python3 -m json.tool
+
+# --- PHI redaction (docs/runbooks/phi-redaction.md) ----------------------------------------------
+
+redact: ## Print a text file redacted by the running worker: make redact FILE=note.txt
+	@test -f "$(FILE)" || { echo "usage: make redact FILE=<text file>"; exit 2; }
+	@# The file goes to the worker on loopback via stdin (never argv); only redacted text or the
+	@# error code is printed.
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' --data-binary @- \
+	  "$(WORKER_URL)/redact" < <(python3 -c 'import json, sys; \
+	    json.dump({"text": sys.stdin.read()}, sys.stdout)' < "$(FILE)") \
+	  | python3 -c 'import json, sys; b = json.load(sys.stdin); ok = b.get("ok") is True; \
+	    print(b["text"]) if ok else print("error:", b["error"]["code"], file=sys.stderr); \
+	    ok and print("counts:", json.dumps(b["counts"]), file=sys.stderr); sys.exit(0 if ok else 1)'
+
+phi-fixtures: ## Regenerate the synthetic PHI fixture set (tests/fixtures/phi/phi_set.json)
+	$(UV) run python -m tests.fixtures.phi.generate
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

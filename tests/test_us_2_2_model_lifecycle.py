@@ -643,7 +643,11 @@ def test_us_2_2_worker_main_rejects_invalid_registry(
     monkeypatch.setattr(uvicorn, "run", lambda *_a, **_k: pytest.fail("must not serve"))
     (tmp_path / REGISTRY_FILE).write_text("version: 1\nroles: {}\n")
     assert worker_main.main(["--data-dir", str(tmp_path)]) == 2
-    assert capsys.readouterr().out.startswith("error: models.yaml: acquire: Field required")
+    line = json.loads(capsys.readouterr().err.splitlines()[-1])  # US-3.4: JSON on stderr
+    assert line["level"] == "error"
+    assert line["message"].startswith(
+        "models.yaml is invalid: models.yaml: acquire: Field required"
+    )
     assert not (tmp_path / "worker" / "token").exists()
 
 

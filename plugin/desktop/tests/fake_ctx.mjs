@@ -1,10 +1,11 @@
 /**
- * Fake Hermes `PluginContext` that records contributions instead of mounting them. US-1.4.
+ * Fake Hermes `PluginContext` that records contributions instead of mounting them. US-1.4; US-3.3
+ * records each REST request with its method and options.
  *
- * @param {{ settingsPages?: boolean, rest?: (path: string) => Promise<unknown> }} [options]
+ * @param {{ settingsPages?: boolean, rest?: (path: string, opts?: object) => Promise<unknown> }} [options]
  */
 export function createFakeCtx({ settingsPages = true, rest = async () => ({}) } = {}) {
-  const recorded = { contributions: [], settingsPages: [], restCalls: [] };
+  const recorded = { contributions: [], settingsPages: [], restCalls: [], restRequests: [] };
   const ctx = {
     source: 'plugin:claimcoach',
     recorded,
@@ -16,9 +17,10 @@ export function createFakeCtx({ settingsPages = true, rest = async () => ({}) } 
       recorded.contributions.push(...contributions);
       return () => {};
     },
-    rest(path) {
+    rest(path, opts) {
       recorded.restCalls.push(path);
-      return rest(path);
+      recorded.restRequests.push({ path, method: opts?.method ?? 'GET', opts });
+      return rest(path, opts);
     },
     onDispose() {},
   };

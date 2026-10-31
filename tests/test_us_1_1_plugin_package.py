@@ -19,39 +19,16 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from claimcoach.agent.tools import TOOLS, CaseSummaryParams, ToolHandler, register_tools
+from claimcoach.agent.tools import TOOLS, CaseSummaryParams, register_tools
 from claimcoach.api.models import ERROR_MESSAGES
 from claimcoach.settings import ClaimCoachSettings
 from tests.conftest import HERMES_BIN, HERMES_ROOT, PLUGIN_DIR, REPO_ROOT
+from tests.fakes.registrar import FakeRegistrar
 
 
 def manifest() -> dict[str, Any]:
     data: dict[str, Any] = yaml.safe_load((PLUGIN_DIR / "plugin.yaml").read_text())
     return data
-
-
-class FakeRegistrar:
-    """Records ``register_tool`` calls the way Hermes' ``PluginContext`` receives them."""
-
-    def __init__(self) -> None:
-        self.tools: dict[str, dict[str, Any]] = {}
-
-    def register_tool(
-        self,
-        name: str,
-        toolset: str,
-        schema: dict[str, Any],
-        handler: ToolHandler,
-        *,
-        description: str = "",
-    ) -> object:
-        self.tools[name] = {
-            "toolset": toolset,
-            "schema": schema,
-            "handler": handler,
-            "description": description,
-        }
-        return None
 
 
 def load_agent_half() -> ModuleType:

@@ -1,7 +1,8 @@
 """Typed REST bodies: the error envelope and the health response.
 
 Implements: US-1.2 (worker 401 envelope), US-1.3 (``ApiError``, ``ErrorEnvelope``,
-``HealthResponse``), US-2.2 to US-2.4 (model error codes). Rules: ES-1 (Pydantic v2 for every
+``HealthResponse``), US-2.2 to US-2.4 (model error codes), US-3.1 and
+US-3.2 (``redaction_failed``), US-3.5 (``SettingsResponse``). Rules: ES-1 (Pydantic v2 for every
 REST body), ES-8 (typed success model or the envelope ``{"ok": false, "error": {"code",
 "message"}}``), BR-14 (messages are fixed strings and never carry document text).
 """
@@ -18,6 +19,7 @@ __all__ = [
     "ErrorCode",
     "ErrorEnvelope",
     "HealthResponse",
+    "SettingsResponse",
     "envelope",
 ]
 
@@ -33,6 +35,7 @@ ErrorCode = Literal[
     "model_unavailable",
     "model_busy",
     "conversion_unavailable",
+    "redaction_failed",
 ]
 """Closed set of error codes the desktop half can switch on."""
 
@@ -48,6 +51,7 @@ ERROR_MESSAGES: Final[dict[ErrorCode, str]] = {
     "model_unavailable": "The local model for this step is missing or not responding.",
     "model_busy": "The local model is busy; try again when the current work finishes.",
     "conversion_unavailable": "This model cannot be converted until its source model is present.",
+    "redaction_failed": "PHI redaction could not complete, so no result was returned.",
 }
 """One fixed, PHI-free message per code; no caller text is ever echoed (BR-14)."""
 
@@ -87,6 +91,18 @@ class HealthResponse(_Strict):
     ok: Literal[True] = True
     status: Literal["ok"] = "ok"
     version: str = Field(min_length=1)
+
+
+class SettingsResponse(_Strict):
+    """The settings the desktop half shows (US-3.5: the statusbar's richer-access flag).
+
+    Attributes:
+        ok: Always ``True``.
+        richer_agent_access: Whether the user turned richer agent access on.
+    """
+
+    ok: Literal[True] = True
+    richer_agent_access: bool
 
 
 def envelope(code: ErrorCode) -> ErrorEnvelope:

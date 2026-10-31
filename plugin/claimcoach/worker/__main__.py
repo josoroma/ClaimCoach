@@ -2,7 +2,8 @@
 
 Implements: US-1.2 (new token per launch; bind ``127.0.0.1``), US-2.1 (``models.yaml`` written to
 the data dir on first run and validated before serving), US-2.2 (model manager; orphaned model
-servers of a crashed worker are reaped). Rules: PRD §7.9 worker decision, BR-11.
+servers of a crashed worker are reaped), US-3.4 (every log line is JSON on stderr, i.e. worker.log).
+Rules: PRD §7.9 worker decision, BR-11.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from typing import Final
 
 import uvicorn
 
+from claimcoach.logs import configure_logging, get_logger
 from claimcoach.models.manager import ModelManager
 from claimcoach.models.registry import RegistryError, load_registry, models_home
 from claimcoach.settings import PORT_RANGE
@@ -22,6 +24,8 @@ from claimcoach.worker.config import WorkerConfig
 from claimcoach.worker.token import issue_token
 
 __all__ = ["GRACEFUL_SHUTDOWN", "main"]
+
+_log = get_logger("claimcoach.worker")
 
 GRACEFUL_SHUTDOWN: Final = 5
 """Seconds uvicorn waits for in-flight requests (a model load can take minutes) before cancelling
@@ -42,10 +46,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=PORT_RANGE.start, help="loopback port")
     args = parser.parse_args(argv)
     config = WorkerConfig(data_dir=args.data_dir, port=args.port)
+    configure_logging("worker")
     try:
         registry = load_registry(config.data_dir)
     except RegistryError as exc:
-        print(f"error: {exc}")  # noqa: T201 - goes to worker.log; names the entry, no PHI
+        _log.error("models.yaml is invalid: %s", exc)  # names the entry; scrubbed like any line
         return 2
     models = ModelManager(registry, models_home=models_home(), state_dir=config.data_dir / "models")
     models.reap_orphans()
@@ -55,6 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         host=config.host,
         port=config.port,
         access_log=False,
+        log_config=None,  # keep the JSON handler from configure_logging (US-3.4)
         server_header=False,
         timeout_graceful_shutdown=GRACEFUL_SHUTDOWN,
     )

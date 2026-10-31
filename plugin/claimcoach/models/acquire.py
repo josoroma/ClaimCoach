@@ -4,7 +4,7 @@ Implements: US-2.4 (``Acquirer`` over ``DownloadRequest``, ``ConversionRequest``
 ``AcquireResult`` from ``claimcoach.models.types``; missing models are reported by
 ``ModelManager.status``). Rules: BR-1 (the only outbound calls are downloads the user confirmed;
 ``confirm: false`` starts nothing), BR-11 (files land under ``MODELS_HOME``), BR-14 (job output
-goes to a 0600 log, never to a response).
+goes to a 0600 log, never to a response), US-3.4 (log lines carry the job ID).
 
 Downloads and conversions take minutes, so each runs as a background job; the status the settings
 page polls shows ``downloading`` / ``converting`` / ``failed`` and flips ``weights`` to
@@ -14,12 +14,13 @@ page polls shows ``downloading`` / ``converting`` / ``failed`` and flips ``weigh
 from __future__ import annotations
 
 import asyncio
-import logging
+import contextvars
 import os
 import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 
+from claimcoach.logs import get_logger, job_id_var
 from claimcoach.models.manager import ModelError, ModelManager, terminate
 from claimcoach.models.types import (
     AcquireResult,
@@ -31,7 +32,7 @@ from claimcoach.models.types import (
 
 __all__ = ["Acquirer", "ConversionUnavailableError"]
 
-_log = logging.getLogger("claimcoach.models")
+_log = get_logger("claimcoach.models")
 
 
 class ConversionUnavailableError(ModelError):
@@ -178,7 +179,9 @@ class Acquirer:
     ) -> None:
         self._failed -= self._sharing(target)
         self._running[target] = kind
-        self._tasks[target] = asyncio.create_task(self._run(role, kind, target, argv, env))
+        self._tasks[target] = asyncio.create_task(
+            self._run(role, kind, target, argv, env), context=contextvars.Context()
+        )
 
     async def _run(
         self,
@@ -188,6 +191,7 @@ class Acquirer:
         argv: list[str],
         env: Mapping[str, str],
     ) -> None:
+        job_id_var.set(f"{kind}-{role.value}")  # this task's own context (US-3.4)
         log_fd = os.open(
             self.models.state_dir / f"acquire-{role.value}.log",
             os.O_WRONLY | os.O_CREAT | os.O_APPEND,

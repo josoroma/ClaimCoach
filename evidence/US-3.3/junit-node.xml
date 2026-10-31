@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="US-3.3 pane case actions use only plugin REST calls" time="0.003817" disabled="0" errors="0" tests="2" failures="0" skipped="0" timestamp="2026-10-31T09:41:16.174Z" hostname="iX-00277">
+		<testcase name="test_us_3_3_pane_uses_only_plugin_rest" time="0.002391" classname="US-3.3 pane case actions use only plugin REST calls" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+		<testcase name="test_us_3_3_plugin_js_never_references_agent_surfaces" time="0.000908" classname="US-3.3 pane case actions use only plugin REST calls" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-3.3 case processing adds nothing to agent sessions" time="0.000682" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T09:41:16.178Z" hostname="iX-00277">
+		<testcase name="test_us_3_3_case_processing_adds_nothing_to_sessions" time="0.000594" classname="US-3.3 case processing adds nothing to agent sessions" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.119436" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.118676" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 5 -->
+	<!-- suites 2 -->
+	<!-- pass 5 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 129.529625 -->
+</testsuites>

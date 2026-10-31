@@ -2,7 +2,8 @@
 
 Implements: US-1.3 (``router``; every route returns a typed model or the error envelope), US-2.2
 and US-2.3 (``GET /models/status``, polled by the settings page), US-2.4 (``POST /models/download``
-and ``POST /models/convert``, which run only with ``confirm: true``). Rules: ES-8, PC-2, PC-4
+and ``POST /models/convert``, which run only with ``confirm: true``), US-3.5 (``GET /settings``
+for the statusbar). Rules: ES-8, PC-2, PC-4
 (runs inside the gateway; proxies to the worker), BR-1, BR-2 (PHI flows go desktop pane →
 ``plugin_api.py`` → worker), BR-14.
 
@@ -19,7 +20,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
 from claimcoach.api.client import WorkerClient, WorkerError
-from claimcoach.api.models import ErrorEnvelope, HealthResponse, envelope
+from claimcoach.api.models import ErrorEnvelope, HealthResponse, SettingsResponse, envelope
 from claimcoach.models.types import (
     AcquireResult,
     ConversionRequest,
@@ -27,6 +28,7 @@ from claimcoach.models.types import (
     ModelsStatusResponse,
 )
 from claimcoach.paths import app_data_dir
+from claimcoach.settings import load_settings
 from claimcoach.worker.config import WorkerConfig
 from claimcoach.worker.token import read_token
 
@@ -60,6 +62,12 @@ async def health(
         return await client.health()
     except WorkerError as exc:
         return _error_response(exc)
+
+
+@router.get("/settings", response_model=SettingsResponse)
+def settings() -> SettingsResponse:
+    """Return the settings the desktop half displays; read in the gateway, no worker needed."""
+    return SettingsResponse(richer_agent_access=load_settings().richer_agent_access)
 
 
 @router.get("/models/status", response_model=ModelsStatusResponse, responses=_ERRORS)

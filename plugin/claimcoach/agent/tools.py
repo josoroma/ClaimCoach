@@ -1,8 +1,10 @@
 """Agent tool declarations and their registration with Hermes.
 
-Implements: US-1.1 (the ``provides_tools`` in ``plugin.yaml`` register once the plugin is enabled).
-Rules: ES-1 (tool JSON schemas are generated from Pydantic models), PC-8 (handlers return a JSON
-string), BR-3 (tools take and return only IDs, codes, and payer names).
+Implements: US-1.1 (the ``provides_tools`` in ``plugin.yaml`` register once the plugin is enabled),
+US-3.2 (every handler is registered wrapped in ``redact_tool_result``, and the
+``transform_tool_result`` hook is registered with the tools). Rules: ES-1 (tool JSON schemas are
+generated from Pydantic models), PC-7, PC-8 (handlers return a JSON string), BR-3 (tools take and
+return only IDs, codes, and payer names, and each handler redacts its own result).
 
 The handlers answer with the ``not_implemented`` envelope until EPIC-9 (US-9.1, US-9.2) delivers
 their behavior. Answering instead of raising keeps Hermes from logging a traceback and gives the
@@ -17,17 +19,20 @@ from typing import Any, Final, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from claimcoach.agent.guard import HookRegistrar, Scrubber, redact_tool_result, register_guard_hook
 from claimcoach.api.models import envelope
 
 __all__ = [
     "TOOLS",
     "TOOLSET",
+    "AgentRegistrar",
     "CaseSummaryParams",
     "ExplainCodeParams",
     "PayerRulesParams",
     "ToolHandler",
     "ToolRegistrar",
     "ToolSpec",
+    "register_agent",
     "register_tools",
 ]
 
@@ -49,6 +54,10 @@ class ToolRegistrar(Protocol):
         *,
         description: str = "",
     ) -> object: ...
+
+
+class AgentRegistrar(ToolRegistrar, HookRegistrar, Protocol):
+    """Everything ``register_agent`` needs from Hermes' ``PluginContext``."""
 
 
 class _Params(BaseModel):
@@ -136,11 +145,12 @@ TOOLS: Final[tuple[ToolSpec, ...]] = (
 )
 
 
-def register_tools(ctx: ToolRegistrar) -> list[str]:
-    """Register every ClaimCoach agent tool with Hermes.
+def register_tools(ctx: ToolRegistrar, scrubber: Scrubber | None = None) -> list[str]:
+    """Register every ClaimCoach agent tool with Hermes, each behind the PHI guard.
 
     Args:
         ctx: Hermes plugin context.
+        scrubber: Redaction call for the guard; defaults to the worker's ``/redact``.
 
     Returns:
         Names of the registered tools, in declaration order.
@@ -150,7 +160,22 @@ def register_tools(ctx: ToolRegistrar) -> list[str]:
             name=tool.name,
             toolset=TOOLSET,
             schema=tool.schema(),
-            handler=tool.handle,
+            handler=redact_tool_result(tool.handle, scrubber=scrubber),
             description=tool.description,
         )
     return [tool.name for tool in TOOLS]
+
+
+def register_agent(ctx: AgentRegistrar, scrubber: Scrubber | None = None) -> list[str]:
+    """Register the guarded tools and the ``transform_tool_result`` second guard.
+
+    Args:
+        ctx: Hermes plugin context.
+        scrubber: Redaction call for both guards; defaults to the worker's ``/redact``.
+
+    Returns:
+        Names of the registered tools.
+    """
+    names = register_tools(ctx, scrubber)
+    register_guard_hook(ctx, scrubber)
+    return names

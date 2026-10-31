@@ -4,7 +4,8 @@ Implements: US-2.2 (``ModelManager``: start on first use, serve only once ``/v1/
 healthy, idle sweep, typed status), US-2.3 (admission through ``MemoryGuard``; blocked loads are
 ``queued``, idle blockers are evicted, waits are bounded by ``queue_timeout_s``). Rules: BR-11
 (servers bind ``127.0.0.1`` on ports 18201-18219; weights read in place), BR-12, BR-14 (logs carry
-roles, ports, and PIDs only), PRD §7.9 (the worker owns these processes).
+roles, ports, and PIDs only; US-3.4: the idle sweep logs under its job ID), PRD §7.9 (the worker
+owns these processes).
 
 All server state is guarded by one ``asyncio.Condition`` so the memory guard always sees every
 server. A server is *resident* while it is starting, ready, or stopping: a stopping process still
@@ -14,8 +15,8 @@ holds its memory until it exits.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import itertools
-import logging
 import os
 import signal
 import socket
@@ -31,6 +32,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from claimcoach.api.models import ErrorCode
+from claimcoach.logs import get_logger, job_id_var
 from claimcoach.models.memory_guard import MemoryGuard, SizeTier
 from claimcoach.models.registry import ModelRegistry, ModelSpec
 from claimcoach.models.types import (
@@ -64,7 +66,7 @@ _RESIDENT: Final = frozenset({ModelState.STARTING, ModelState.READY, ModelState.
 _SERVER_ENV: Final = {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
 """Model servers never reach the network; only confirmed downloads do (BR-1)."""
 
-_log = logging.getLogger("claimcoach.models")
+_log = get_logger("claimcoach.models")
 
 
 class ModelError(Exception):
@@ -334,6 +336,7 @@ class ModelManager:
     async def run_sweeper(self, interval: float | None = None) -> None:
         """Run ``sweep_idle`` forever; the worker lifespan starts and cancels it."""
         period = interval or min(SWEEP_INTERVAL_MAX, self.registry.idle_timeout_s / 4)
+        job_id_var.set("idle-sweep")  # this task's own context: every sweep log line carries it
         while True:
             await asyncio.sleep(period)
             try:
@@ -541,7 +544,8 @@ class ModelManager:
         )
 
     def _spawn(self, coro: Coroutine[Any, Any, Any]) -> None:
-        task = asyncio.create_task(coro)
+        # A clean context: background work never logs under the request that started it.
+        task = asyncio.create_task(coro, context=contextvars.Context())
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
 

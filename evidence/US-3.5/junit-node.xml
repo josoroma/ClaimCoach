@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.118936" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.117300" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testsuite name="US-3.5 statusbar" time="0.004484" disabled="0" errors="0" tests="3" failures="0" skipped="0" timestamp="2026-10-31T09:41:21.860Z" hostname="iX-00277">
+		<testcase name="test_us_3_5_statusbar_reflects_richer_access" time="0.001895" classname="US-3.5 statusbar" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+		<testcase name="test_us_3_5_richer_access_off_by_default_in_statusbar" time="0.000776" classname="US-3.5 statusbar" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+		<testcase name="test_us_3_5_statusbar_follows_a_changed_setting" time="0.001076" classname="US-3.5 statusbar" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	</testsuite>
+	<!-- tests 5 -->
+	<!-- suites 1 -->
+	<!-- pass 5 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 127.782417 -->
+</testsuites>

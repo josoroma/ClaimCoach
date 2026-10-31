@@ -2,7 +2,8 @@
 
 Implements: US-1.3 (one ``WorkerClient`` with typed methods; ``httpx.HTTPError`` and
 ``ValidationError`` caught explicitly, no bare ``except``), US-2.2 and US-2.4 (model status,
-download, and conversion calls; the worker's own model error codes reach the desktop half).
+download, and conversion calls; the worker's own model error codes reach the desktop half), US-3.2
+(``redact`` for the agent-tool guard).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -22,6 +23,7 @@ from claimcoach.models.types import (
     DownloadRequest,
     ModelsStatusResponse,
 )
+from claimcoach.redact.types import RedactRequest, RedactResponse
 
 __all__ = [
     "RELAYED_CODES",
@@ -146,6 +148,14 @@ class WorkerClient:
             WorkerError: The call failed; the subclass names why.
         """
         return await self._request("POST", "/models/convert", AcquireResult, request)
+
+    async def redact(self, request: RedactRequest) -> RedactResponse:
+        """Ask the worker to redact a text with its local PHI model and validators.
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. No text is returned then.
+        """
+        return await self._request("POST", "/redact", RedactResponse, request)
 
     async def _request(
         self,
