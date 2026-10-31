@@ -13,4 +13,7 @@ discover_plugins(force=True)
 manager = get_plugin_manager()
 plugins = {str(p["name"]): p for p in manager.list_plugins()}
 tools = sorted(n for n in manager._plugin_tool_names if n.startswith("claimcoach"))
-print(json.dumps({"tools": tools, "claimcoach": plugins.get("claimcoach")}, default=str))  # noqa: T201
+# US-4.3: the ``hermes claimcoach`` CLI command, registered through register_cli_command.
+cli = sorted(n for n, c in manager._cli_commands.items() if c.get("plugin") == "claimcoach")
+payload = {"tools": tools, "cli_commands": cli, "claimcoach": plugins.get("claimcoach")}
+print(json.dumps(payload, default=str))  # noqa: T201

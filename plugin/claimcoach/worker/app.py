@@ -3,7 +3,8 @@
 Implements: US-1.2 (requests without the token get 401 + envelope), US-1.3 (worker side of
 ``/health``; unhandled errors become a generic envelope), US-2.2 (model routes, idle sweeper and
 model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI model), US-3.4
-(a request ID per request, in every log line and the ``X-Request-ID`` header). Rules: ES-8
+(a request ID per request, in every log line and the ``X-Request-ID`` header), US-4.1 to US-4.6
+(``/corpus`` routes; the scheduled retention purge runs in the lifespan). Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
 """
@@ -12,9 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import secrets
-from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import AbstractAsyncContextManager, asynccontextmanager, suppress
-from typing import Annotated
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -23,12 +24,15 @@ from starlette.exceptions import HTTPException
 
 from claimcoach import __version__
 from claimcoach.api.models import ErrorCode, HealthResponse, envelope
+from claimcoach.corpus.errors import CorpusError
+from claimcoach.corpus.retention import RetentionJob
+from claimcoach.corpus.service import CorpusService
 from claimcoach.logs import get_logger, new_request_id, request_id_var
 from claimcoach.models.acquire import Acquirer
 from claimcoach.models.manager import ModelError, ModelManager
 from claimcoach.redact.detector import PhiDetector
 from claimcoach.redact.redactor import Redactor
-from claimcoach.worker import model_routes, redact_routes
+from claimcoach.worker import corpus_routes, model_routes, redact_routes
 
 __all__ = ["create_app", "get_health", "router"]
 
@@ -53,28 +57,51 @@ def _error(
     return JSONResponse(envelope(code).model_dump(), status_code=status_code, headers=headers)
 
 
+async def _shutdown(steps: list[Callable[[], Awaitable[None]]]) -> None:
+    """Run every step, even when an earlier one raises."""
+    if steps:
+        try:
+            await steps[0]()
+        finally:
+            await _shutdown(steps[1:])
+
+
 def _lifespan(
-    models: ModelManager, jobs: Acquirer
+    tasks: list[Callable[[], Coroutine[Any, Any, None]]],
+    shutdowns: list[Callable[[], Awaitable[None]]],
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        sweeper = asyncio.create_task(models.run_sweeper())
+        running = [asyncio.create_task(task()) for task in tasks]
         try:
             yield
         finally:
-            sweeper.cancel()
-            with suppress(asyncio.CancelledError):
-                await sweeper
             try:
-                await jobs.shutdown()
+                for task in running:
+                    task.cancel()
+                # A task that already died is reported by type only, and never skips the rest.
+                for outcome in await asyncio.gather(*running, return_exceptions=True):
+                    if isinstance(outcome, Exception):
+                        _log.error("background task ended: %s", type(outcome).__name__)
             finally:
-                await models.shutdown()  # never leave a model server behind (US-2.2)
+                await _shutdown(shutdowns)
 
     return lifespan
 
 
+def _closer(corpus: CorpusService) -> Callable[[], Awaitable[None]]:
+    async def close() -> None:
+        corpus.close()
+
+    return close
+
+
 def create_app(
-    token: str, models: ModelManager | None = None, *, redactor: Redactor | None = None
+    token: str,
+    models: ModelManager | None = None,
+    *,
+    redactor: Redactor | None = None,
+    corpus: CorpusService | None = None,
 ) -> FastAPI:
     """Build the worker app that accepts only ``Authorization: Bearer <token>``.
 
@@ -84,6 +111,8 @@ def create_app(
             and the app's lifespan runs the idle sweeper and stops every model server on shutdown.
         redactor: The redactor behind ``/redact``; defaults to the PHI model of ``models``. Tests
             pass one over a fake model server to get ``/redact`` without a model manager.
+        corpus: The corpus scopes; when given, the ``/corpus`` routes are mounted, the lifespan
+            runs the scheduled retention purge (US-4.5), and the stores close on shutdown.
 
     Returns:
         The ASGI app.
@@ -144,15 +173,35 @@ def create_app(
     async def model_error(_request: Request, exc: ModelError) -> Response:
         return _error(exc.code, exc.status_code)
 
+    @app.exception_handler(CorpusError)
+    async def corpus_error(_request: Request, exc: CorpusError) -> Response:
+        return _error(exc.code, exc.status_code)
+
     app.include_router(router)
+    tasks: list[Callable[[], Coroutine[Any, Any, None]]] = []
+    shutdowns: list[Callable[[], Awaitable[None]]] = []
     if models is not None:
         jobs = Acquirer(models)
         app.state.models = models
         app.state.acquirer = jobs
-        app.router.lifespan_context = _lifespan(models, jobs)
+        tasks.append(models.run_sweeper)
+
+        async def stop_jobs() -> None:
+            # Looked up at shutdown: ``app.state.acquirer`` is the one object that is stopped.
+            await app.state.acquirer.shutdown()
+
+        # Never leave a model server behind (US-2.2): the manager shuts down after the jobs.
+        shutdowns += [stop_jobs, models.shutdown]
         redactor = redactor or Redactor(PhiDetector(models.use))
         app.include_router(model_routes.router)
     if redactor is not None:
         app.state.redactor = redactor
         app.include_router(redact_routes.router)
+    if corpus is not None:
+        app.state.corpus = corpus
+        tasks.append(RetentionJob(corpus.purge_all).run)
+        shutdowns.append(_closer(corpus))
+        app.include_router(corpus_routes.router)
+    if tasks:
+        app.router.lifespan_context = _lifespan(tasks, shutdowns)
     return app

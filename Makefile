@@ -24,8 +24,17 @@ STORY ?=
 # Model targets: ROLE is a models.yaml role; downloads and conversions also need CONFIRM=yes (BR-1).
 ROLE ?=
 CONFIRM ?=
-# make redact: a local text file to send through the worker's PHI redactor.
+# make redact: a local text file to send through the worker's PHI redactor; make corpus-import: a
+# local YAML/JSON corpus bundle.
 FILE ?=
+# Corpus targets (EPIC-4): SCOPE is global or user; PROFILE a Hermes profile (default: the active
+# one); CASE a case ID; FROM a backup folder or key file; TO a key file to create.
+SCOPE ?=
+PROFILE ?=
+CASE ?=
+FROM ?=
+TO ?=
+BACKUP_DIR ?= $(HOME)/ClaimCoach-backups
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -50,6 +59,13 @@ REQUIRE_ROLE = $(if $(and $(filter 1,$(words $(ROLE))),$(filter $(ROLE),$(MODEL_
 REQUIRE_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
 	echo "$@ fetches or writes model files under $(MODELS_HOME); re-run with CONFIRM=yes"; exit 2; }
 
+# The corpus commands of `hermes claimcoach corpus`, run from this checkout (US-4.x).
+CORPUS_CLI := $(UV) run python -m claimcoach.cli corpus
+REQUIRE_SCOPE = $(if $(and $(filter 1,$(words $(SCOPE))),$(filter $(SCOPE),global user)),:,\
+	$(error usage: make $@ SCOPE=<global|user> [PROFILE=<name>]))
+REQUIRE_CORPUS_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
+	echo "$@ deletes or replaces corpus data and cannot be undone; re-run with CONFIRM=yes"; exit 2; }
+
 # Story slug for test filters: US-3.1 -> us_3_1.
 STORY_SLUG = $(shell echo '$(STORY)' | tr 'A-Z.-' 'a-z__')
 REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make $@ STORY=US-x.y"; exit 2; }
@@ -59,7 +75,9 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         plugin-link plugin-unlink plugin-enable plugin-disable plugin-install gateway-restart \
         start stop worker-venv worker-start worker-stop worker-status worker-health \
         models-init models-check models-status models-load models-unload models-download \
-        models-convert redact phi-fixtures clean
+        models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
+        corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
+        clean
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -257,6 +275,48 @@ redact: ## Print a text file redacted by the running worker: make redact FILE=no
 
 phi-fixtures: ## Regenerate the synthetic PHI fixture set (tests/fixtures/phi/phi_set.json)
 	$(UV) run python -m tests.fixtures.phi.generate
+
+# --- Corpus (docs/runbooks/corpus-import-reindex-backup-restore.md, phi-purge.md) ---------------
+
+corpus-status: ## Show both corpus scopes: paths, counts, encryption, index embedding model
+	@$(CORPUS_CLI) status
+
+corpus-import: ## Import a local bundle into the global scope: make corpus-import FILE=rules.yaml
+	@test -f "$(FILE)" || { echo "usage: make corpus-import FILE=<bundle.yaml|.yml|.json>"; exit 2; }
+	@$(CORPUS_CLI) import "$(FILE)"
+
+corpus-list: ## List the global corpus with source, verified-on date, and the STALE flag
+	@$(CORPUS_CLI) list
+
+corpus-reindex: ## Re-embed a scope after a model change: make corpus-reindex SCOPE=global|user
+	@$(REQUIRE_SCOPE)
+	$(CORPUS_CLI) reindex --scope $(SCOPE) $(if $(PROFILE),--profile "$(PROFILE)")
+
+corpus-purge: ## Retention purge now; one case: make corpus-purge PROFILE=p CASE=id CONFIRM=yes
+	@if [ -n "$(CASE)" ]; then $(REQUIRE_CORPUS_CONFIRM); fi
+	@$(CORPUS_CLI) purge $(if $(PROFILE),--profile "$(PROFILE)") \
+	  $(if $(CASE),--case "$(CASE)" --confirm)
+
+corpus-audit: ## Show the case-access audit log: make corpus-audit [PROFILE=p] [CASE=id]
+	@$(CORPUS_CLI) audit $(if $(PROFILE),--profile "$(PROFILE)") $(if $(CASE),--case "$(CASE)")
+
+corpus-backup: ## Back up both scopes (online, encrypted as stored): make corpus-backup [BACKUP_DIR=d]
+	@mkdir -p "$(BACKUP_DIR)" && chmod 700 "$(BACKUP_DIR)"
+	@$(CORPUS_CLI) backup --to "$(BACKUP_DIR)"
+
+corpus-restore: ## Replace the scopes from a backup (worker stopped): make corpus-restore FROM=d CONFIRM=yes
+	@test -d "$(FROM)" || { echo "usage: make corpus-restore FROM=<backup folder> CONFIRM=yes"; exit 2; }
+	@$(REQUIRE_CORPUS_CONFIRM)
+	@$(CORPUS_CLI) restore --from "$(FROM)" --confirm
+
+corpus-key-export: ## Write a profile's store key to a new 0600 file: make corpus-key-export TO=f [PROFILE=p]
+	@test -n "$(TO)" || { echo "usage: make corpus-key-export TO=<new key file> [PROFILE=<name>]"; exit 2; }
+	@$(CORPUS_CLI) key-export --to "$(TO)" $(if $(PROFILE),--profile "$(PROFILE)")
+
+corpus-key-import: ## Put a backed-up key into the Keychain: make corpus-key-import FROM=f CONFIRM=yes
+	@test -f "$(FROM)" || { echo "usage: make corpus-key-import FROM=<key file> CONFIRM=yes"; exit 2; }
+	@$(REQUIRE_CORPUS_CONFIRM)
+	@$(CORPUS_CLI) key-import --from "$(FROM)" --confirm $(if $(PROFILE),--profile "$(PROFILE)")
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

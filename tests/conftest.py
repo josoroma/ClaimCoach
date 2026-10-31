@@ -62,6 +62,13 @@ def fake_model_server() -> Iterator[FakeModelServer]:
         yield server
 
 
+@pytest.fixture(scope="module")
+def corpus_server() -> Iterator[FakeModelServer]:
+    """A fake embedding and rerank server for one corpus test module (US-4.x)."""
+    with FakeModelServer() as server:
+        yield server
+
+
 @pytest.fixture
 def hermes_python() -> Path:
     """The Hermes gateway interpreter; skips when Hermes Agent is not installed."""

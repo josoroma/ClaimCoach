@@ -17,7 +17,9 @@ import pytest
 
 from tests.conftest import PLUGIN_DIR
 
-THIRD_PARTY = frozenset({"fastapi", "httpx", "pydantic", "starlette", "uvicorn", "yaml"})
+THIRD_PARTY = frozenset(
+    {"cryptography", "fastapi", "httpx", "numpy", "pydantic", "starlette", "uvicorn", "yaml"}
+)
 """Declared dependencies (pyproject ``[project] dependencies``) and starlette, fastapi's base."""
 
 HERMES_ALLOWED = frozenset(

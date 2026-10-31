@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
 from typing import ClassVar, Final
 
 import httpx
@@ -24,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from claimcoach.logs import get_logger
 from claimcoach.models.chat import chat_completion
-from claimcoach.models.manager import ModelEndpoint, ModelError
+from claimcoach.models.manager import EndpointProvider, ModelError
 from claimcoach.models.types import ModelRole
 from claimcoach.prompts.builder import DataItem, PromptParts, build_prompt, define_template
 from claimcoach.redact.spans import locate, locate_parts
@@ -48,9 +46,6 @@ TOTAL_TIMEOUT: Final = 300.0
 
 MAX_TOKENS: Final = 2048
 """Reply budget per chunk; a truncated reply fails the detection rather than being trusted."""
-
-EndpointProvider = Callable[[ModelRole], AbstractAsyncContextManager[ModelEndpoint]]
-"""``ModelManager.use``: holds a role's server for the duration of the context."""
 
 PHI_TEMPLATE: Final = define_template(
     "phi_detection",

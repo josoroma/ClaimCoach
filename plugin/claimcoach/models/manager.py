@@ -23,7 +23,7 @@ import socket
 import subprocess
 import time
 from collections.abc import AsyncIterator, Callable, Coroutine, Mapping
-from contextlib import asynccontextmanager, suppress
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Final
@@ -46,6 +46,7 @@ from claimcoach.worker.config import LOOPBACK
 
 __all__ = [
     "HEALTH_PATH",
+    "EndpointProvider",
     "ModelBusyError",
     "ModelEndpoint",
     "ModelError",
@@ -101,6 +102,10 @@ class ModelEndpoint:
 
     role: ModelRole
     base_url: str
+
+
+EndpointProvider = Callable[[ModelRole], AbstractAsyncContextManager[ModelEndpoint]]
+"""``ModelManager.use``: holds a role's server for the duration of the context."""
 
 
 class _Record(BaseModel):

@@ -2,8 +2,9 @@
 
 Implements: US-1.2 (new token per launch; bind ``127.0.0.1``), US-2.1 (``models.yaml`` written to
 the data dir on first run and validated before serving), US-2.2 (model manager; orphaned model
-servers of a crashed worker are reaped), US-3.4 (every log line is JSON on stderr, i.e. worker.log).
-Rules: PRD §7.9 worker decision, BR-11.
+servers of a crashed worker are reaped), US-3.4 (every log line is JSON on stderr, i.e.
+worker.log), US-4.1 to US-4.5 (the corpus service over this Hermes root, user stores keyed from
+the macOS Keychain). Rules: PRD §7.9 worker decision, BR-11.
 """
 
 from __future__ import annotations
@@ -15,6 +16,10 @@ from typing import Final
 
 import uvicorn
 
+from claimcoach import PLUGIN_NAME
+from claimcoach.corpus.crypto import KeychainKeyProvider
+from claimcoach.corpus.embed import Embedder, Reranker, embedding_model_id
+from claimcoach.corpus.service import CorpusService
 from claimcoach.logs import configure_logging, get_logger
 from claimcoach.models.manager import ModelManager
 from claimcoach.models.registry import RegistryError, load_registry, models_home
@@ -54,9 +59,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     models = ModelManager(registry, models_home=models_home(), state_dir=config.data_dir / "models")
     models.reap_orphans()
+    corpus = None
+    data = config.data_dir.resolve()
+    if data.name == PLUGIN_NAME and data.parent.name == "plugin-data":
+        corpus = CorpusService(
+            data.parents[1],  # <hermes root>/plugin-data/claimcoach -> <hermes root>
+            KeychainKeyProvider(),
+            Embedder(models.use),
+            Reranker(models.use),
+            embedding_model_id=embedding_model_id(registry),
+        )
+    else:
+        _log.warning("the data dir is not <hermes root>/plugin-data/claimcoach; corpus disabled")
     token = issue_token(config.token_path)
     uvicorn.run(
-        create_app(token, models),
+        create_app(token, models, corpus=corpus),
         host=config.host,
         port=config.port,
         access_log=False,

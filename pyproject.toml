@@ -6,8 +6,10 @@ readme = "README.md"
 # Gateway-loaded code runs on the Hermes gateway's Python (3.11 in v0.22.5); the worker runs 3.12.
 requires-python = ">=3.11"
 dependencies = [
+  "cryptography>=46",
   "fastapi>=0.133",
   "httpx>=0.28",
+  "numpy>=2.3",
   "pydantic>=2.13",
   "pyyaml>=6.0",
   "uvicorn>=0.38",

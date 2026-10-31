@@ -145,31 +145,31 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-3.6#1 | Implement claimcoach/prompts/builder.py with a typed PromptParts model and a single data-… | DONE | US-3.6 |
 | US-3.6#2 | Add test test_us_3_6_prompts_place_text_in_data_section | DONE | US-3.6 |
 | US-3.6#3 | Record evidence/US-3.6/test-report.md | DONE | US-3.6 |
-| EPIC-4 | Corpus Scopes and Storage | — | — |
-| US-4.1 | Global and User Scope Stores | READY | EPIC-4 |
-| US-4.1#1 | Implement claimcoach/corpus/paths.py and claimcoach/corpus/store.py with typed CorpusScop… | TODO | US-4.1 |
-| US-4.1#2 | Record the embedding model ID per index so a model change forces reindex | TODO | US-4.1 |
-| US-4.1#3 | Add tests test_us_4_1_global_scope_under_root, test_us_4_1_user_scope_follows_profile, te… | TODO | US-4.1 |
-| US-4.1#4 | Write docs/runbooks/corpus-import-reindex-backup-restore.md (reindex and backup sections) | TODO | US-4.1 |
-| US-4.1#5 | Record evidence/US-4.1/test-report.md | TODO | US-4.1 |
-| US-4.2 | User Scope Encrypted at Rest | READY | EPIC-4 |
-| US-4.2#1 | Implement claimcoach/corpus/crypto.py with a typed KeyProvider protocol (Keychain impleme… | TODO | US-4.2 |
-| US-4.2#2 | Add tests test_us_4_2_user_store_not_plaintext, test_us_4_2_key_in_keychain | TODO | US-4.2 |
-| US-4.2#3 | Record evidence/US-4.2/test-report.md | TODO | US-4.2 |
-| US-4.3 | Global Corpus Import with Provenance | NEEDS CLARIFICATION | EPIC-4 |
-| US-4.3#1 | Implement the corpus import CLI subcommand and settings-page import with typed RuleCard,… | TODO | US-4.3 |
-| US-4.3#2 | Update docs/runbooks/corpus-import-reindex-backup-restore.md (import section) | TODO | US-4.3 |
-| US-4.4 | Retrieval Limited to Global Plus Current Case | READY | EPIC-4 |
-| US-4.4#1 | Implement claimcoach/corpus/retrieve.py with a typed RetrievalQuery that requires a case_… | TODO | US-4.4 |
-| US-4.4#2 | Add tests test_us_4_4_other_case_chunks_never_retrieved, test_us_4_4_global_chunks_availa… | TODO | US-4.4 |
-| US-4.4#3 | Record evidence/US-4.4/test-report.md | TODO | US-4.4 |
-| US-4.5 | Retention Auto-Purge of Source Documents | READY | EPIC-4 |
-| US-4.5#1 | Implement claimcoach/corpus/retention.py with typed RetentionPolicy and a scheduled purge… | TODO | US-4.5 |
-| US-4.5#2 | Add tests test_us_4_5_expired_documents_purged, test_us_4_5_outcomes_survive_deidentified… | TODO | US-4.5 |
-| US-4.5#3 | Fill docs/runbooks/phi-purge.md (manual purge and verification) | TODO | US-4.5 |
-| US-4.5#4 | Record evidence/US-4.5/test-report.md | TODO | US-4.5 |
-| US-4.6 | Audit Log of Case Access | NEEDS CLARIFICATION | EPIC-4 |
-| US-4.6#1 | Implement a typed AuditEntry model and append-only audit store once fields and retention… | TODO | US-4.6 |
+| EPIC-4 | Corpus Scopes and Storage | DONE | — |
+| US-4.1 | Global and User Scope Stores | DONE | EPIC-4 |
+| US-4.1#1 | Implement claimcoach/corpus/paths.py and claimcoach/corpus/store.py with typed CorpusScop… | DONE | US-4.1 |
+| US-4.1#2 | Record the embedding model ID per index so a model change forces reindex | DONE | US-4.1 |
+| US-4.1#3 | Add tests test_us_4_1_global_scope_under_root, test_us_4_1_user_scope_follows_profile, te… | DONE | US-4.1 |
+| US-4.1#4 | Write docs/runbooks/corpus-import-reindex-backup-restore.md (reindex and backup sections) | DONE | US-4.1 |
+| US-4.1#5 | Record evidence/US-4.1/test-report.md | DONE | US-4.1 |
+| US-4.2 | User Scope Encrypted at Rest | DONE | EPIC-4 |
+| US-4.2#1 | Implement claimcoach/corpus/crypto.py with a typed KeyProvider protocol (Keychain impleme… | DONE | US-4.2 |
+| US-4.2#2 | Add tests test_us_4_2_user_store_not_plaintext, test_us_4_2_key_in_keychain | DONE | US-4.2 |
+| US-4.2#3 | Record evidence/US-4.2/test-report.md | DONE | US-4.2 |
+| US-4.3 | Global Corpus Import with Provenance | DONE | EPIC-4 |
+| US-4.3#1 | Implement the corpus import CLI subcommand and settings-page import with typed RuleCard,… | DONE | US-4.3 |
+| US-4.3#2 | Update docs/runbooks/corpus-import-reindex-backup-restore.md (import section) | DONE | US-4.3 |
+| US-4.4 | Retrieval Limited to Global Plus Current Case | DONE | EPIC-4 |
+| US-4.4#1 | Implement claimcoach/corpus/retrieve.py with a typed RetrievalQuery that requires a case_… | DONE | US-4.4 |
+| US-4.4#2 | Add tests test_us_4_4_other_case_chunks_never_retrieved, test_us_4_4_global_chunks_availa… | DONE | US-4.4 |
+| US-4.4#3 | Record evidence/US-4.4/test-report.md | DONE | US-4.4 |
+| US-4.5 | Retention Auto-Purge of Source Documents | DONE | EPIC-4 |
+| US-4.5#1 | Implement claimcoach/corpus/retention.py with typed RetentionPolicy and a scheduled purge… | DONE | US-4.5 |
+| US-4.5#2 | Add tests test_us_4_5_expired_documents_purged, test_us_4_5_outcomes_survive_deidentified… | DONE | US-4.5 |
+| US-4.5#3 | Fill docs/runbooks/phi-purge.md (manual purge and verification) | DONE | US-4.5 |
+| US-4.5#4 | Record evidence/US-4.5/test-report.md | DONE | US-4.5 |
+| US-4.6 | Audit Log of Case Access | DONE | EPIC-4 |
+| US-4.6#1 | Implement a typed AuditEntry model and append-only audit store once fields and retention… | DONE | US-4.6 |
 | EPIC-5 | Case Intake and Extraction | — | — |
 | US-5.1 | Create a Case and Add Documents | READY | EPIC-5 |
 | US-5.1#1 | Implement case creation and attachment routes with typed CaseCreate, Case, SourceDocument… | TODO | US-5.1 |
@@ -1534,7 +1534,7 @@ Open Questions:
 
 ### US-4.1: Global and User Scope Stores
 
-Status: READY
+Status: DONE
 
 As a developer
 I want separate global and user corpus stores at the PRD paths, each with SQLite and a local vector index
@@ -1568,18 +1568,18 @@ Dependencies:
 - US-2.2
 
 Tasks:
-- [ ] Implement claimcoach/corpus/paths.py and claimcoach/corpus/store.py with typed `CorpusScope`, `Document`, `Chunk` models
-- [ ] Record the embedding model ID per index so a model change forces reindex
-- [ ] Add tests test_us_4_1_global_scope_under_root, test_us_4_1_user_scope_follows_profile, test_us_4_1_each_scope_own_db_and_index
-- [ ] Write docs/runbooks/corpus-import-reindex-backup-restore.md (reindex and backup sections)
-- [ ] Record evidence/US-4.1/test-report.md
+- [x] Implement claimcoach/corpus/paths.py and claimcoach/corpus/store.py with typed `CorpusScope`, `Document`, `Chunk` models
+- [x] Record the embedding model ID per index so a model change forces reindex
+- [x] Add tests test_us_4_1_global_scope_under_root, test_us_4_1_user_scope_follows_profile, test_us_4_1_each_scope_own_db_and_index
+- [x] Write docs/runbooks/corpus-import-reindex-backup-restore.md (reindex and backup sections)
+- [x] Record evidence/US-4.1/test-report.md
 
 Open Questions:
 - None
 
 ### US-4.2: User Scope Encrypted at Rest
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want each biller's case store encrypted with a key held in the macOS Keychain
@@ -1607,16 +1607,17 @@ Dependencies:
 - US-4.1
 
 Tasks:
-- [ ] Implement claimcoach/corpus/crypto.py with a typed `KeyProvider` protocol (Keychain implementation + in-memory test double)
-- [ ] Add tests test_us_4_2_user_store_not_plaintext, test_us_4_2_key_in_keychain
-- [ ] Record evidence/US-4.2/test-report.md
+- [x] Implement claimcoach/corpus/crypto.py with a typed `KeyProvider` protocol (Keychain implementation + in-memory test double)
+- [x] Add tests test_us_4_2_user_store_not_plaintext, test_us_4_2_key_in_keychain
+- [x] Record evidence/US-4.2/test-report.md
 
 Open Questions:
 - Is the vector index of the user scope also required to be encrypted, or only the SQLite database and source files?
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-4-2-user-scope-encryption/`): resolved as *encrypted too* — embeddings can be inverted to approximate their text, so user-scope vectors are AES-256-GCM per row like documents and chunks. The key can be backed up with `hermes claimcoach corpus key-export` / `key-import`.
 
 ### US-4.3: Global Corpus Import with Provenance
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a manager
 I want to import the code knowledge base, payer rule cards, and letter templates with source and verified-on dates
@@ -1640,17 +1641,18 @@ Dependencies:
 - US-4.1
 
 Tasks:
-- [ ] Implement the `corpus import` CLI subcommand and settings-page import with typed `RuleCard`, `CodeEntry`, `LetterTemplate` models once formats are decided
-- [ ] Update docs/runbooks/corpus-import-reindex-backup-restore.md (import section)
+- [x] Implement the `corpus import` CLI subcommand and settings-page import with typed `RuleCard`, `CodeEntry`, `LetterTemplate` models once formats are decided
+- [x] Update docs/runbooks/corpus-import-reindex-backup-restore.md (import section)
 
 Open Questions:
 - What file formats does import accept for the code knowledge base, rule cards, and templates?
 - After how long is a rule card considered stale, and how is the flag shown?
 - How is the "manager" role identified across Hermes profiles on one Mac?
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-4-3-global-corpus-import/`) with defaults for the Product Manager to confirm: one local YAML or JSON bundle (`items:` tagged `rule_card`, `code`, `letter_template`, each with required `source` and `verified_on`); a card is flagged `STALE` 180 days after `verified_on`; whoever runs `hermes claimcoach corpus import` on the Mac is the manager (the global scope holds no PHI). The settings-page import is part of US-10.3.
 
 ### US-4.4: Retrieval Limited to Global Plus Current Case
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want retrieval to use the global scope and the current case only
@@ -1677,16 +1679,16 @@ Dependencies:
 - US-4.1
 
 Tasks:
-- [ ] Implement claimcoach/corpus/retrieve.py with a typed `RetrievalQuery` that requires a case_id filter for user-scope chunks, and rerank with Qwen3-Reranker-8B
-- [ ] Add tests test_us_4_4_other_case_chunks_never_retrieved, test_us_4_4_global_chunks_available
-- [ ] Record evidence/US-4.4/test-report.md
+- [x] Implement claimcoach/corpus/retrieve.py with a typed `RetrievalQuery` that requires a case_id filter for user-scope chunks, and rerank with Qwen3-Reranker-8B
+- [x] Add tests test_us_4_4_other_case_chunks_never_retrieved, test_us_4_4_global_chunks_available
+- [x] Record evidence/US-4.4/test-report.md
 
 Open Questions:
 - None
 
 ### US-4.5: Retention Auto-Purge of Source Documents
 
-Status: READY
+Status: DONE
 
 As a practice owner
 I want source documents purged automatically after a configurable period following case close
@@ -1719,17 +1721,18 @@ Dependencies:
 - US-8.1
 
 Tasks:
-- [ ] Implement claimcoach/corpus/retention.py with typed `RetentionPolicy` and a scheduled purge in the worker
-- [ ] Add tests test_us_4_5_expired_documents_purged, test_us_4_5_outcomes_survive_deidentified, test_us_4_5_retention_configurable
-- [ ] Fill docs/runbooks/phi-purge.md (manual purge and verification)
-- [ ] Record evidence/US-4.5/test-report.md
+- [x] Implement claimcoach/corpus/retention.py with typed `RetentionPolicy` and a scheduled purge in the worker
+- [x] Add tests test_us_4_5_expired_documents_purged, test_us_4_5_outcomes_survive_deidentified, test_us_4_5_retention_configurable
+- [x] Fill docs/runbooks/phi-purge.md (manual purge and verification)
+- [x] Record evidence/US-4.5/test-report.md
 
 Open Questions:
 - None
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-4-5-retention-purge/`) before US-8.1: the de-identified `outcomes` table (`CaseOutcome` enum and a date only) exists; US-8.1 adds the outcome route and pane control. A purge removes all case content (source documents and anything derived from them); an unreadable or invalid retention setting skips the profile instead of shortening retention.
 
 ### US-4.6: Audit Log of Case Access
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a practice owner
 I want an audit log of case access
@@ -1751,11 +1754,12 @@ Dependencies:
 - US-4.1
 
 Tasks:
-- [ ] Implement a typed `AuditEntry` model and append-only audit store once fields and retention are decided
+- [x] Implement a typed `AuditEntry` model and append-only audit store once fields and retention are decided
 
 Open Questions:
 - Which fields does an audit entry contain, and which actions besides opening a case are audited?
 - How long are audit entries kept, and is the log subject to the retention purge?
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-4-6-case-access-audit/`) with defaults for the Product Manager to confirm: entries hold `seq`, `at`, `action`, `case_id`, and `profile` (no PHI); audited actions are case created, opened, document added, closed, outcome recorded, purged (by policy or on request); entries are kept indefinitely, are not purged, and SQLite triggers block update, delete, and replace. Opening a case from the pane arrives with US-5.1.
 
 # EPIC-5: Case Intake and Extraction
 

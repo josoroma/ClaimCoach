@@ -1,11 +1,12 @@
-"""Fake Hermes ``PluginContext`` for the agent half: records tools and hooks.
+"""Fake Hermes ``PluginContext`` for the agent half: records tools, hooks, and CLI commands.
 
-Implements: US-1.1 and US-3.2 test harness. Mirrors ``PluginContext.register_tool`` and
-``register_hook`` in Hermes Agent v0.22.5 (``hermes_cli/plugins.py``).
+Implements: US-1.1, US-3.2, and US-4.3 test harness. Mirrors ``PluginContext.register_tool``,
+``register_hook``, and ``register_cli_command`` in Hermes Agent v0.22.5 (``hermes_cli/plugins.py``).
 """
 
 from __future__ import annotations
 
+import argparse
 from collections.abc import Callable
 from typing import Any
 
@@ -15,11 +16,12 @@ __all__ = ["FakeRegistrar"]
 
 
 class FakeRegistrar:
-    """Records ``register_tool`` and ``register_hook`` calls the way Hermes receives them."""
+    """Records registrations the way Hermes receives them."""
 
     def __init__(self) -> None:
         self.tools: dict[str, dict[str, Any]] = {}
         self.hooks: dict[str, list[Callable[..., Any]]] = {}
+        self.cli_commands: dict[str, dict[str, Any]] = {}
 
     def register_tool(
         self,
@@ -40,4 +42,20 @@ class FakeRegistrar:
 
     def register_hook(self, hook_name: str, callback: Callable[..., Any]) -> object:
         self.hooks.setdefault(hook_name, []).append(callback)
+        return None
+
+    def register_cli_command(
+        self,
+        name: str,
+        help: str,  # noqa: A002 - Hermes' parameter name
+        setup_fn: Callable[[argparse.ArgumentParser], None],
+        handler_fn: Callable[[argparse.Namespace], None] | None = None,
+        description: str = "",
+    ) -> object:
+        self.cli_commands[name] = {
+            "help": help,
+            "setup_fn": setup_fn,
+            "handler_fn": handler_fn,
+            "description": description,
+        }
         return None

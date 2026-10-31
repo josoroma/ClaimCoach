@@ -3,7 +3,8 @@
 Implements: US-1.3 (one ``WorkerClient`` with typed methods; ``httpx.HTTPError`` and
 ``ValidationError`` caught explicitly, no bare ``except``), US-2.2 and US-2.4 (model status,
 download, and conversion calls; the worker's own model error codes reach the desktop half), US-3.2
-(``redact`` for the agent-tool guard).
+(``redact`` for the agent-tool guard), US-4.1 to US-4.6 (corpus status, import, view,
+reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -17,6 +18,15 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from claimcoach.api.models import ErrorCode, ErrorEnvelope, HealthResponse
+from claimcoach.corpus.bundle import CorpusBundle, CorpusViewResponse, ImportResult
+from claimcoach.corpus.types import (
+    AuditResponse,
+    CorpusStatusResponse,
+    PurgeRequest,
+    PurgeResponse,
+    ReindexRequest,
+    ReindexResult,
+)
 from claimcoach.models.types import (
     AcquireResult,
     ConversionRequest,
@@ -43,6 +53,10 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "model_unavailable": 503,
     "model_busy": 409,
     "conversion_unavailable": 409,
+    "corpus_unavailable": 503,
+    "index_stale": 409,
+    "case_not_found": 404,
+    "profile_not_found": 404,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
 
@@ -157,12 +171,63 @@ class WorkerClient:
         """
         return await self._request("POST", "/redact", RedactResponse, request)
 
+    async def corpus_status(self) -> CorpusStatusResponse:
+        """Return both corpus scopes' status (US-4.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("GET", "/corpus/status", CorpusStatusResponse)
+
+    async def import_corpus(self, bundle: CorpusBundle) -> ImportResult:
+        """Import a bundle into the global scope (US-4.3).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing is stored then.
+        """
+        return await self._request("POST", "/corpus/import", ImportResult, bundle)
+
+    async def corpus_view(self) -> CorpusViewResponse:
+        """Return the global corpus view with provenance (US-4.3).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("GET", "/corpus/global", CorpusViewResponse)
+
+    async def reindex_corpus(self, request: ReindexRequest) -> ReindexResult:
+        """Re-embed one scope under the configured embedding model (US-4.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("POST", "/corpus/reindex", ReindexResult, request)
+
+    async def purge_corpus(self, request: PurgeRequest) -> PurgeResponse:
+        """Run the retention purge now, or purge one confirmed case (US-4.5).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("POST", "/corpus/purge", PurgeResponse, request)
+
+    async def corpus_audit(self, profile: str, case_id: str | None = None) -> AuditResponse:
+        """Return a profile's audit entries, one case's when ``case_id`` is given (US-4.6).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        params = {"profile": profile} | ({} if case_id is None else {"case_id": case_id})
+        return await self._request("GET", "/corpus/audit", AuditResponse, params=params)
+
     async def _request(
         self,
         method: Literal["GET", "POST"],
         path: str,
         model: type[ModelT],
         body: BaseModel | None = None,
+        *,
+        params: dict[str, str] | None = None,
     ) -> ModelT:
         token = self._token_provider()
         if token is None:
@@ -179,7 +244,9 @@ class WorkerClient:
                 if body is not None:
                     headers["Content-Type"] = "application/json"
                     content = body.model_dump_json()
-                response = await client.request(method, path, headers=headers, content=content)
+                response = await client.request(
+                    method, path, headers=headers, content=content, params=params
+                )
         except httpx.HTTPError as exc:
             raise WorkerUnavailableError from exc
         if response.status_code == httpx.codes.UNAUTHORIZED:

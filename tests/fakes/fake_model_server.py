@@ -13,11 +13,18 @@ US-2.2 also launches it as a model-server *process* from ``models.yaml``::
 
 US-3.1 passes ``--model default_model --reply-file reply.json`` to stand in for the PHI model (a
 file, because ``models.yaml`` reads ``{...}`` in a command as a placeholder).
+
+US-4.1 and US-4.4 add ``/v1/embeddings`` (a deterministic hashed bag of words, ``EMBED_DIM``
+long, so texts that share words are near each other) and ``/v1/rerank`` (the share of query words a
+document contains). ``embed_overrides`` pins the vector of an exact input text, so a test can make
+one chunk the nearest neighbour of a query.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import re
 import signal
 import threading
 import time
@@ -30,12 +37,43 @@ import uvicorn
 from fastapi import FastAPI, Response
 from pydantic import BaseModel, ConfigDict
 
-__all__ = ["DEFAULT_REPLY", "ChatMessage", "ChatRequest", "FakeModelServer", "Health", "main"]
+__all__ = [
+    "DEFAULT_REPLY",
+    "EMBED_DIM",
+    "ChatMessage",
+    "ChatRequest",
+    "EmbeddingsRequest",
+    "FakeModelServer",
+    "Health",
+    "RerankRequest",
+    "fake_embedding",
+    "main",
+]
 
 Health = Literal["ok", "error", "text", "no-data"]
 """How ``/v1/models`` answers: a model list, HTTP 503, plain text, or JSON without ``data``."""
 
 DEFAULT_REPLY = '{"ok": true}'
+EMBED_DIM = 64
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def _words(text: str) -> list[str]:
+    return _WORD.findall(text.lower())
+
+
+def fake_embedding(text: str) -> list[float]:
+    """Hashed bag of words: each word adds 1 to one of ``EMBED_DIM`` slots."""
+    vector = [0.0] * EMBED_DIM
+    for word in _words(text):
+        vector[int(hashlib.sha256(word.encode()).hexdigest(), 16) % EMBED_DIM] += 1.0
+    return vector
+
+
+def fake_rerank_score(query: str, document: str) -> float:
+    """The share of the query's distinct words that occur in ``document``."""
+    wanted = set(_words(query))
+    return len(wanted & set(_words(document))) / max(len(wanted), 1)
 
 
 class ChatMessage(BaseModel):
@@ -56,6 +94,25 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
 
 
+class EmbeddingsRequest(BaseModel):
+    """The subset of the embeddings request the fake reads."""
+
+    model_config = ConfigDict(extra="allow")
+
+    model: str
+    input: list[str]
+
+
+class RerankRequest(BaseModel):
+    """The subset of the Jina/Cohere-style rerank request the fake reads."""
+
+    model_config = ConfigDict(extra="allow")
+
+    model: str
+    query: str
+    documents: list[str]
+
+
 class FakeModelServer:
     """Loopback server answering like an OpenAI-compatible endpoint.
 
@@ -71,6 +128,9 @@ class FakeModelServer:
         """Build the app; call ``start()`` (or use as a context manager) to serve it."""
         self.replies: dict[str, str] = dict(replies or {})
         self.requests: list[ChatRequest] = []
+        self.embedding_requests: list[EmbeddingsRequest] = []
+        self.rerank_requests: list[RerankRequest] = []
+        self.embed_overrides: dict[str, list[float]] = {}
         self.health = health
         self.app = self._build_app()
         self._server = uvicorn.Server(
@@ -120,6 +180,32 @@ class FakeModelServer:
                     }
                 ],
                 "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+
+        @app.post("/v1/embeddings")
+        def embeddings(request: EmbeddingsRequest) -> dict[str, Any]:
+            self.embedding_requests.append(request)
+            return {
+                "object": "list",
+                "model": request.model,
+                "data": [
+                    {
+                        "object": "embedding",
+                        "index": index,
+                        "embedding": self.embed_overrides.get(text) or fake_embedding(text),
+                    }
+                    for index, text in enumerate(request.input)
+                ],
+            }
+
+        @app.post("/v1/rerank")
+        def rerank(request: RerankRequest) -> dict[str, Any]:
+            self.rerank_requests.append(request)
+            scores = [fake_rerank_score(request.query, doc) for doc in request.documents]
+            order = sorted(range(len(scores)), key=lambda i: -scores[i])
+            return {
+                "model": request.model,
+                "results": [{"index": i, "relevance_score": scores[i]} for i in order],
             }
 
         return app
