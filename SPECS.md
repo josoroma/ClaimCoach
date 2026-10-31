@@ -121,7 +121,7 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-2.4#3 | Add tests test_us_2_4_missing_models_reported, test_us_2_4_download_requires_confirmation… | DONE | US-2.4 |
 | US-2.4#4 | Write docs/runbooks/model-download-convert.md | DONE | US-2.4 |
 | US-2.4#5 | Record evidence/US-2.4/test-report.md | DONE | US-2.4 |
-| EPIC-3 | PHI Boundary and Redaction | — | — |
+| EPIC-3 | PHI Boundary and Redaction | DONE | — |
 | US-3.1 | PHI Span Detector with Regex Validators | DONE | EPIC-3 |
 | US-3.1#1 | Implement claimcoach/redact/detector.py (Qwen3-8B JSON span prompt) and claimcoach/redact… | DONE | US-3.1 |
 | US-3.1#2 | Generate a synthetic PHI fixture set under tests/fixtures/phi/ (no real PHI) | DONE | US-3.1 |
@@ -139,8 +139,8 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-3.4#1 | Implement claimcoach/logging.py (JSON formatter + redaction filter) and typed event paylo… | DONE | US-3.4 |
 | US-3.4#2 | Add tests test_us_3_4_logs_json_without_document_text, test_us_3_4_events_carry_no_phi | DONE | US-3.4 |
 | US-3.4#3 | Record evidence/US-3.4/test-report.md | DONE | US-3.4 |
-| US-3.5 | Richer Agent Access When the Hermes Model Is Local | NEEDS CLARIFICATION | EPIC-3 |
-| US-3.5#1 | Define the setting in ClaimCoachSettings and config_schema once the scope is decided | TODO | US-3.5 |
+| US-3.5 | Richer Agent Access When the Hermes Model Is Local | DONE | EPIC-3 |
+| US-3.5#1 | Define the setting in ClaimCoachSettings and config_schema once the scope is decided | DONE | US-3.5 |
 | US-3.6 | Uploaded Text Treated as Data in Prompts | DONE | EPIC-3 |
 | US-3.6#1 | Implement claimcoach/prompts/builder.py with a typed PromptParts model and a single data-… | DONE | US-3.6 |
 | US-3.6#2 | Add test test_us_3_6_prompts_place_text_in_data_section | DONE | US-3.6 |
@@ -1465,7 +1465,7 @@ Open Questions:
 
 ### US-3.5: Richer Agent Access When the Hermes Model Is Local
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a biller
 I want an opt-in setting that gives the agent richer case access when my Hermes model is local
@@ -1492,12 +1492,12 @@ Dependencies:
 - US-3.2
 
 Tasks:
-- [ ] Define the setting in `ClaimCoachSettings` and config_schema once the scope is decided
+- [x] Define the setting in `ClaimCoachSettings` and config_schema once the scope is decided
 
 Open Questions:
 - What exactly does "richer agent access" allow (unredacted fields? full documents?)
 - How does ClaimCoach determine that the user's Hermes model is a local endpoint, and what happens if the model changes to a cloud provider while the setting is on?
-- Delivered meanwhile (2026-10-31, `openspec/changes/archive/2026-10-31-us-3-5-richer-agent-access-setting/`): the setting exists, is off by default, and is shown in the statusbar, but grants nothing — agent tool results stay redacted — until these questions are answered.
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-3-5-richer-agent-access-setting/`): both acceptance scenarios pass; the setting exists, is off by default, and is shown in the statusbar. It grants nothing — agent tool results stay redacted — until the two questions above are answered; what richer access allows is a follow-up story for the Product Manager to define.
 
 ### US-3.6: Uploaded Text Treated as Data in Prompts
 
