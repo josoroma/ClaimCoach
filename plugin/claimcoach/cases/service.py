@@ -2,9 +2,11 @@
 
 Implements: US-5.1 (``CaseService``: create a case, open it with its source documents, attach an
 uploaded file or pasted text), US-5.2 (the sources extraction reads, the stored extraction, and
-field confirmation). Rules: BR-2 (runs in the worker; the pane reaches it through
-``plugin_api.py``), BR-6 and BR-13 (files are sealed into the profile's user scope), BR-7 (they are
-case items, deleted by the retention purge), BR-14 (nothing here logs content).
+field confirmation), US-6.1 (the extraction diagnosis reads, the stored diagnosis, and whether it is
+stale), US-6.3 (the appeal deadline, computed whenever a case is read). Rules: BR-2 (runs in the
+worker; the pane reaches it through ``plugin_api.py``), BR-6 and BR-13 (files are sealed into the
+profile's user scope), BR-7 (they are case items, deleted by the retention purge), BR-14 (nothing
+here logs content).
 
 Methods open stores and may prompt the Keychain, so routes call them off the event loop.
 """
@@ -14,25 +16,42 @@ from __future__ import annotations
 import re
 import secrets
 import threading
+from datetime import date
 from typing import Final
 
 from pydantic import ValidationError
 
-from claimcoach.cases.errors import DocumentTooLargeError, FieldError, NoDocumentsError
+from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
+from claimcoach.cases.errors import (
+    DocumentTooLargeError,
+    FieldError,
+    NoDocumentsError,
+    NotExtractedError,
+)
 from claimcoach.cases.extraction import CaseExtraction, FieldConfirmation
 from claimcoach.cases.intake import UploadedFile, sniff, text_kind
 from claimcoach.cases.models import MAX_PASTE_BYTES, Case, DocumentAdded, SourceDocument, SourceKind
 from claimcoach.corpus.errors import CaseClosedError, CaseNotFoundError
+from claimcoach.corpus.lookup import payer_rule_cards
 from claimcoach.corpus.service import CorpusService
 from claimcoach.corpus.store import CorpusStore
 from claimcoach.corpus.types import AuditAction, CaseItem, CaseRecord, utc_now
 from claimcoach.events import CASE_ID_PATTERN, new_case_id
+from claimcoach.pipeline.deadline import appeal_deadline
 
-__all__ = ["EXTRACTION_ITEM", "PASTE_CONTENT_TYPE", "CaseService", "new_source_id"]
+__all__ = [
+    "DIAGNOSIS_ITEM",
+    "EXTRACTION_ITEM",
+    "PASTE_CONTENT_TYPE",
+    "CaseService",
+    "new_source_id",
+]
 
 PASTE_CONTENT_TYPE: Final = "text/plain; charset=utf-8"
 EXTRACTION_ITEM: Final = "extraction"
 """The item ID of a case's one extraction."""
+DIAGNOSIS_ITEM: Final = "diagnosis"
+"""The item ID of a case's one diagnosis."""
 
 
 def new_source_id() -> str:
@@ -80,7 +99,26 @@ class CaseService:
         """
         store = self.store(profile)
         record = store.open_case(case_id)
-        return _case(record, self.documents(store, case_id), self.extraction(store, case_id))
+        extraction = self.extraction(store, case_id)
+        return _case(
+            record,
+            self.documents(store, case_id),
+            extraction,
+            self.diagnosis(store, case_id),
+            self.deadline(extraction),
+        )
+
+    def deadline(self, extraction: CaseExtraction | None) -> AppealDeadline | None:
+        """Return the appeal deadline for ``extraction`` under today's global rule cards (US-6.3).
+
+        Computed on every read, never stored: a confirmed denial date or a re-imported card shows
+        at once, without running a model.
+        """
+        if extraction is None:
+            return None
+        payer = extraction.payer_name.value
+        cards = payer_rule_cards(self.corpus.global_store(), payer) if payer else []
+        return appeal_deadline(extraction, cards, date.today())
 
     @staticmethod
     def documents(store: CorpusStore, case_id: str) -> list[SourceDocument]:
@@ -95,6 +133,12 @@ class CaseService:
         """Return the case's stored extraction, if extraction ran (not audited)."""
         items = store.case_items(case_id, "extraction")
         return CaseExtraction.model_validate_json(items[0].payload) if items else None
+
+    @staticmethod
+    def diagnosis(store: CorpusStore, case_id: str) -> Diagnosis | None:
+        """Return the case's stored diagnosis, if diagnosis ran (not audited)."""
+        items = store.case_items(case_id, "diagnosis")
+        return Diagnosis.model_validate_json(items[0].payload) if items else None
 
     def sources(self, profile: str, case_id: str) -> list[tuple[SourceDocument, bytes]]:
         """Return the case's source documents with their bytes, for extraction (US-5.2)."""
@@ -135,6 +179,47 @@ class CaseService:
         if not store.case_items(case_id, "source"):
             raise NoDocumentsError
 
+    def check_diagnosable(self, profile: str, case_id: str) -> None:
+        """Refuse diagnosis before a job starts: the case must be open and extracted (US-6.1).
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case, or an ID events cannot carry (not ``new_case_id``).
+            CaseClosedError: The case is closed or purged.
+            NotExtractedError: The case has no extraction yet.
+        """
+        if not re.fullmatch(CASE_ID_PATTERN, case_id):
+            raise CaseNotFoundError
+        store = self._require_open(profile, case_id)
+        if self.extraction(store, case_id) is None:
+            raise NotExtractedError
+
+    def extraction_of(self, profile: str, case_id: str) -> CaseExtraction:
+        """Return the extraction a diagnosis reads (not audited: the job, not a person, reads it).
+
+        Raises:
+            NotExtractedError: The case has no extraction.
+        """
+        extraction = self.extraction(self.store(profile), case_id)
+        if extraction is None:
+            raise NotExtractedError
+        return extraction
+
+    def save_diagnosis(self, profile: str, case_id: str, diagnosis: Diagnosis) -> None:
+        """Store the case's diagnosis, replacing the previous one (audited ``case_diagnosed``).
+
+        Raises:
+            CaseClosedError: The case was closed while diagnosis ran.
+        """
+        item = CaseItem(
+            case_id=case_id,
+            item_id=DIAGNOSIS_ITEM,
+            kind="diagnosis",
+            created_at=utc_now(),
+            payload=diagnosis.model_dump_json().encode(),
+        )
+        self.store(profile).put_case_item(item, audit=AuditAction.CASE_DIAGNOSED)
+
     def save_extraction(self, profile: str, case_id: str, extraction: CaseExtraction) -> None:
         """Store the case's extraction, keeping every value the biller confirmed before.
 
@@ -168,7 +253,13 @@ class CaseService:
                 raise FieldError from exc
             item = _extraction_item(case_id, confirmed)
             store.put_case_item(item, audit=AuditAction.FIELD_CONFIRMED)
-        return _case(store.case_record(case_id), self.documents(store, case_id), confirmed)
+        return _case(
+            store.case_record(case_id),
+            self.documents(store, case_id),
+            confirmed,
+            self.diagnosis(store, case_id),
+            self.deadline(confirmed),
+        )
 
     def add_file(self, profile: str, case_id: str, upload: UploadedFile) -> DocumentAdded:
         """Attach an uploaded file; its kind comes from its bytes.
@@ -238,8 +329,15 @@ def _extraction_item(case_id: str, extraction: CaseExtraction) -> CaseItem:
 
 
 def _case(
-    record: CaseRecord, documents: list[SourceDocument], extraction: CaseExtraction | None = None
+    record: CaseRecord,
+    documents: list[SourceDocument],
+    extraction: CaseExtraction | None = None,
+    diagnosis: Diagnosis | None = None,
+    deadline: AppealDeadline | None = None,
 ) -> Case:
+    stale = diagnosis is not None and (
+        extraction is None or diagnosis.extraction_digest != extraction.digest()
+    )
     return Case(
         case_id=record.case_id,
         opened_at=record.opened_at,
@@ -247,4 +345,7 @@ def _case(
         documents=documents,
         extraction=extraction,
         needs_confirmation=[] if extraction is None else extraction.needs_confirmation(),
+        diagnosis=diagnosis,
+        diagnosis_stale=stale,
+        deadline=deadline,
     )

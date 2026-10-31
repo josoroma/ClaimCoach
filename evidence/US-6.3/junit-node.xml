@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="US-6.3 deadline is computed from the rule card" time="0.002817" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T18:24:30.730Z" hostname="iX-00277">
+		<testcase name="test_us_6_3_pane_deadline_from_rule_card" time="0.002260" classname="US-6.3 deadline is computed from the rule card" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-6.3 the deadline has passed" time="0.000504" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T18:24:30.733Z" hostname="iX-00277">
+		<testcase name="test_us_6_3_pane_flags_passed_deadline" time="0.000429" classname="US-6.3 the deadline has passed" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-6.3 an unknown deadline says why" time="0.001084" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T18:24:30.732Z" hostname="iX-00277">
+		<testcase name="test_us_6_3_pane_unknown_deadline_says_why" time="0.000883" classname="US-6.3 an unknown deadline says why" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.124896" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.126001" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.125486" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.123445" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.122918" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 8 -->
+	<!-- suites 3 -->
+	<!-- pass 8 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 138.485084 -->
+</testsuites>

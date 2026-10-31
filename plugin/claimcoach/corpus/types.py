@@ -4,7 +4,8 @@ Implements: US-4.1 (``CorpusScope``, ``Document``, ``Chunk``, ``CaseRecord``, ``
 ``ScopeStatus``, ``ReindexRequest``), US-4.4 (``RetrievalQuery`` with a required ``case_id``,
 ``RetrievedChunk``), US-4.5 (``CaseOutcome``, ``OutcomeRecord``, ``PurgeRequest``,
 ``PurgeReport``), US-4.6 (``AuditAction``, ``AuditEntry``), US-5.1 (``CaseItem``,
-``CaseItemKind``), US-5.2 (``case_extracted`` and ``field_confirmed`` audit actions). Rules:
+``CaseItemKind``), US-5.2 (``case_extracted`` and ``field_confirmed`` audit actions), US-6.1 (the
+``diagnosis`` case item and the ``case_diagnosed`` audit action). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
 IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
 ``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
@@ -182,8 +183,9 @@ class CaseRecord(_Strict):
     purged_at: Timestamp | None = None
 
 
-CaseItemKind = Literal["source", "extraction"]
-"""A case item: an attached source file (US-5.1) or the case's structured extraction (US-5.2)."""
+CaseItemKind = Literal["source", "extraction", "diagnosis"]
+"""A case item: an attached source file (US-5.1), the case's structured extraction (US-5.2), or
+its diagnosis (US-6.1)."""
 
 
 class CaseItem(_Strict):
@@ -351,6 +353,8 @@ class AuditAction(StrEnum):
     """Extraction stored the case's structured fields (US-5.2)."""
     FIELD_CONFIRMED = "field_confirmed"
     """The biller confirmed a field's value (US-5.2)."""
+    CASE_DIAGNOSED = "case_diagnosed"
+    """Diagnosis stored the case's denial reason and appeal likelihood (US-6.1)."""
     CASE_CLOSED = "case_closed"
     OUTCOME_RECORDED = "outcome_recorded"
     CASE_PURGED = "case_purged"

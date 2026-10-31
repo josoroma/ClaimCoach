@@ -105,7 +105,7 @@ def service(tmp_path: Path, corpus_server: FakeModelServer) -> Iterator[CorpusSe
 
 @pytest.fixture
 def worker(service: CorpusService, vision: FakeModelServer) -> FastAPI:
-    return create_app(TOKEN, corpus=service, vision=static_models(vision.base_url))
+    return create_app(TOKEN, corpus=service, pipeline_models=static_models(vision.base_url))
 
 
 @pytest.fixture
@@ -324,7 +324,13 @@ async def test_us_5_2_an_unusable_reply_leaves_every_field_unreadable(
     case_id = await case_with(desktop, eob_upload())
     await process(desktop, case_id)
     case = await open_case(desktop, case_id)
-    assert case.needs_confirmation == ["payer_name", "claim_id", "billed_amount", "paid_amount"]
+    assert case.needs_confirmation == [
+        "payer_name",
+        "claim_id",
+        "billed_amount",
+        "paid_amount",
+        "denial_date",  # US-6.3
+    ]
 
 
 # --- Scenario: Confirmed fields are stored as confirmed ------------------------------------------
@@ -893,6 +899,7 @@ async def test_us_5_2_undecodable_documents_are_skipped(
         "claim_id",
         "billed_amount",
         "paid_amount",
+        "denial_date",  # US-6.3
     ]
     assert stages[-1] == ("done", 1.0)
     assert extraction.unread_sources == extraction.sources, "the pane can say what was not read"

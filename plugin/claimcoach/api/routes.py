@@ -6,8 +6,9 @@ and ``POST /models/convert``, which run only with ``confirm: true``), US-3.5 (``
 for the statusbar), US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST
 /cases/{case_id}/documents`` forwarding the raw upload body, ``POST /cases/{case_id}/paste``; the
 active profile is passed to the worker), US-5.2 (``POST /cases/{case_id}/process`` starts
-extraction and relays its progress events; ``POST /cases/{case_id}/fields`` confirms a value).
-Rules: ES-8, PC-2, PC-4 (runs inside the gateway; proxies to the worker), BR-1, BR-2 (PHI flows go
+extraction and relays its progress events; ``POST /cases/{case_id}/fields`` confirms a value),
+US-6.1 (``POST /cases/{case_id}/diagnose`` starts a diagnosis and relays its events). Rules:
+ES-8, PC-2, PC-4 (runs inside the gateway; proxies to the worker), BR-1, BR-2 (PHI flows go
 desktop pane → ``plugin_api.py`` → worker), BR-14.
 
 Hermes owns the FastAPI app, so its default 422 body (which echoes the rejected input) cannot be
@@ -17,6 +18,7 @@ replaced here; routes with a body read it raw and answer bad input with the enve
 from __future__ import annotations
 
 import re
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, Final, TypeVar
 
 from fastapi import APIRouter, Depends, Request
@@ -238,6 +240,23 @@ async def paste(
         return _error_response(exc)
 
 
+async def _start_job(
+    case_id: str,
+    request: Request,
+    start: Callable[[str, str], Awaitable[JobStarted]],
+    relay: Callable[[JobStarted], object],
+) -> JobStarted | JSONResponse:
+    """Start a case job with ``start`` and relay its events; an empty JSON body is required."""
+    try:
+        if not _CASE_ID.fullmatch(case_id) or await _body(request, CaseCreate, SMALL_BODY) is None:
+            return _invalid()
+        started = await start(active_profile(), case_id)
+    except (CaseError, WorkerError) as exc:
+        return _error_response(exc)
+    relay(started)
+    return started
+
+
 @router.post("/cases/{case_id}/process", response_model=JobStarted, responses=_ERRORS)
 async def process_case(
     case_id: str,
@@ -246,14 +265,22 @@ async def process_case(
     sink: Annotated[EventSink | None, Depends(get_event_sink)],
 ) -> JobStarted | JSONResponse:
     """Start extracting the case; its progress arrives as ``plugin.claimcoach.case.progress``."""
-    try:
-        if not _CASE_ID.fullmatch(case_id) or await _body(request, CaseCreate, SMALL_BODY) is None:
-            return _invalid()
-        started = await client.start_extraction(active_profile(), case_id)
-    except (CaseError, WorkerError) as exc:
-        return _error_response(exc)
-    start_relay(client, started, sink)
-    return started
+    return await _start_job(
+        case_id, request, client.start_extraction, lambda job: start_relay(client, job, sink)
+    )
+
+
+@router.post("/cases/{case_id}/diagnose", response_model=JobStarted, responses=_ERRORS)
+async def diagnose_case(
+    case_id: str,
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+    sink: Annotated[EventSink | None, Depends(get_event_sink)],
+) -> JobStarted | JSONResponse:
+    """Start diagnosing the case; its progress arrives as ``plugin.claimcoach.case.progress``."""
+    return await _start_job(
+        case_id, request, client.start_diagnosis, lambda job: start_relay(client, job, sink)
+    )
 
 
 @router.post("/cases/{case_id}/fields", response_model=Case, responses=_ERRORS)

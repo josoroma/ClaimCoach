@@ -13,26 +13,24 @@ Runs in the worker only: it imports PyMuPDF, which the gateway does not have.
 from __future__ import annotations
 
 import asyncio
-import json
-import re
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
 import httpx
 import pymupdf
-from pydantic import ValidationError
 
 from claimcoach.cases.extraction import CaseExtraction
 from claimcoach.cases.models import SourceDocument
 from claimcoach.cases.service import CaseService
-from claimcoach.events import CaseStage
+from claimcoach.events import Report
 from claimcoach.logs import get_logger
 from claimcoach.models.chat import chat_completion
 from claimcoach.models.manager import EndpointProvider, ModelEndpoint
 from claimcoach.models.types import ModelRole
 from claimcoach.pipeline.edi835 import parse_835
 from claimcoach.pipeline.reading import Reading, SourceReading, build_extraction
+from claimcoach.pipeline.replies import reply_object
 from claimcoach.prompts.builder import DataItem, PromptParts, build_prompt, define_template
 
 __all__ = [
@@ -59,9 +57,6 @@ PAGE_TIMEOUT: Final = 600.0
 EXTRACTING_SHARE: Final = 0.95
 """Progress reached when the last page is read; storing the result completes it."""
 
-Report = Callable[[CaseStage, float], None]
-"""Called with each stage and the fraction of the job done."""
-
 EXTRACTION_TEMPLATE: Final = define_template(
     "extraction",
     system=(
@@ -71,8 +66,10 @@ EXTRACTION_TEMPLATE: Final = define_template(
     ),
     instructions=(
         "Return one JSON object and nothing else, with these keys: payer_name; claim_id (the "
-        "payer's claim number); billed_amount; paid_amount; adjustments (claim-level, a list of "
-        "objects with group_code, carc, amount); rarc_codes (claim-level remark codes); lines (a "
+        "payer's claim number); billed_amount; paid_amount; denial_date (the date of the payer's "
+        "decision printed on the remittance, EOB, or letter, as YYYY-MM-DD); adjustments "
+        "(claim-level, a list of objects with group_code, carc, amount); rarc_codes (claim-level "
+        "remark codes); lines (a "
         "list of objects with procedure_code, service_date as YYYY-MM-DD, billed_amount, "
         "paid_amount, adjustments, rarc_codes). Amounts are plain numbers without currency "
         "symbols. group_code is CO, PR, OA, PI, or CR and carc is the reason code that follows "
@@ -83,7 +80,6 @@ EXTRACTION_TEMPLATE: Final = define_template(
 )
 
 _log = get_logger("claimcoach.pipeline")
-_THINK: Final = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,16 +161,11 @@ def units_of(document: SourceDocument, data: bytes) -> list[Unit]:
 def parse_reply(content: str) -> Reading | None:
     """Return the reply's JSON object as a ``Reading``, or ``None`` when there is none.
 
-    Tolerates a ``<think>`` block and code fences around the object; nothing else is read.
+    Tolerates a ``<think>`` block and code fences around the object (``reply_object``); a
+    ``Reading`` reads any JSON object, value by value.
     """
-    text = _THINK.sub("", content)
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end < start:
-        return None
-    try:
-        return Reading.model_validate(json.loads(text[start : end + 1]))
-    except (ValueError, ValidationError):
-        return None
+    data = reply_object(content)
+    return None if data is None else Reading.model_validate(data)
 
 
 @dataclass

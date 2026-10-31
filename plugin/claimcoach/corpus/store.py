@@ -6,8 +6,9 @@ records its embedding model and refuses searches and inserts once that model cha
 (user-scope ``search`` and ``chunks`` require a ``case_id`` and filter in SQL), US-4.5
 (``close_case``, de-identified ``outcomes``, ``purge_case_content``), US-4.6 (append-only
 ``audit_log``; ``open_case`` audits), US-5.1 (``case_items``: a case's attached source files and
-derived items, sealed per row, refused once the case is closed, deleted by the purge). Rules: BR-5,
-BR-6, BR-7, BR-13, BR-14.
+derived items, sealed per row, refused once the case is closed, deleted by the purge), US-6.1 (the
+``case_items`` CHECK lists every ``CaseItemKind``, and an older table is rebuilt once to match;
+``documents`` filters by kind). Rules: BR-5, BR-6, BR-7, BR-13, BR-14.
 
 Both files use ``secure_delete`` so deleted PHI pages are zeroed, and a purge truncates the WAL.
 Vectors are float32, normalized to unit length, so cosine similarity is a dot product.
@@ -24,7 +25,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Final, Literal
+from typing import Final, Literal, get_args
 
 import numpy as np
 import numpy.typing as npt
@@ -48,6 +49,7 @@ from claimcoach.corpus.types import (
     Chunk,
     CorpusScope,
     Document,
+    DocumentKind,
     IndexInfo,
     OutcomeRecord,
     ScopeStatus,
@@ -65,6 +67,18 @@ _log = get_logger("claimcoach.corpus")
 
 Vectors = npt.NDArray[np.float32]
 """A ``(n, dimension)`` float32 matrix."""
+
+_ITEM_KINDS: Final = ", ".join(f"'{kind}'" for kind in get_args(CaseItemKind))
+
+
+def _case_items_table(name: str) -> str:
+    """The ``case_items`` table, whose CHECK accepts exactly the ``CaseItemKind`` values."""
+    return f"""CREATE TABLE IF NOT EXISTS main.{name} (
+    case_id TEXT NOT NULL REFERENCES cases(case_id), item_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ({_ITEM_KINDS})), created_at TEXT NOT NULL,
+    payload BLOB NOT NULL, data BLOB, PRIMARY KEY (case_id, item_id)
+) STRICT;"""
+
 
 _SCHEMA: Final = """
 CREATE TABLE IF NOT EXISTS main.meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
@@ -87,11 +101,6 @@ CREATE TABLE IF NOT EXISTS main.outcomes (
     case_id TEXT PRIMARY KEY REFERENCES cases(case_id),
     outcome TEXT NOT NULL CHECK (outcome IN ('overturned', 'upheld', 'written_off')),
     recorded_at TEXT NOT NULL
-) STRICT;
-CREATE TABLE IF NOT EXISTS main.case_items (
-    case_id TEXT NOT NULL REFERENCES cases(case_id), item_id TEXT NOT NULL,
-    kind TEXT NOT NULL CHECK (kind IN ('source', 'extraction')), created_at TEXT NOT NULL,
-    payload BLOB NOT NULL, data BLOB, PRIMARY KEY (case_id, item_id)
 ) STRICT;
 CREATE TABLE IF NOT EXISTS main.audit_log (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, action TEXT NOT NULL,
@@ -224,6 +233,8 @@ class CorpusStore:
                 db.execute(f"PRAGMA {schema}.synchronous=NORMAL")
             db.execute("PRAGMA foreign_keys=ON")
             db.executescript(_SCHEMA)
+            db.execute(_case_items_table("case_items"))
+            self._migrate_case_items()
             self._init_meta()
         except (sqlite3.Error, OSError, CorpusError) as exc:
             if db is not None:
@@ -262,6 +273,24 @@ class CorpusStore:
                 self._db.execute("ROLLBACK")
                 raise
             self._db.execute("COMMIT")
+
+    def _migrate_case_items(self) -> None:
+        """Rebuild a ``case_items`` table whose CHECK lacks a ``CaseItemKind`` (US-6.1).
+
+        ``CREATE TABLE IF NOT EXISTS`` keeps an older table as it was, and SQLite cannot alter a
+        CHECK, so the rows move to a new table in one transaction: a failure leaves the old one.
+        """
+        with self._tx() as db:
+            (sql,) = db.execute(
+                "SELECT sql FROM main.sqlite_master WHERE type = 'table' AND name = 'case_items'"
+            ).fetchone()
+            if all(f"'{kind}'" in sql for kind in get_args(CaseItemKind)):
+                return
+            db.execute("DROP TABLE IF EXISTS main.case_items_next")
+            db.execute(_case_items_table("case_items_next"))
+            db.execute("INSERT INTO main.case_items_next SELECT * FROM main.case_items")
+            db.execute("DROP TABLE main.case_items")
+            db.execute("ALTER TABLE main.case_items_next RENAME TO case_items")
 
     def _init_meta(self) -> None:
         with self._tx() as db:
@@ -509,24 +538,31 @@ class CorpusStore:
             db.execute("DELETE FROM main.documents WHERE doc_id = ?", (doc_id,))
         return len(doc_ids), chunks, vectors
 
-    def documents(self, case_id: str | None = None) -> list[Document]:
-        """Return the documents of ``case_id`` (user scope) or every document (global scope)."""
+    def documents(
+        self, case_id: str | None = None, *, kind: DocumentKind | None = None
+    ) -> list[Document]:
+        """Return the documents of ``case_id`` (user scope) or every document (global scope).
+
+        Args:
+            case_id: The case, in the user scope.
+            kind: Only documents of this kind (US-6.1 reads the global code entries this way).
+        """
         self._require_case_filter(case_id)
         with self._lock:
             rows = self._db.execute(
                 "SELECT doc_id, case_id, kind, created_at, body FROM main.documents "
-                "WHERE case_id IS ? ORDER BY doc_id",
-                (case_id,),
+                "WHERE case_id IS ? AND (? IS NULL OR kind = ?) ORDER BY doc_id",
+                (case_id, kind, kind),
             ).fetchall()
         documents = []
-        for doc_id, owner, kind, created_at, body in rows:
+        for doc_id, owner, stored_kind, created_at, body in rows:
             payload = json.loads(self._unseal(body, _ctx("documents", owner, doc_id)))
             documents.append(
                 Document(
                     doc_id=doc_id,
                     scope=self.scope,
                     case_id=owner,
-                    kind=kind,
+                    kind=stored_kind,
                     created_at=datetime.fromisoformat(created_at),
                     **payload,
                 )

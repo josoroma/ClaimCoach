@@ -2,8 +2,10 @@
 
 Implements: US-4.3 (typed ``RuleCard``, ``CodeEntry``, ``LetterTemplate`` with required ``source``
 and ``verified_on``; ``CorpusBundle``; ``parse_bundle`` for a local YAML or JSON file; the corpus
-view with its ``stale`` flag). Rules: ES-1, BR-1 (a local file only; nothing is fetched), PRD §11
-(rule cards carry source and verified-on dates; stale cards are flagged).
+view with its ``stale`` flag), US-6.2 (``RuleCard.required_documents`` on ``required_docs`` cards,
+the source of the diagnosis checklist), US-6.3 (``RuleCard.appeal_limit_days`` on ``appeal_levels``
+cards, the appeal deadline's limit). Rules: ES-1, BR-1 (a local file only; nothing is fetched),
+PRD §11 (rule cards carry source and verified-on dates; stale cards are flagged).
 
 A bundle file::
 
@@ -15,6 +17,22 @@ A bundle file::
         body: Corrected claims within 180 days of the original determination.
         source: Aetna provider manual 2026, section 7.2
         verified_on: 2026-09-15
+      - kind: rule_card
+        payer: Aetna
+        topic: appeal_levels
+        title: Aetna appeal levels
+        body: First-level appeals within 180 days of the denial notice.
+        appeal_limit_days: 180
+        source: Aetna provider manual 2026, section 9.0
+        verified_on: 2026-09-15
+      - kind: rule_card
+        payer: Aetna
+        topic: required_docs
+        title: Aetna appeal documentation
+        body: Appeals must include the documents below.
+        required_documents: [Copy of the denial notice, Medical records for the date of service]
+        source: Aetna provider manual 2026, section 9.1
+        verified_on: 2026-09-15
 
 This module imports neither SQLite nor numpy, so the Hermes CLI validates a bundle before it
 sends it to the worker.
@@ -23,17 +41,28 @@ sends it to the worker.
 from __future__ import annotations
 
 import os
+import re
 import stat
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated, Final, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    StringConstraints,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 __all__ = [
     "MAX_BUNDLE_BYTES",
     "STALE_AFTER_DAYS",
+    "STRUCTURED_CARD_FIELDS",
     "BundleError",
     "CodeEntry",
     "CorpusBundle",
@@ -45,6 +74,7 @@ __all__ = [
     "RuleCard",
     "is_stale",
     "parse_bundle",
+    "payer_words",
 ]
 
 STALE_AFTER_DAYS: Final = 180
@@ -55,6 +85,10 @@ MAX_ITEMS: Final = 5000
 _SUFFIXES: Final = frozenset({".yaml", ".yml", ".json"})
 
 Key = Annotated[str, Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9 ._&'()-]+$")]
+RequiredDocument = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+]
+"""One document a payer requires with an appeal, as the checklist shows it (US-6.2)."""
 
 
 class BundleError(ValueError):
@@ -78,6 +112,22 @@ class _Item(BaseModel):
         return value
 
 
+_CARD_FIELD_TOPICS: Final = {
+    "required_documents": "required_docs",
+    "appeal_limit_days": "appeal_levels",
+}
+"""The one topic each structured card field may appear on (US-6.2, US-6.3)."""
+STRUCTURED_CARD_FIELDS: Final = frozenset(_CARD_FIELD_TOPICS)
+"""Card fields stored as JSON in the document metadata (written by ``item_document``, read back
+by ``corpus.lookup.rule_card_of``)."""
+_WORD: Final = re.compile(r"[0-9a-z]+")
+
+
+def payer_words(name: str) -> tuple[str, ...]:
+    """A payer name as lower-case words; punctuation separates them (``Blue Cross & Blue``)."""
+    return tuple(_WORD.findall(name.casefold()))
+
+
 class RuleCard(_Item):
     """A payer rule: timely filing, appeal levels, required documents, or where to send.
 
@@ -85,11 +135,24 @@ class RuleCard(_Item):
         kind: ``rule_card``.
         payer: Payer name (not PHI).
         topic: What the rule is about.
+        required_documents: On a ``required_docs`` card, the documents an appeal needs, in the
+            order the checklist lists them (US-6.2).
+        appeal_limit_days: On an ``appeal_levels`` card, the calendar days from the denial date
+            to file an appeal (US-6.3).
     """
 
     kind: Literal["rule_card"]
     payer: Key
     topic: Literal["timely_filing", "appeal_levels", "required_docs", "submission", "other"]
+    required_documents: list[RequiredDocument] = Field(default_factory=list, max_length=30)
+    appeal_limit_days: StrictInt | None = Field(default=None, ge=1, le=3650)
+
+    @model_validator(mode="after")
+    def _fields_on_their_topic(self) -> RuleCard:
+        for name, topic in _CARD_FIELD_TOPICS.items():
+            if getattr(self, name) and self.topic != topic:
+                raise ValueError(f"{name} is allowed only on {topic} cards")
+        return self
 
     @property
     def key(self) -> str:
@@ -152,10 +215,21 @@ class CorpusBundle(BaseModel):
         keys = [(item.kind, item.key) for item in self.items]
         if len(set(keys)) != len(keys):
             raise ValueError("duplicate item key in bundle")
+        spellings: dict[tuple[str, ...], str] = {}
+        for item in self.items:
+            if isinstance(item, RuleCard):
+                spelled = spellings.setdefault(payer_words(item.payer), item.payer)
+                if spelled != item.payer:  # ``Aetna`` and ``AETNA``: one payer, two keys
+                    raise ValueError("a payer is spelled two ways in the bundle")
         # The same cap as a bundle file, so a posted body cannot be larger than an imported one.
-        if sum(len(item.body) + len(item.title) for item in self.items) > MAX_BUNDLE_BYTES:
+        if sum(_text_size(item) for item in self.items) > MAX_BUNDLE_BYTES:
             raise ValueError("bundle text is larger than 5 MiB")
         return self
+
+
+def _text_size(item: RuleCard | CodeEntry | LetterTemplate) -> int:
+    documents = item.required_documents if isinstance(item, RuleCard) else []
+    return len(item.body) + len(item.title) + sum(len(document) for document in documents)
 
 
 def parse_bundle(path: Path) -> CorpusBundle:
@@ -227,6 +301,8 @@ class CorpusViewItem(BaseModel):
         source: Where it came from.
         verified_on: When it was last verified.
         stale: Verified more than ``STALE_AFTER_DAYS`` ago.
+        required_documents: How many documents a ``required_docs`` card lists (US-6.2).
+        appeal_limit_days: An ``appeal_levels`` card's appeal time limit (US-6.3).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -237,6 +313,8 @@ class CorpusViewItem(BaseModel):
     source: str
     verified_on: date
     stale: bool
+    required_documents: int = Field(default=0, ge=0)
+    appeal_limit_days: int | None = None
 
 
 class CorpusViewResponse(BaseModel):

@@ -1,10 +1,11 @@
-"""Background extraction jobs and their progress events, long-polled by the gateway.
+"""Background case jobs and their progress events, long-polled by the gateway.
 
 Implements: US-5.2 (``JobRegistry``: one job per case at a time; each stage appends a
 ``CaseProgressEvent``; ``events`` waits for new ones so the gateway can relay them through
-``broadcast_plugin_event``). Rules: PC-4 (heavy work in the worker, push updates through the
-gateway), BR-14 (events hold IDs, a stage enum, a fraction, and an error code only; a failure is
-logged by error type only).
+``broadcast_plugin_event``), US-6.1 (a second job kind, ``diagnose``, run by a ``Runner``; still
+one job per case, so a diagnosis never reads an extraction being rewritten). Rules: PC-4 (heavy
+work in the worker, push updates through the gateway), BR-14 (events hold IDs, a stage enum, a
+fraction, and an error code only; a failure is logged by error type and job kind only).
 
 Jobs live in memory: a worker restart forgets them, and the stored case stays the source of truth.
 """
@@ -16,18 +17,17 @@ import contextlib
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Final, Protocol
 
 from claimcoach.api.models import ErrorCode
 from claimcoach.cases.errors import CaseError, JobNotFoundError
-from claimcoach.cases.extraction import JOB_DEADLINE, JobEvents, JobStarted
+from claimcoach.cases.extraction import JOB_DEADLINE, JobEvents, JobKind, JobStarted
 from claimcoach.corpus.errors import CorpusError
-from claimcoach.events import CaseProgressEvent, CaseStage, new_job_id
+from claimcoach.events import CaseProgressEvent, CaseStage, Report, new_job_id
 from claimcoach.logs import get_logger, job_id_var
-from claimcoach.models.manager import ModelError
-from claimcoach.pipeline.extract import Extractor
+from claimcoach.models.manager import ModelError, ModelUnavailableError
 
-__all__ = ["JOB_DEADLINE", "JOB_TTL", "MAX_JOBS", "MAX_WAIT", "JobRegistry"]
+__all__ = ["JOB_DEADLINE", "JOB_TTL", "MAX_JOBS", "MAX_WAIT", "JobRegistry", "Runner"]
 
 JOB_TTL: Final = 600.0
 """Seconds a finished job stays readable, so a late poll still sees how it ended."""
@@ -37,12 +37,27 @@ MAX_WAIT: Final = 25.0
 
 _log = get_logger("claimcoach.jobs")
 
+_FAILED: Final[dict[JobKind, ErrorCode]] = {
+    "extract": "extraction_failed",
+    "diagnose": "diagnosis_failed",
+}
+"""The code a job of each kind ends with when it fails for an unexpected reason."""
+
+
+class Runner(Protocol):
+    """One kind of case job: ``Extractor`` (US-5.2) or ``Diagnoser`` (US-6.1)."""
+
+    async def run(self, profile: str, case_id: str, report: Report) -> object:
+        """Do the work for one case, calling ``report`` for each stage; ends with ``done``."""
+        ...
+
 
 @dataclass
 class _Job:
     job_id: str
     profile: str
     case_id: str
+    kind: JobKind
     events: list[CaseProgressEvent] = field(default_factory=list)
     finished: bool = False
     ended_at: float | None = None
@@ -51,40 +66,59 @@ class _Job:
 
 
 class JobRegistry:
-    """The worker's extraction jobs.
+    """The worker's case jobs.
 
     Args:
         extractor: Runs one case's extraction.
         clock: Monotonic seconds (tests inject one).
         deadline: Seconds a job may run.
+        diagnoser: Runs one case's diagnosis; without it diagnosis answers ``model_unavailable``.
     """
 
     def __init__(
         self,
-        extractor: Extractor,
+        extractor: Runner,
         clock: Callable[[], float] = time.monotonic,
         *,
         deadline: float = JOB_DEADLINE,
+        diagnoser: Runner | None = None,
     ) -> None:
         """Start empty; jobs start with ``start``."""
         self.extractor = extractor
         self.deadline = deadline
+        self._runners: dict[JobKind, Runner] = {"extract": extractor}
+        if diagnoser is not None:
+            self._runners["diagnose"] = diagnoser
         self._clock = clock
         self._jobs: dict[str, _Job] = {}
 
-    def start(self, profile: str, case_id: str) -> JobStarted:
-        """Start extracting the case, or return the job already extracting it.
-
-        Call ``CaseService.check_extractable`` first: a job reports refusals only as events.
-        """
+    def running(self, profile: str, case_id: str) -> JobStarted | None:
+        """Return the job working on the case now, if any (finished jobs are pruned first)."""
         self._prune()
         for job in self._jobs.values():
             if (job.profile, job.case_id) == (profile, case_id) and not job.finished:
-                return JobStarted(case_id=case_id, job_id=job.job_id)
-        job = _Job(job_id=new_job_id(), profile=profile, case_id=case_id)
+                return JobStarted(case_id=case_id, job_id=job.job_id, kind=job.kind)
+        return None
+
+    def start(self, profile: str, case_id: str, kind: JobKind = "extract") -> JobStarted:
+        """Start a job of ``kind`` on the case, or return the job already working on it.
+
+        Call ``CaseService.check_extractable`` (or ``check_diagnosable``) first: a job reports
+        refusals only as events. The returned ``kind`` is the running job's, which may differ.
+
+        Raises:
+            ModelUnavailableError: No runner for ``kind`` (a worker started without models).
+        """
+        running = self.running(profile, case_id)
+        if running is not None:
+            return running
+        runner = self._runners.get(kind)
+        if runner is None:
+            raise ModelUnavailableError
+        job = _Job(job_id=new_job_id(), profile=profile, case_id=case_id, kind=kind)
         self._jobs[job.job_id] = job
-        job.task = asyncio.create_task(self._run(job))
-        return JobStarted(case_id=case_id, job_id=job.job_id)
+        job.task = asyncio.create_task(self._run(job, runner))
+        return JobStarted(case_id=case_id, job_id=job.job_id, kind=kind)
 
     def _report(self, job: _Job, stage: CaseStage, progress: float, code: ErrorCode | None) -> None:
         event = CaseProgressEvent(
@@ -97,11 +131,11 @@ class JobRegistry:
         job.events.append(event)
         job.changed.set()
 
-    async def _run(self, job: _Job) -> None:
+    async def _run(self, job: _Job, runner: Runner) -> None:
         token = job_id_var.set(job.job_id)  # every log line of the job carries its ID
         try:
             await asyncio.wait_for(
-                self.extractor.run(
+                runner.run(
                     job.profile,
                     job.case_id,
                     lambda stage, progress: self._report(job, stage, progress, None),
@@ -109,14 +143,14 @@ class JobRegistry:
                 timeout=self.deadline,
             )
         except TimeoutError:
-            _log.warning("extraction stopped at its deadline")
+            _log.warning("%s job stopped at its deadline", job.kind)
             self._report(job, "failed", _last(job), "processing_timeout")
         except (ModelError, CorpusError, CaseError) as exc:
-            _log.warning("extraction failed: %s", type(exc).__name__)
+            _log.warning("%s job failed: %s", job.kind, type(exc).__name__)
             self._report(job, "failed", _last(job), exc.code)
         except Exception as exc:  # noqa: BLE001 - a job's last word is always an event
-            _log.error("extraction failed: %s", type(exc).__name__)
-            self._report(job, "failed", _last(job), "extraction_failed")
+            _log.error("%s job failed: %s", job.kind, type(exc).__name__)
+            self._report(job, "failed", _last(job), _FAILED[job.kind])
         finally:
             job.finished = True
             job.ended_at = self._clock()

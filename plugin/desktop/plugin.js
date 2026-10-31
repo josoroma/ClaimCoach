@@ -8,7 +8,13 @@
  * agent sessions), US-3.5 (the statusbar item shows when richer agent access is on), US-5.1 (the
  * pane is a drop zone, has a paste box, lists the case's source documents, and adds to the open
  * case), US-5.2 (progress arrives as `plugin.claimcoach.case.progress` through `ctx.onEvent`; the
- * extracted fields are listed with unreadable ones highlighted, and the biller confirms values).
+ * extracted fields are listed with unreadable ones highlighted, and the biller confirms values),
+ * US-6.1 (an extraction that left nothing to confirm starts the diagnosis; the pane shows the
+ * denial reason and the appeal likelihood with its reasons, flags a stale diagnosis, and has a
+ * Diagnose case button), US-6.2 (the explanation, the likely root cause, the missing-documentation
+ * checklist with each item's reason, and the rule cards it came from, flagged when stale), US-6.3
+ * (the case's appeal deadline, read with the case, with its limit, denial date, and card, flagged
+ * once passed, or why it is unknown; the denial date is a field the biller confirms).
  * Rules: PC-1 (opt-in: `defaultEnabled: false`), PC-3 (imports only
  * `@hermes/plugin-sdk`, `react`, `react/jsx-runtime`; optional SDK calls are feature-detected),
  * PC-4, BR-2 (case data goes pane → `ctx.rest` → plugin_api → worker, never the agent transcript),
@@ -37,10 +43,23 @@ export const SETTINGS_REFRESH_MS = 15_000;
  * @typedef {{ docId: string, kind: string, label: string }} DocumentView
  * @typedef {'extracted' | 'unreadable' | 'confirmed'} FieldStatus
  * @typedef {{ path: string, label: string, value: string, status: FieldStatus }} FieldView
+ * @typedef {'low' | 'medium' | 'high'} Likelihood
+ * @typedef {keyof typeof DENIAL_REASONS} DenialReason
+ * @typedef {{ text: string, rootCause: string }} ExplanationView
+ * @typedef {{ document: string, why: string | null }} ChecklistView
+ * @typedef {{ key: string, source: string, verifiedOn: string, stale: boolean }} RuleCardView
+ * @typedef {'computed' | 'no_payer' | 'no_rule_card' | 'no_appeal_limit' | 'no_denial_date'
+ *   | 'implausible_denial_date'} DeadlineStatus
+ * @typedef {{ status: DeadlineStatus, due: string | null, denialDate: string | null,
+ *   limitDays: number | null, card: string | null }} DeadlineView
+ * @typedef {{ reason: DenialReason, likelihood: Likelihood, reasons: string[], codes: string[],
+ *   stale: boolean, explanation?: ExplanationView, checklist: ChecklistView[],
+ *   cards: RuleCardView[], payerRead: boolean }} DiagnosisView
  * @typedef {{ state: 'ready', caseId: string, documents: DocumentView[], fields: FieldView[],
- *   otherClaims?: number, unreadSources?: number, notice?: Refusal }} ReadyState
+ *   otherClaims?: number, unreadSources?: number, notice?: Refusal,
+ *   diagnosis?: DiagnosisView, deadline?: DeadlineView }} ReadyState
  * @typedef {{ state: 'idle', notice?: Refusal } | { state: 'busy' } | ReadyState
- *   | { state: 'processing', caseId: string, progress: number }
+ *   | { state: 'processing', caseId: string, progress: number, diagnosing?: true }
  *   | { state: 'unavailable', caseId?: string }} CaseState
  * @typedef {{ caseId: string, stage: string, progress: number, errorCode: string | null }} Progress
  * @typedef {(listener: (payload: unknown) => void) => () => void} SubscribeFn
@@ -59,12 +78,42 @@ export const REFUSALS = Object.freeze({
   case_closed: 'This case is closed, so it takes no new documents or changes.',
   no_documents: 'Add a source document before processing the case.',
   invalid_value: 'That value is not valid for this field.',
-  model_unavailable: 'The local extraction model is missing or not responding.',
+  model_unavailable: 'The local model for this step is missing or not responding.',
   model_busy: 'The local models are busy; process the case again in a moment.',
   extraction_failed: 'The documents could not be read; enter the fields by hand.',
   worker_unavailable: 'The ClaimCoach worker stopped; start it and process the case again.',
   job_not_found: 'Processing stopped before it finished; process the case again.',
   processing_timeout: 'Processing took too long and was stopped; process the case again.',
+  not_extracted: 'Process the case so its fields are read before diagnosing it.',
+  diagnosis_failed:
+    "The local model's answer could not be used; check the case's fields, then diagnose again.",
+});
+
+/** Denial reasons as the pane names them (US-6.1: the backend's closed set). */
+export const DENIAL_REASONS = Object.freeze({
+  eligibility: 'Eligibility or coverage',
+  prior_authorization: 'Prior authorization or referral',
+  medical_necessity: 'Medical necessity',
+  coding_error: 'Coding error',
+  missing_information: 'Missing information',
+  duplicate_claim: 'Duplicate claim',
+  timely_filing: 'Timely filing',
+  non_covered_service: 'Service not covered',
+  bundling: 'Bundled service',
+  coordination_of_benefits: 'Coordination of benefits',
+  other: 'Other',
+});
+const LIKELIHOODS = new Set(['low', 'medium', 'high']);
+
+/** Why an appeal deadline is unknown, and what fixes it (US-6.3). */
+export const DEADLINE_UNKNOWN = Object.freeze({
+  no_payer: 'Appeal deadline unknown: confirm the payer, so its rule card can be found.',
+  no_rule_card: 'Appeal deadline unknown: no rule card is on file for this payer.',
+  no_appeal_limit: "Appeal deadline unknown: the payer's rule cards give no appeal time limit.",
+  no_denial_date: 'Appeal deadline unknown: confirm the denial date.',
+  implausible_denial_date:
+    'Appeal deadline unknown: the denial date is after today or before the date of service; ' +
+    'confirm it.',
 });
 
 /** Field and list names as the pane shows them. */
@@ -73,6 +122,7 @@ const FIELD_NAMES = Object.freeze({
   claim_id: 'Claim number',
   billed_amount: 'Billed',
   paid_amount: 'Paid',
+  denial_date: 'Denial date',
   adjustments: 'Adjustment',
   group_code: 'Group code',
   carc: 'CARC',
@@ -113,6 +163,8 @@ export function createCaseApi(rest) {
       rest(`${casePath(caseId)}/paste`, { method: 'POST', body: { text } }),
     /** @param {string} caseId */
     processCase: (caseId) => rest(`${casePath(caseId)}/process`, { method: 'POST', body: {} }),
+    /** @param {string} caseId */
+    diagnoseCase: (caseId) => rest(`${casePath(caseId)}/diagnose`, { method: 'POST', body: {} }),
     /**
      * @param {string} caseId
      * @param {string} path
@@ -218,6 +270,183 @@ export function fieldsOf(node, path = '') {
 }
 
 /**
+ * @param {unknown} list
+ * @returns {string[]}
+ */
+function stringsOf(list) {
+  return Array.isArray(list) ? list.filter((item) => typeof item === 'string') : [];
+}
+
+/**
+ * @param {unknown} value
+ * @returns {ExplanationView | null}
+ */
+function explanationOf(value) {
+  const explanation = /** @type {{ explanation?: unknown, root_cause?: unknown } | null} */ (value);
+  const text = explanation?.explanation;
+  const rootCause = explanation?.root_cause;
+  return typeof text === 'string' && typeof rootCause === 'string' ? { text, rootCause } : null;
+}
+
+/**
+ * @param {unknown} list
+ * @returns {ChecklistView[]}
+ */
+function checklistOf(list) {
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((entry) => {
+    const item = /** @type {{ document?: unknown, why?: unknown } | null} */ (entry);
+    if (typeof item?.document !== 'string') return [];
+    return [{ document: item.document, why: typeof item.why === 'string' ? item.why : null }];
+  });
+}
+
+/**
+ * @param {unknown} list
+ * @returns {RuleCardView[]}
+ */
+function cardsOf(list) {
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((entry) => {
+    const card =
+      /** @type {{ key?: unknown, source?: unknown, verified_on?: unknown, stale?: unknown }
+       *   | null} */ (entry);
+    if (
+      typeof card?.key !== 'string' ||
+      typeof card.source !== 'string' ||
+      typeof card.verified_on !== 'string'
+    ) {
+      return [];
+    }
+    return [
+      {
+        key: card.key,
+        source: card.source,
+        verifiedOn: card.verified_on,
+        stale: card.stale === true,
+      },
+    ];
+  });
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function textOrNull(value) {
+  return typeof value === 'string' ? value : null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {DeadlineView | null}
+ */
+function deadlineOf(value) {
+  const deadline =
+    /** @type {{ status?: unknown, due?: unknown, denial_date?: unknown, limit_days?: unknown,
+     *   rule_card?: unknown } | null} */ (value);
+  const status = deadline?.status;
+  const known = status === 'computed' || Object.hasOwn(DEADLINE_UNKNOWN, String(status));
+  if (!known || (status === 'computed' && typeof deadline?.due !== 'string')) return null;
+  return {
+    status: /** @type {DeadlineStatus} */ (status),
+    due: textOrNull(deadline?.due),
+    denialDate: textOrNull(deadline?.denial_date),
+    limitDays: typeof deadline?.limit_days === 'number' ? deadline.limit_days : null,
+    card: textOrNull(deadline?.rule_card),
+  };
+}
+
+/**
+ * Today on this Mac as `YYYY-MM-DD`, to compare with an ISO due date.
+ *
+ * @param {Date} [now]
+ * @returns {string}
+ */
+export function isoToday(now = new Date()) {
+  const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Days after which a rule card is stale (the backend's `STALE_AFTER_DAYS`, US-4.3). */
+export const STALE_AFTER_DAYS = 180;
+
+/**
+ * Whether a card verified on `verifiedOn` is stale on `today`. The diagnosis stores the flag as
+ * it was when the diagnosis ran; the pane judges it again for today.
+ *
+ * @param {string} verifiedOn `YYYY-MM-DD`
+ * @param {string} today `YYYY-MM-DD`
+ * @returns {boolean}
+ */
+export function staleOn(verifiedOn, today) {
+  const noon = new Date(`${today}T12:00:00`);
+  noon.setDate(noon.getDate() - STALE_AFTER_DAYS);
+  return verifiedOn < isoToday(noon);
+}
+
+/**
+ * The appeal deadline as the pane says it (US-6.3).
+ *
+ * @param {DeadlineView} deadline
+ * @param {string} today `YYYY-MM-DD`
+ * @returns {{ text: string, passed: boolean }}
+ */
+export function describeDeadline(deadline, today) {
+  if (deadline.status !== 'computed') {
+    return { text: DEADLINE_UNKNOWN[deadline.status], passed: false };
+  }
+  const passed = String(deadline.due) < today;
+  const text =
+    `Appeal by ${deadline.due}: ${deadline.limitDays} days from the denial date ` +
+    `${deadline.denialDate} (${deadline.card} rule card).` +
+    (passed ? ' This deadline has passed.' : '');
+  return { text, passed };
+}
+
+/**
+ * A case body's diagnosis, when it holds a well-formed one (US-6.1, US-6.2, US-6.3).
+ *
+ * @param {unknown} body
+ * @returns {DiagnosisView | null}
+ */
+export function diagnosisOf(body) {
+  const outer = /** @type {{ diagnosis?: unknown, diagnosis_stale?: unknown } | null} */ (body);
+  const diagnosis = /** @type {{ denial_reason?: unknown, appeal_likelihood?: unknown,
+   *   likelihood_reasons?: unknown, codes?: unknown, explanation?: unknown, checklist?: unknown,
+   *   rule_cards?: unknown } | null | undefined} */ (outer?.diagnosis);
+  const reason = diagnosis?.denial_reason;
+  const likelihood = diagnosis?.appeal_likelihood;
+  const reasons = stringsOf(diagnosis?.likelihood_reasons);
+  if (
+    typeof reason !== 'string' ||
+    !Object.hasOwn(DENIAL_REASONS, reason) ||
+    typeof likelihood !== 'string' ||
+    !LIKELIHOODS.has(likelihood) ||
+    reasons.length === 0
+  ) {
+    return null;
+  }
+  const payer = /** @type {{ extraction?: { payer_name?: { value?: unknown } } | null } | null} */ (
+    body
+  )?.extraction?.payer_name?.value;
+  /** @type {DiagnosisView} */
+  const view = {
+    reason: /** @type {DenialReason} */ (reason),
+    likelihood: /** @type {Likelihood} */ (likelihood),
+    reasons,
+    codes: stringsOf(diagnosis?.codes),
+    stale: outer?.diagnosis_stale === true,
+    checklist: checklistOf(diagnosis?.checklist),
+    cards: cardsOf(diagnosis?.rule_cards),
+    payerRead: typeof payer === 'string',
+  };
+  const explanation = explanationOf(diagnosis?.explanation);
+  if (explanation) view.explanation = explanation;
+  return view;
+}
+
+/**
  * The ready state for a case body.
  *
  * @param {string} caseId
@@ -239,6 +468,10 @@ function readyFrom(caseId, body) {
   const unread = /** @type {{ unread_sources?: unknown } | null | undefined} */ (extraction)
     ?.unread_sources;
   if (Array.isArray(unread) && unread.length > 0) ready.unreadSources = unread.length;
+  const diagnosis = diagnosisOf(body);
+  if (diagnosis) ready.diagnosis = diagnosis;
+  const deadline = deadlineOf(/** @type {{ deadline?: unknown } | null} */ (body)?.deadline);
+  if (deadline) ready.deadline = deadline;
   return ready;
 }
 
@@ -399,20 +632,79 @@ export async function openCase(api, caseId) {
 }
 
 /**
+ * A processing state; one without `diagnosing` is an extraction (US-5.2).
+ *
+ * @param {string} caseId
+ * @param {number} progress
+ * @param {boolean} diagnosing
+ * @returns {CaseState}
+ */
+function processing(caseId, progress, diagnosing) {
+  return diagnosing
+    ? { state: 'processing', caseId, progress, diagnosing: true }
+    : { state: 'processing', caseId, progress };
+}
+
+/**
+ * Start a case job and report it as processing. The case runs one job at a time, so the job may
+ * be one already running (its `kind` says which).
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {(caseId: string) => Promise<unknown>} start
+ * @returns {Promise<CaseState>}
+ */
+async function startJob(api, caseId, start) {
+  try {
+    const body = await start(caseId);
+    const kind = /** @type {{ kind?: unknown } | null} */ (body)?.kind;
+    return processing(caseId, 0, kind === 'diagnose');
+  } catch (error) {
+    const notice = refusalOf(error);
+    return notice === null ? { state: 'unavailable' } : reopenWith(api, caseId, notice);
+  }
+}
+
+/**
  * Start the pipeline for a case. Progress arrives as `plugin.claimcoach.case.progress` events.
  *
  * @param {CaseApi} api
  * @param {string} caseId
  * @returns {Promise<CaseState>}
  */
-export async function processCase(api, caseId) {
-  try {
-    await api.processCase(caseId);
-    return { state: 'processing', caseId, progress: 0 };
-  } catch (error) {
-    const notice = refusalOf(error);
-    return notice === null ? { state: 'unavailable' } : reopenWith(api, caseId, notice);
-  }
+export function processCase(api, caseId) {
+  return startJob(api, caseId, api.processCase);
+}
+
+/**
+ * Diagnose an extracted case (US-6.1). Progress arrives as `plugin.claimcoach.case.progress`.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @returns {Promise<CaseState>}
+ */
+export function diagnoseCase(api, caseId) {
+  return startJob(api, caseId, api.diagnoseCase);
+}
+
+/**
+ * After an extraction: show the case, and diagnose it when every field was read (US-6.1). A case
+ * with fields to confirm waits for the biller, who confirms them and then presses Diagnose case.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {() => boolean} [follow] Called just before the diagnosis is requested, so the pane
+ *   follows its events before any can arrive; `false` means a newer action replaced this one,
+ *   and nothing is started.
+ * @returns {Promise<CaseState>}
+ */
+export async function afterExtraction(api, caseId, follow = () => true) {
+  const opened = await openCase(api, caseId);
+  const read =
+    opened.state === 'ready' &&
+    opened.fields.length > 0 &&
+    opened.fields.every((field) => field.status !== 'unreadable');
+  return read && follow() ? diagnoseCase(api, caseId) : opened;
 }
 
 /**
@@ -457,14 +749,19 @@ export function describeCase(current) {
         ? ` ${current.unreadSources} document(s) could not be read; enter their fields by hand.`
         : '';
       const next = pending
-        ? `: ${pending} field(s) need confirmation.`
+        ? `: ${pending} field(s) need confirmation; confirm them, then diagnose the case.`
         : current.fields?.length
           ? ': every field is read or confirmed.'
           : ' is ready to process.';
-      return `${notice}Case ${current.caseId}${next}${unread}${others}`;
+      const stale = current.diagnosis?.stale
+        ? ' The fields changed since the diagnosis; diagnose the case again.'
+        : '';
+      return `${notice}Case ${current.caseId}${next}${unread}${others}${stale}`;
     }
-    case 'processing':
-      return `Processing case ${current.caseId} on this Mac… ${Math.round((current.progress ?? 0) * 100)}%`;
+    case 'processing': {
+      const verb = current.diagnosing ? 'Diagnosing' : 'Processing';
+      return `${verb} case ${current.caseId} on this Mac… ${Math.round((current.progress ?? 0) * 100)}%`;
+    }
     default:
       return 'Case work is not available. Check that the ClaimCoach backend and worker are running.';
   }
@@ -572,6 +869,117 @@ export function FieldList({ fields, edits, onEdit, onConfirm, disabled }) {
   });
 }
 
+/**
+ * The missing-documentation checklist and the rule cards it came from (US-6.2). Without a rule
+ * card for the payer there is no checklist, and the pane says why: an unreadable payer, which the
+ * biller confirms, or no card on file, which the manager adds.
+ *
+ * @param {DiagnosisView} diagnosis
+ * @param {string} [today] `YYYY-MM-DD`; this Mac's date by default
+ */
+export function ChecklistPanel(diagnosis, today = isoToday()) {
+  if (diagnosis.cards.length === 0) {
+    return jsx('p', {
+      role: 'note',
+      children: diagnosis.payerRead
+        ? "No rule card is on file for this payer, so there is no checklist. Add the payer's " +
+          'rule cards to the global corpus.'
+        : 'The payer could not be read, so no rule card was matched: confirm the payer, then ' +
+          'diagnose the case again.',
+    });
+  }
+  return jsxs('section', {
+    'aria-label': 'Missing documentation',
+    children: [
+      jsx('h4', { children: 'Missing documentation' }),
+      diagnosis.checklist.length
+        ? jsx('ul', {
+            'aria-label': 'Checklist',
+            children: diagnosis.checklist.map((item, i) =>
+              jsx(
+                'li',
+                { children: item.why ? `${item.document}: ${item.why}` : item.document },
+                `c${i}`,
+              ),
+            ),
+          })
+        : jsx('p', { children: "The payer's rule cards list no required documents." }),
+      jsx('ul', {
+        'aria-label': 'Rule cards',
+        children: diagnosis.cards.map((card) => {
+          const stale = card.stale || staleOn(card.verifiedOn, today);
+          return jsx(
+            'li',
+            {
+              'data-stale': stale,
+              children:
+                `${card.key}: ${card.source}, verified ${card.verifiedOn}` +
+                (stale ? ' (stale: check that it is still current)' : ''),
+            },
+            card.key,
+          );
+        }),
+      }),
+    ],
+  });
+}
+
+/**
+ * The appeal deadline, flagged once it has passed, or why it is unknown (US-6.3).
+ *
+ * @param {DeadlineView | undefined} deadline
+ * @param {string} today `YYYY-MM-DD`
+ */
+export function DeadlineLine(deadline, today) {
+  if (!deadline) return null;
+  const { text, passed } = describeDeadline(deadline, today);
+  return jsx('p', {
+    'aria-label': 'Appeal deadline',
+    'data-status': deadline.status,
+    'data-passed': passed,
+    style: passed ? { color: '#b91c1c', fontWeight: 600 } : undefined,
+    children: text,
+  });
+}
+
+/**
+ * The diagnosis: the denial reason, then the appeal likelihood with every reason (US-6.1), then
+ * the explanation, the likely root cause, and the checklist once the explanation ran (US-6.2).
+ *
+ * @param {DiagnosisView | undefined} diagnosis
+ * @param {string} [today] `YYYY-MM-DD`; this Mac's date by default
+ */
+export function DiagnosisPanel(diagnosis, today = isoToday()) {
+  if (!diagnosis) return null;
+  const likelihood = `${diagnosis.likelihood[0]?.toUpperCase()}${diagnosis.likelihood.slice(1)}`;
+  return jsxs('section', {
+    'aria-label': 'Diagnosis',
+    'data-stale': diagnosis.stale,
+    children: [
+      jsx('h3', { children: `Denial reason: ${DENIAL_REASONS[diagnosis.reason]}` }),
+      jsx('p', { children: `Codes: ${diagnosis.codes.join(', ') || 'none read'}` }),
+      jsx('h4', { children: `Appeal likelihood: ${likelihood}` }),
+      jsx('ul', {
+        'aria-label': 'Why',
+        children: diagnosis.reasons.map((reason, i) => jsx('li', { children: reason }, `r${i}`)),
+      }),
+      diagnosis.stale
+        ? jsx('p', { role: 'note', children: 'Out of date: the fields changed since it ran.' })
+        : null,
+      diagnosis.explanation
+        ? jsxs('div', {
+            'aria-label': 'Explanation',
+            children: [
+              jsx('p', { children: diagnosis.explanation.text }),
+              jsx('p', { children: `Likely root cause: ${diagnosis.explanation.rootCause}` }),
+            ],
+          })
+        : null,
+      diagnosis.explanation ? ChecklistPanel(diagnosis, today) : null,
+    ],
+  });
+}
+
 /** Does nothing: the disposer of no subscription, and the pane's handler before its first render. */
 function noop() {}
 
@@ -592,7 +1000,8 @@ export function CasePane({ rest, subscribe = noEvents }) {
   // being processed and this render's event handler to the long-lived event subscription.
   const [life] = useState(
     /** @type {{ live: boolean, action: number, caseId: string | null,
-     *   processing: string | null, onProgress: (payload: unknown) => void }} */ ({
+     *   processing: string | null, diagnosing?: boolean,
+     *   onProgress: (payload: unknown) => void }} */ ({
       live: true,
       action: 0,
       caseId: null,
@@ -622,20 +1031,46 @@ export function CasePane({ rest, subscribe = noEvents }) {
         if (next.caseId !== life.caseId) setEdits({});
         life.caseId = next.caseId;
       }
+      // The job that runs may be another kind than the one asked for (one job per case).
+      if (next.state === 'processing') follow(next.caseId, next.diagnosing === true);
       setCurrent(next);
     });
+  };
+  /**
+   * Follow a job's events from now on: called before its start request is sent, so an event that
+   * arrives before the answer is not missed.
+   *
+   * @param {string | null} caseId
+   * @param {boolean} diagnosing
+   */
+  const follow = (caseId, diagnosing) => {
+    life.processing = caseId;
+    life.diagnosing = diagnosing;
   };
   life.onProgress = (payload) => {
     const progress = progressOf(payload);
     const caseId = life.processing;
     if (!life.live || progress === null || caseId === null || progress.caseId !== caseId) return;
     if (progress.stage === 'done' || progress.stage === 'failed') {
-      life.processing = null;
+      const diagnosing = life.diagnosing === true;
+      follow(null, false);
       setEdits({}); // fresh values replace anything typed before the run
-      const notice = known(progress.errorCode) ?? 'extraction_failed';
-      settle(progress.stage === 'done' ? openCase(api, caseId) : reopenWith(api, caseId, notice));
+      const notice =
+        known(progress.errorCode) ?? (diagnosing ? 'diagnosis_failed' : 'extraction_failed');
+      const chained = life.action + 1; // the action settle starts next
+      settle(
+        progress.stage === 'failed'
+          ? reopenWith(api, caseId, notice)
+          : diagnosing
+            ? openCase(api, caseId)
+            : afterExtraction(api, caseId, () => {
+                if (!life.live || life.action !== chained) return false;
+                follow(caseId, true);
+                return true;
+              }),
+      );
     } else {
-      setCurrent({ state: 'processing', caseId, progress: progress.progress });
+      setCurrent(processing(caseId, progress.progress, life.diagnosing === true));
     }
   };
   /** @param {ArrayLike<PickedFile> | null | undefined} files */
@@ -655,19 +1090,24 @@ export function CasePane({ rest, subscribe = noEvents }) {
   const onDragOver = (event) => event.preventDefault(); // marks the pane as a drop target
   const onProcess = () => {
     if (current.state !== 'ready') return;
-    life.processing = current.caseId;
+    follow(current.caseId, false);
     settle(processCase(api, current.caseId));
+  };
+  const onDiagnose = () => {
+    if (current.state !== 'ready') return;
+    follow(current.caseId, true);
+    settle(diagnoseCase(api, current.caseId));
   };
   const onRefresh = () => {
     if (life.caseId === null || current.state === 'busy') return;
-    life.processing = null;
+    follow(null, false);
     setEdits({});
     settle(openCase(api, life.caseId));
   };
   const onNewCase = () => {
     life.action += 1; // an upload still running no longer updates the pane
     life.caseId = null;
-    life.processing = null;
+    follow(null, false);
     setEdits({});
     setCurrent({ state: 'idle' });
   };
@@ -753,6 +1193,14 @@ export function CasePane({ rest, subscribe = noEvents }) {
         onConfirm,
         disabled: current.state !== 'ready',
       }),
+      jsx('button', {
+        type: 'button',
+        disabled: current.state !== 'ready' || !current.fields?.length,
+        onClick: onDiagnose,
+        children: 'Diagnose case',
+      }),
+      DeadlineLine(current.state === 'ready' ? current.deadline : undefined, isoToday()),
+      DiagnosisPanel(current.state === 'ready' ? current.diagnosis : undefined),
     ],
   });
 }

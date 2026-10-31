@@ -94,7 +94,9 @@ their output into tickets, chats, or the agent transcript.
   is listed under `extraction.unread_sources`.
   A case with no document is refused before it starts with `no_documents`.
 - Step 6 shows `extraction` with each field's `value` and `status` (`extracted`, `unreadable`,
-  `confirmed`). After `case-confirm`, the field is `confirmed` and leaves `needs_confirmation`; an
+  `confirmed`), including `denial_date` (US-6.3: from the 835 transaction holding the claim, its
+  `DTM*405`, else `GS04`, else `BPR16`; or the notice date on an EOB or letter). Dates are
+  confirmed as `YYYY-MM-DD` only. After `case-confirm`, the field is `confirmed` and leaves `needs_confirmation`; an
   invalid value is refused with `invalid_request` and changes nothing.
 
 ## Rollback

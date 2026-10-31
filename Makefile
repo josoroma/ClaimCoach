@@ -79,6 +79,28 @@ REQUIRE_CASE = [[ "$(CASE)" =~ ^[A-Za-z0-9_-]{1,64}$$ ]] || { \
 	echo "usage: make $@ CASE=<case id>$(if $(filter case-add case-paste,$@), FILE=<document>)"; exit 2; }
 REQUIRE_CASE_FILE = test -f "$(FILE)" || { echo "usage: make $@ CASE=<case id> FILE=<document>"; exit 2; }
 
+# Start a case job ($(1): extract or diagnose, US-5.2 and US-6.1) and print its progress events
+# until it ends; the target fails when the job ends `failed`, or when the case was already running
+# a job of the other kind (one job per case), which is followed instead and named on stderr.
+# Backslash-newlines become spaces here, so every shell and Python statement ends with `;`.
+CASE_JOB = started=$$($(WORKER_CURL) -X POST "$(WORKER_URL)/cases/$(CASE)/$(1)?profile=$(CASE_PROFILE)" \
+	  | python3 -c 'import json, sys; b = json.load(sys.stdin); \
+	    print(b["job_id"], b.get("kind", "extract")) if b.get("ok") \
+	    else sys.exit("error: " + b["error"]["code"])') || exit 1; \
+	read -r job kind <<< "$$started"; \
+	[ "$$kind" = "$(1)" ] || echo "a $$kind job is already running on this case; following it," \
+	  "then run this target again" >&2; \
+	after=0; while :; do \
+	  body=$$($(WORKER_CURL) "$(WORKER_URL)/jobs/$$job/events?after=$$after&wait=20") || exit 1; \
+	  out=$$(printf '%s' "$$body" | python3 -c 'import json, sys; b = json.load(sys.stdin); \
+	    [print("%-11s %4.0f%%  %s" % (e["stage"], 100 * e["progress"], e.get("error_code") or ""), \
+	      file=sys.stderr) for e in b["events"]]; \
+	    last = b["events"][-1]["stage"] if b["events"] else ""; \
+	    print(int(sys.argv[1]) + len(b["events"]), int(b["finished"]), last)' "$$after"); \
+	  read -r after finished last <<< "$$out"; \
+	  if [ "$$finished" = 1 ]; then [ "$$last" != failed ] && [ "$$kind" = "$(1)" ]; exit; fi; \
+	done
+
 # Story slug for test filters: US-3.1 -> us_3_1.
 STORY_SLUG = $(shell echo '$(STORY)' | tr 'A-Z.-' 'a-z__')
 REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make $@ STORY=US-x.y"; exit 2; }
@@ -90,7 +112,7 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         models-init models-check models-status models-load models-unload models-download \
         models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
-        case-new case-add case-paste case-show case-process case-confirm \
+        case-new case-add case-paste case-show case-process case-confirm case-diagnose \
         clean
 
 help: ## List targets
@@ -332,7 +354,7 @@ corpus-key-import: ## Put a backed-up key into the Keychain: make corpus-key-imp
 	@$(REQUIRE_CORPUS_CONFIRM)
 	@$(CORPUS_CLI) key-import --from "$(FROM)" --confirm $(if $(PROFILE),--profile "$(PROFILE)")
 
-# --- Cases (docs/runbooks/case-intake-extraction.md) ----------------------------------------------
+# --- Cases (docs/runbooks/case-intake-extraction.md, case-diagnosis.md) ---------------------------
 # These print case content (filenames, extracted fields) to this terminal only; nothing is logged.
 
 case-new: ## Create an empty case and print its ID: make case-new [PROFILE=p]
@@ -357,19 +379,11 @@ case-show: ## Show a case with its source documents (audited case_opened): make 
 
 case-process: ## Extract a case and print its progress events until done: make case-process CASE=id
 	@$(REQUIRE_CASE)
-	@job=$$($(WORKER_CURL) -X POST "$(WORKER_URL)/cases/$(CASE)/extract?profile=$(CASE_PROFILE)" \
-	  | python3 -c 'import json, sys; b = json.load(sys.stdin); \
-	    print(b["job_id"]) if b.get("ok") else sys.exit("error: " + b["error"]["code"])') || exit 1; \
-	after=0; while :; do \
-	  body=$$($(WORKER_CURL) "$(WORKER_URL)/jobs/$$job/events?after=$$after&wait=20") || exit 1; \
-	  out=$$(printf '%s' "$$body" | python3 -c 'import json, sys; b = json.load(sys.stdin); \
-	    [print("%-11s %4.0f%%  %s" % (e["stage"], 100 * e["progress"], e.get("error_code") or ""), \
-	      file=sys.stderr) for e in b["events"]]; \
-	    last = b["events"][-1]["stage"] if b["events"] else ""; \
-	    print(int(sys.argv[1]) + len(b["events"]), int(b["finished"]), last)' "$$after"); \
-	  read -r after finished last <<< "$$out"; \
-	  if [ "$$finished" = 1 ]; then [ "$$last" != failed ]; exit; fi; \
-	done
+	@$(call CASE_JOB,extract)
+
+case-diagnose: ## Diagnose an extracted case and print its progress events: make case-diagnose CASE=id
+	@$(REQUIRE_CASE)
+	@$(call CASE_JOB,diagnose)
 
 case-confirm: ## Confirm a field's value: make case-confirm CASE=id FIELD=claim_id VALUE=CLAIM-77
 	@$(REQUIRE_CASE)

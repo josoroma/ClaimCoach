@@ -1,16 +1,19 @@
 """Import a corpus bundle into the global scope and list it with provenance.
 
 Implements: US-4.3 (``import_bundle``: all-or-nothing, idempotent by ``kind:key``; ``corpus_view``
-shows source, verified-on date, and the stale flag). Rules: BR-1 (the bundle is local; embeddings
-run on the local ``embedding`` role), PRD §11.
+shows source, verified-on date, and the stale flag), US-6.2 (structured card fields are stored as
+JSON so ``corpus.lookup.rule_card_of`` reads them back). Rules: BR-1 (the bundle is local;
+embeddings run on the local ``embedding`` role), PRD §11.
 """
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from datetime import date
 
 from claimcoach.corpus.bundle import (
+    STRUCTURED_CARD_FIELDS,
     CorpusBundle,
     CorpusItem,
     CorpusViewItem,
@@ -27,13 +30,27 @@ __all__ = ["corpus_view", "import_bundle", "item_document"]
 
 
 def item_document(item: CorpusItem) -> Document:
-    """Return the global-scope document an item is stored as (ID ``kind:key``)."""
-    extra = item.model_dump(mode="json", exclude={"kind", "title", "body", "source", "verified_on"})
+    """Return the global-scope document an item is stored as (ID ``kind:key``).
+
+    Fields beyond the shared ones go into the metadata: a card's structured fields
+    (``STRUCTURED_CARD_FIELDS``) and any other non-text value as JSON, text as it is; fields left
+    at their default are not stored.
+    """
+    extra = item.model_dump(
+        mode="json",
+        exclude={"kind", "title", "body", "source", "verified_on"},
+        exclude_defaults=True,
+    )
     metadata = {
         "key": item.key,
         "source": item.source,
         "verified_on": item.verified_on.isoformat(),
-        **{name: str(value) for name, value in extra.items()},
+        **{
+            name: value
+            if isinstance(value, str) and name not in STRUCTURED_CARD_FIELDS
+            else json.dumps(value)
+            for name, value in extra.items()
+        },
     }
     return Document(
         doc_id=f"{item.kind}:{item.key}",
@@ -82,7 +99,8 @@ def corpus_view(store: CorpusStore, today: date) -> CorpusViewResponse:
     """List every global item with its provenance and whether it is stale on ``today``."""
     items = []
     for document in store.documents():
-        verified_on = date.fromisoformat(document.metadata["verified_on"])
+        metadata = document.metadata
+        verified_on = date.fromisoformat(metadata["verified_on"])
         items.append(
             CorpusViewItem.model_validate(
                 {
@@ -92,6 +110,8 @@ def corpus_view(store: CorpusStore, today: date) -> CorpusViewResponse:
                     "source": document.metadata["source"],
                     "verified_on": verified_on,
                     "stale": is_stale(verified_on, today),
+                    "required_documents": len(json.loads(metadata.get("required_documents", "[]"))),
+                    "appeal_limit_days": json.loads(metadata.get("appeal_limit_days", "null")),
                 }
             )
         )

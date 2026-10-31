@@ -33,3 +33,29 @@ fail the whole import, and nothing SHALL be stored.
 #### Scenario: Not a regular file
 - **WHEN** the bundle path is a FIFO or larger than 5 MiB
 - **THEN** the import is refused before anything is read past the limit
+
+### Requirement: Rule cards may list required documents
+A `required_docs` rule card MAY carry `required_documents`, a list of up to 30 entries of 1 to 200
+characters (an empty list is no list); the list SHALL be stored with the card and read back
+unchanged. A list on a card of any other topic SHALL fail the whole import.
+
+#### Scenario: Required documents are stored with the card
+- **WHEN** the manager imports a required_docs rule card with a list of required documents
+- **THEN** the stored card reads back with the same list in the same order
+
+#### Scenario: A list on another topic is refused
+- **WHEN** a bundle holds a timely_filing rule card with required documents
+- **THEN** the import fails with invalid_request and nothing is stored
+
+### Requirement: Appeal-levels cards may give an appeal time limit
+An `appeal_levels` rule card MAY carry `appeal_limit_days`, a whole number of days from 1 to 3650;
+it SHALL be stored with the card and read back unchanged. A limit on a card of any other topic, or
+outside that range, SHALL fail the whole import.
+
+#### Scenario: The appeal limit is stored with the card
+- **WHEN** the manager imports an appeal_levels rule card with appeal_limit_days 180
+- **THEN** the stored card reads back with appeal_limit_days 180
+
+#### Scenario: A limit on another topic is refused
+- **WHEN** a bundle holds a required_docs rule card with appeal_limit_days
+- **THEN** the import fails with invalid_request and nothing is stored

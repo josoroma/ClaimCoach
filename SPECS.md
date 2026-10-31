@@ -180,19 +180,19 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-5.2#1 | Implement claimcoach/pipeline/extract.py (PyMuPDF rasterize → Qwen3-VL-8B per page; 835 p… | DONE | US-5.2 |
 | US-5.2#2 | Add tests test_us_5_2_extraction_fills_case (marked models), test_us_5_2_unreadable_field… | DONE | US-5.2 |
 | US-5.2#3 | Record evidence/US-5.2/test-report.md | DONE | US-5.2 |
-| EPIC-6 | Diagnosis | — | — |
-| US-6.1 | Denial Classification and Appeal Likelihood | READY | EPIC-6 |
-| US-6.1#1 | Implement claimcoach/pipeline/diagnose.py with typed DenialReason, AppealLikelihood (enum… | TODO | US-6.1 |
-| US-6.1#2 | Add tests test_us_6_1_classification_typed_result, test_us_6_1_likelihood_includes_reasons | TODO | US-6.1 |
-| US-6.1#3 | Record evidence/US-6.1/test-report.md | TODO | US-6.1 |
-| US-6.2 | Plain-Language Explanation and Missing-Documentation Checklist | READY | EPIC-6 |
-| US-6.2#1 | Implement claimcoach/pipeline/explain.py with typed Explanation, ChecklistItem | TODO | US-6.2 |
-| US-6.2#2 | Add tests test_us_6_2_explanation_and_root_cause_shown, test_us_6_2_checklist_lists_missi… | TODO | US-6.2 |
-| US-6.2#3 | Record evidence/US-6.2/test-report.md | TODO | US-6.2 |
-| US-6.3 | Appeal Deadline | READY | EPIC-6 |
-| US-6.3#1 | Implement a pure, typed compute_deadline() in claimcoach/pipeline/deadline.py with docstr… | TODO | US-6.3 |
-| US-6.3#2 | Add test test_us_6_3_deadline_from_rule_card | TODO | US-6.3 |
-| US-6.3#3 | Record evidence/US-6.3/test-report.md | TODO | US-6.3 |
+| EPIC-6 | Diagnosis | DONE | — |
+| US-6.1 | Denial Classification and Appeal Likelihood | DONE | EPIC-6 |
+| US-6.1#1 | Implement claimcoach/pipeline/diagnose.py with typed DenialReason, AppealLikelihood (enum… | DONE | US-6.1 |
+| US-6.1#2 | Add tests test_us_6_1_classification_typed_result, test_us_6_1_likelihood_includes_reasons | DONE | US-6.1 |
+| US-6.1#3 | Record evidence/US-6.1/test-report.md | DONE | US-6.1 |
+| US-6.2 | Plain-Language Explanation and Missing-Documentation Checklist | DONE | EPIC-6 |
+| US-6.2#1 | Implement claimcoach/pipeline/explain.py with typed Explanation, ChecklistItem | DONE | US-6.2 |
+| US-6.2#2 | Add tests test_us_6_2_explanation_and_root_cause_shown, test_us_6_2_checklist_lists_missi… | DONE | US-6.2 |
+| US-6.2#3 | Record evidence/US-6.2/test-report.md | DONE | US-6.2 |
+| US-6.3 | Appeal Deadline | DONE | EPIC-6 |
+| US-6.3#1 | Implement a pure, typed compute_deadline() in claimcoach/pipeline/deadline.py with docstr… | DONE | US-6.3 |
+| US-6.3#2 | Add test test_us_6_3_deadline_from_rule_card | DONE | US-6.3 |
+| US-6.3#3 | Record evidence/US-6.3/test-report.md | DONE | US-6.3 |
 | EPIC-7 | Appeal Drafting and Export | — | — |
 | US-7.1 | Draft the Appeal Letter | READY | EPIC-7 |
 | US-7.1#1 | Implement claimcoach/letters/draft.py with typed DraftRequest, AppealDraft | TODO | US-7.1 |
@@ -1859,7 +1859,7 @@ Open Questions:
 
 ### US-6.1: Denial Classification and Appeal Likelihood
 
-Status: READY
+Status: DONE
 
 As a biller
 I want the denial reason classified and an appeal likelihood with reasons
@@ -1888,16 +1888,17 @@ Dependencies:
 - US-4.4
 
 Tasks:
-- [ ] Implement claimcoach/pipeline/diagnose.py with typed `DenialReason`, `AppealLikelihood` (enum), `Diagnosis`
-- [ ] Add tests test_us_6_1_classification_typed_result, test_us_6_1_likelihood_includes_reasons
-- [ ] Record evidence/US-6.1/test-report.md
+- [x] Implement claimcoach/pipeline/diagnose.py with typed `DenialReason`, `AppealLikelihood` (enum), `Diagnosis`
+- [x] Add tests test_us_6_1_classification_typed_result, test_us_6_1_likelihood_includes_reasons
+- [x] Record evidence/US-6.1/test-report.md
 
 Open Questions:
 - What is the closed set of denial-reason labels the classifier must choose from?
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-6-1-denial-classification/`) with a default for the Product Manager to confirm: eleven labels, one per kind of fix (`eligibility`, `prior_authorization`, `medical_necessity`, `coding_error`, `missing_information`, `duplicate_claim`, `timely_filing`, `non_covered_service`, `bundling`, `coordination_of_benefits`, `other`), each anchored on the CARCs that usually signal it. The pane diagnoses a case right after an extraction that left nothing to confirm; otherwise the biller confirms the fields and presses Diagnose case. Real-model accuracy is unmeasured until the PRD §4 labeled set exists.
 
 ### US-6.2: Plain-Language Explanation and Missing-Documentation Checklist
 
-Status: READY
+Status: DONE
 
 As a biller
 I want a plain-language explanation, the likely root cause, and a missing-documentation checklist
@@ -1926,16 +1927,17 @@ Dependencies:
 - US-6.1
 
 Tasks:
-- [ ] Implement claimcoach/pipeline/explain.py with typed `Explanation`, `ChecklistItem`
-- [ ] Add tests test_us_6_2_explanation_and_root_cause_shown, test_us_6_2_checklist_lists_missing_docs
-- [ ] Record evidence/US-6.2/test-report.md
+- [x] Implement claimcoach/pipeline/explain.py with typed `Explanation`, `ChecklistItem`
+- [x] Add tests test_us_6_2_explanation_and_root_cause_shown, test_us_6_2_checklist_lists_missing_docs
+- [x] Record evidence/US-6.2/test-report.md
 
 Open Questions:
 - None
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-6-2-explanation-checklist/`): rule cards gained `required_documents` (on `required_docs` cards); the model picks items by number, so the checklist holds only the card's own words; a payer's cards match when the card's payer begins the case's payer name, one card per topic.
 
 ### US-6.3: Appeal Deadline
 
-Status: READY
+Status: DONE
 
 As a biller
 I want the appeal deadline shown on the case
@@ -1959,14 +1961,15 @@ Dependencies:
 - US-4.1
 
 Tasks:
-- [ ] Implement a pure, typed `compute_deadline()` in claimcoach/pipeline/deadline.py with docstring citing US-6.3
-- [ ] Add test test_us_6_3_deadline_from_rule_card
-- [ ] Record evidence/US-6.3/test-report.md
+- [x] Implement a pure, typed `compute_deadline()` in claimcoach/pipeline/deadline.py with docstring citing US-6.3
+- [x] Add test test_us_6_3_deadline_from_rule_card
+- [x] Record evidence/US-6.3/test-report.md
 
 Open Questions:
 - Tests use fixture rule cards; the final `RuleCard` import format is pending US-4.3.
 - What should the case show when no rule card exists for the payer, or the card has no appeal limit?
 - Is the deadline counted from the denial date, the remittance date, or another date per payer?
+- Delivered 2026-10-31 (`openspec/changes/archive/2026-10-31-us-6-3-appeal-deadline/`) with defaults for the Product Manager to confirm: the limit is `appeal_limit_days` on the payer's `appeal_levels` card (the US-4.3 format, extended); without a card, a limit, a readable payer, or a plausible denial date the case shows "Appeal deadline unknown" with the reason, never a default limit; the clock counts calendar days from the date of the payer's decision (an 835's `DTM*405`, else `GS04`, else `BPR16`; the notice date on an EOB or letter). The deadline is computed whenever the case is read.
 
 # EPIC-7: Appeal Drafting and Export
 

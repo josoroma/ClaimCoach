@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="US-6.1 appeal likelihood includes reasons" time="0.002858" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T18:24:23.239Z" hostname="iX-00277">
+		<testcase name="test_us_6_1_pane_likelihood_includes_reasons" time="0.002352" classname="US-6.1 appeal likelihood includes reasons" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-6.1 the pane diagnoses after extraction" time="0.002609" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T18:24:23.242Z" hostname="iX-00277">
+		<testcase name="test_us_6_1_pane_diagnoses_after_extraction" time="0.002369" classname="US-6.1 the pane diagnoses after extraction" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-6.1 a confirmed field makes the diagnosis stale" time="0.000338" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T18:24:23.244Z" hostname="iX-00277">
+		<testcase name="test_us_6_1_pane_flags_stale_diagnosis" time="0.000259" classname="US-6.1 a confirmed field makes the diagnosis stale" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.123331" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.122652" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.121447" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.120836" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.120617" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 8 -->
+	<!-- suites 3 -->
+	<!-- pass 8 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 135.455375 -->
+</testsuites>

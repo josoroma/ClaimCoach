@@ -12,12 +12,13 @@ the same claim (an 835 and its EOB) therefore never duplicate lines.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter
 
 from claimcoach.cases.extraction import CaseExtraction, read_value
+from claimcoach.pipeline.replies import each_valid
 
 __all__ = [
     "AdjustmentReading",
@@ -40,23 +41,6 @@ Raw = Annotated[str | int | float | None, BeforeValidator(_scalar)]
 """A value as read: text or a number, or ``None`` when absent or of another JSON type."""
 
 
-def _items(adapter: TypeAdapter[Any]) -> Callable[[object], list[Any]]:
-    """Read a list one item at a time: ``null`` or a non-list is empty, a bad item is dropped."""
-
-    def read(value: object) -> list[Any]:
-        if not isinstance(value, list):
-            return []
-        items = []
-        for item in value:
-            try:
-                items.append(adapter.validate_python(item))
-            except ValidationError:
-                continue  # one malformed item never loses the rest of the page
-        return items
-
-    return read
-
-
 class _Loose(BaseModel):
     # A model reply may add keys; only these are read. Values stay raw until ``read_value``.
     model_config = ConfigDict(extra="ignore", frozen=True)
@@ -71,9 +55,9 @@ class AdjustmentReading(_Loose):
 
 
 Adjustments = Annotated[
-    list[AdjustmentReading], BeforeValidator(_items(TypeAdapter(AdjustmentReading)))
+    list[AdjustmentReading], BeforeValidator(each_valid(TypeAdapter(AdjustmentReading)))
 ]
-Codes = Annotated[list[Raw], BeforeValidator(_items(TypeAdapter(Raw)))]
+Codes = Annotated[list[Raw], BeforeValidator(each_valid(TypeAdapter(Raw)))]
 
 
 class LineReading(_Loose):
@@ -99,10 +83,11 @@ class Reading(_Loose):
     claim_id: Raw = None
     billed_amount: Raw = None
     paid_amount: Raw = None
+    denial_date: Raw = None
     adjustments: Adjustments = Field(default_factory=list)
     rarc_codes: Codes = Field(default_factory=list)
-    lines: Annotated[list[LineReading], BeforeValidator(_items(TypeAdapter(LineReading)))] = Field(
-        default_factory=list
+    lines: Annotated[list[LineReading], BeforeValidator(each_valid(TypeAdapter(LineReading)))] = (
+        Field(default_factory=list)
     )
 
 
@@ -123,7 +108,7 @@ class SourceReading(BaseModel):
     other_claims: int = 0
 
 
-_SCALARS = ("payer_name", "claim_id", "billed_amount", "paid_amount")
+_SCALARS = ("payer_name", "claim_id", "billed_amount", "paid_amount", "denial_date")
 
 
 def _adjustment(reading: AdjustmentReading) -> dict[str, object]:

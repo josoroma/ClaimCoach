@@ -1,7 +1,8 @@
 """A synthetic, PHI-free EOB for extraction tests: a PDF and what a good model reads from it.
 
 Implements: US-5.2 test harness (ES-4: offline; the fake OpenAI-compatible server answers with
-``eob_reply()`` as Qwen3-VL-8B would). The real-model test reads the same PDF with the real model.
+``eob_reply()`` as Qwen3-VL-8B would), US-6.3 (the notice date, read as the denial date). The
+real-model test reads the same PDF with the real model.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ EOB_LINES: Final = (
     "ACME HEALTH PLAN - EXPLANATION OF BENEFITS",
     "Claim number: CLAIM-77        Provider: SYNTHETIC CLINIC",
     "Total billed: $250.00         Total paid: $0.00",
+    "Notice date: 2026-10-15",
     "",
     "Line  Date of service  Procedure  Billed    Paid   Adjustment       Remarks",
     "1     2026-09-01       99213      $250.00   $0.00  CO-197 $250.00   N286",
@@ -31,6 +33,7 @@ EOB_READING: Final[dict[str, Any]] = {
     "claim_id": "CLAIM-77",
     "billed_amount": "250.00",
     "paid_amount": "0.00",
+    "denial_date": "2026-10-15",
     "adjustments": [],
     "rarc_codes": [],
     "lines": [

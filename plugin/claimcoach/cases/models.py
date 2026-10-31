@@ -2,9 +2,11 @@
 
 Implements: US-5.1 (``CaseCreate``, ``PastedText``, ``SourceDocument``, ``Case``,
 ``DocumentAdded``, and the intake limits), US-5.2 (``Case`` carries the extraction and the fields
-that need confirmation). Rules: ES-1 (Pydantic v2, ``extra="forbid"``, frozen),
-BR-2 (these bodies travel pane → ``plugin_api.py`` → worker only), BR-14 (they carry case content,
-so they are never logged and never reach an agent tool or an event).
+that need confirmation), US-6.1 (``Case`` carries the diagnosis and whether it is stale), US-6.3
+(``Case`` carries the appeal deadline). Rules:
+ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-2 (these bodies travel pane →
+``plugin_api.py`` → worker only), BR-14 (they carry case content, so they are never logged and
+never reach an agent tool or an event).
 
 This module imports nothing heavier than Pydantic, so the gateway can use it.
 """
@@ -15,6 +17,7 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.extraction import CaseExtraction
 from claimcoach.corpus.types import CaseId, Timestamp
 
@@ -94,6 +97,11 @@ class Case(_Strict):
         documents: Its source documents, oldest first.
         extraction: Its structured fields, once extraction ran (US-5.2).
         needs_confirmation: Paths of the unreadable fields the pane highlights.
+        diagnosis: Its diagnosis, once diagnosis ran (US-6.1).
+        diagnosis_stale: The extraction changed after the diagnosis ran (a confirmed field or a
+            new extraction), so the pane asks to diagnose again.
+        deadline: The appeal deadline, or why it is unknown, computed from the current
+            extraction and rule cards whenever the case is read (US-6.3); none before extraction.
     """
 
     ok: Literal[True] = True
@@ -103,6 +111,9 @@ class Case(_Strict):
     documents: list[SourceDocument]
     extraction: CaseExtraction | None = None
     needs_confirmation: list[str] = Field(default_factory=list)
+    diagnosis: Diagnosis | None = None
+    diagnosis_stale: bool = False
+    deadline: AppealDeadline | None = None
 
 
 class DocumentAdded(_Strict):

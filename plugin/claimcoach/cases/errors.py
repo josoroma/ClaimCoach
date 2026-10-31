@@ -1,7 +1,8 @@
 """Case request errors and the envelope codes the worker answers them with.
 
 Implements: US-5.1 (``MalformedUploadError``, ``UnsupportedDocumentError``,
-``DocumentTooLargeError``), US-5.2 (``NoDocumentsError``, ``FieldError``, ``JobNotFoundError``).
+``DocumentTooLargeError``), US-5.2 (``NoDocumentsError``, ``FieldError``, ``JobNotFoundError``),
+US-6.1 (``NotExtractedError``, ``DiagnosisFailedError``).
 Rules: ES-8 (each error maps to one fixed envelope code), BR-14 (no error carries content).
 """
 
@@ -13,11 +14,13 @@ from claimcoach.api.models import ErrorCode
 
 __all__ = [
     "CaseError",
+    "DiagnosisFailedError",
     "DocumentTooLargeError",
     "FieldError",
     "JobNotFoundError",
     "MalformedUploadError",
     "NoDocumentsError",
+    "NotExtractedError",
     "UnsupportedDocumentError",
 ]
 
@@ -63,3 +66,17 @@ class JobNotFoundError(CaseError):
 
     code: ClassVar[ErrorCode] = "job_not_found"
     status_code: ClassVar[int] = 404
+
+
+class NotExtractedError(CaseError):
+    """Diagnosis needs the case's extraction, and the case has none yet."""
+
+    code: ClassVar[ErrorCode] = "not_extracted"
+    status_code: ClassVar[int] = 409
+
+
+class DiagnosisFailedError(CaseError):
+    """The classification model's reply did not validate as a diagnosis."""
+
+    code: ClassVar[ErrorCode] = "diagnosis_failed"
+    status_code: ClassVar[int] = 502

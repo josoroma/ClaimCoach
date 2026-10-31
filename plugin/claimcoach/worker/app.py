@@ -6,7 +6,8 @@ model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI mo
 (a request ID per request, in every log line and the ``X-Request-ID`` header), US-4.1 to US-4.6
 (``/corpus`` routes; the scheduled retention purge runs in the lifespan), US-5.1 (``/cases``
 routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` events; running jobs
-are cancelled on shutdown). Rules: ES-8
+are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider).
+Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
 """
@@ -34,6 +35,7 @@ from claimcoach.corpus.service import CorpusService
 from claimcoach.logs import get_logger, new_request_id, request_id_var
 from claimcoach.models.acquire import Acquirer
 from claimcoach.models.manager import EndpointProvider, ModelError, ModelManager
+from claimcoach.pipeline.diagnose import Diagnoser
 from claimcoach.pipeline.extract import Extractor
 from claimcoach.pipeline.jobs import JobRegistry
 from claimcoach.redact.detector import PhiDetector
@@ -105,17 +107,19 @@ def _closer(corpus: CorpusService) -> Callable[[], Awaitable[None]]:
 def _mount_corpus(
     app: FastAPI,
     corpus: CorpusService,
-    vision: EndpointProvider | None,
+    pipeline_models: EndpointProvider | None,
     tasks: list[Callable[[], Coroutine[Any, Any, None]]],
     shutdowns: list[Callable[[], Awaitable[None]]],
 ) -> None:
-    """Mount the corpus and case routes, the scheduled purge, extraction, and the stores' close."""
+    """Mount the corpus and case routes, the scheduled purge, case jobs, and the stores' close."""
     app.state.corpus = corpus
     tasks.append(RetentionJob(corpus.purge_all).run)
     cases = CaseService(corpus)
     app.state.cases = cases
-    if vision is not None:
-        jobs = JobRegistry(Extractor(cases, vision))
+    if pipeline_models is not None:
+        jobs = JobRegistry(
+            Extractor(cases, pipeline_models), diagnoser=Diagnoser(cases, pipeline_models)
+        )
         app.state.jobs = jobs
         shutdowns.append(jobs.shutdown)  # cancel extraction before the stores close
         app.include_router(case_routes.jobs_router)
@@ -130,7 +134,7 @@ def create_app(
     *,
     redactor: Redactor | None = None,
     corpus: CorpusService | None = None,
-    vision: EndpointProvider | None = None,
+    pipeline_models: EndpointProvider | None = None,
 ) -> FastAPI:
     """Build the worker app that accepts only ``Authorization: Bearer <token>``.
 
@@ -143,8 +147,9 @@ def create_app(
         corpus: The corpus scopes; when given, the ``/corpus`` and ``/cases`` routes are mounted,
             the lifespan runs the scheduled retention purge (US-4.5), and the stores close on
             shutdown.
-        vision: The extraction model provider; defaults to ``models.use``. With ``corpus`` it
-            mounts extraction (US-5.2). Tests pass one over a fake model server.
+        pipeline_models: The model provider of the case pipeline (extraction, US-5.2;
+            classification, US-6.1); defaults to ``models.use``. With ``corpus`` it mounts the
+            case jobs. Tests pass one over fake model servers.
 
     Returns:
         The ASGI app.
@@ -230,9 +235,9 @@ def create_app(
         app.state.redactor = redactor
         app.include_router(redact_routes.router)
     if corpus is not None:
-        if vision is None and models is not None:
-            vision = models.use
-        _mount_corpus(app, corpus, vision, tasks, shutdowns)
+        if pipeline_models is None and models is not None:
+            pipeline_models = models.use
+        _mount_corpus(app, corpus, pipeline_models, tasks, shutdowns)
     if tasks:
         app.router.lifespan_context = _lifespan(tasks, shutdowns)
     return app

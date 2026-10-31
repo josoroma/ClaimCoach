@@ -3,7 +3,8 @@
 Implements: US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST /cases/{case_id}/documents``
 with the raw single-file multipart body, ``POST /cases/{case_id}/paste``), US-5.2 (``POST
 /cases/{case_id}/extract`` starts a job, ``POST /cases/{case_id}/fields`` confirms a value, ``GET
-/jobs/{job_id}/events`` long-polls a job's progress). Rules: ES-8 (typed bodies; ``CaseError`` and
+/jobs/{job_id}/events`` long-polls a job's progress), US-6.1 (``POST /cases/{case_id}/diagnose``
+starts a diagnosis job). Rules: ES-8 (typed bodies; ``CaseError`` and
 ``CorpusError`` become their fixed envelopes in ``create_app``), BR-2
 (case content reaches the worker only from the gateway), BR-14 (no content is logged).
 
@@ -39,10 +40,11 @@ def get_cases(request: Request) -> CaseService:
 
 
 def get_jobs(request: Request) -> JobRegistry:
-    """Return the worker's extraction jobs (set by ``create_app`` when it has a model provider).
+    """Return the worker's case jobs (set by ``create_app`` when it has a model provider).
 
     Raises:
-        ModelUnavailableError: This worker runs without models, so nothing can be extracted.
+        ModelUnavailableError: This worker runs without models, so nothing can be extracted or
+            diagnosed.
     """
     jobs = getattr(request.app.state, "jobs", None)
     if jobs is None:
@@ -92,9 +94,28 @@ def paste(
 async def extract(
     case_id: CasePath, cases: Cases, jobs: Jobs, profile: Profile = DEFAULT_PROFILE
 ) -> JobStarted:
-    """Start extracting the case (or return the job already doing it)."""
+    """Start extracting the case (or return the job already working on it)."""
+    running = jobs.running(profile, case_id)
+    if running is not None:
+        return running
     await asyncio.to_thread(cases.check_extractable, profile, case_id)
     return jobs.start(profile, case_id)
+
+
+@router.post("/{case_id}/diagnose", response_model=JobStarted)
+async def diagnose(
+    case_id: CasePath, cases: Cases, jobs: Jobs, profile: Profile = DEFAULT_PROFILE
+) -> JobStarted:
+    """Start diagnosing the extracted case (or return the job already working on it).
+
+    A running job is returned before the case is checked: during the case's first extraction
+    there is no extraction yet, and the biller follows that job instead of a refusal.
+    """
+    running = jobs.running(profile, case_id)
+    if running is not None:
+        return running
+    await asyncio.to_thread(cases.check_diagnosable, profile, case_id)
+    return jobs.start(profile, case_id, "diagnose")
 
 
 @router.post("/{case_id}/fields", response_model=Case)

@@ -30,6 +30,7 @@ __all__ = [
     "CaseStage",
     "EventSink",
     "PluginEvent",
+    "Report",
     "hermes_sink",
     "new_case_id",
     "new_job_id",
@@ -56,6 +57,9 @@ CaseStage = Literal[
     "uploaded", "extracting", "redacting", "classifying", "explaining", "drafting", "done", "failed"
 ]
 """Pipeline stages a case goes through (EPIC-5 to EPIC-7)."""
+
+Report = Callable[[CaseStage, float], None]
+"""A job step's progress callback: each stage and the fraction of the job done."""
 
 EventSink = Callable[[str, str, dict[str, Any]], None]
 """``broadcast_plugin_event(plugin_id, event, payload)``."""

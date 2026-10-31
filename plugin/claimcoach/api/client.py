@@ -6,7 +6,7 @@ download, and conversion calls; the worker's own model error codes reach the des
 (``redact`` for the agent-tool guard), US-4.1 to US-4.6 (corpus status, import, view,
 reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command), US-5.1 (case
 creation, open, upload, and paste calls; an upload is forwarded as the raw multipart body), US-5.2
-(start extraction, long-poll a job's events, confirm a field).
+(start extraction, long-poll a job's events, confirm a field), US-6.1 (start a diagnosis).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -69,6 +69,7 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "case_closed": 409,
     "no_documents": 409,
     "job_not_found": 404,
+    "not_extracted": 409,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
 
@@ -305,6 +306,20 @@ class WorkerClient:
         return await self._request(
             "POST",
             f"/cases/{case_id}/extract",
+            JobStarted,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def start_diagnosis(self, profile: str, case_id: str) -> JobStarted:
+        """Start diagnosing an extracted case; progress comes from ``job_events`` (US-6.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/diagnose",
             JobStarted,
             params={"profile": profile},
             timeout=CASE_TIMEOUT,

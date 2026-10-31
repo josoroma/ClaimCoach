@@ -1,7 +1,8 @@
 """``hermes claimcoach corpus …``: the manager's and operator's corpus commands.
 
 Implements: US-4.3 (``corpus import FILE`` validates a local bundle and sends it to the worker;
-``corpus list`` shows provenance and the stale flag), US-4.1 (``status``, ``reindex``, ``backup``,
+``corpus list`` shows provenance and the stale flag; US-6.2 and US-6.3 add a card's required
+documents and appeal limit), US-4.1 (``status``, ``reindex``, ``backup``,
 ``restore``), US-4.2 (``key-export``, ``key-import``: back up and restore a profile's Keychain
 key), US-4.5 (``purge``), US-4.6 (``audit``). Rules: BR-1 (a local file only), BR-14
 (the commands print IDs, counts, dates, and global reference titles; a failure prints its error
@@ -119,9 +120,13 @@ def _view_lines(view: CorpusViewResponse) -> list[str]:
     lines = [f"{'KIND':<16} {'KEY':<32} {'VERIFIED':<10} {'':<5} SOURCE"]
     for item in view.items:
         flag = "STALE" if item.stale else ""
+        details = [
+            *([f"{item.required_documents} required documents"] if item.required_documents else []),
+            *([f"appeal limit {item.appeal_limit_days} days"] if item.appeal_limit_days else []),
+        ]
         lines.append(
             f"{item.kind:<16} {item.key:<32} {item.verified_on.isoformat():<10} {flag:<5} "
-            f"{item.source}"
+            f"{item.source}" + (f" ({', '.join(details)})" if details else "")
         )
     return lines
 

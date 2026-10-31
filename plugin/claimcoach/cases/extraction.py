@@ -2,7 +2,10 @@
 
 Implements: US-5.2 (``FieldStatus``, ``Extracted``, ``Adjustment``, ``ClaimLine``,
 ``CaseExtraction`` with field paths, the fields that need confirmation, confirmation, and keeping
-confirmations across a re-run; ``FieldConfirmation``; ``JobStarted``; ``JobEvents``). Rules: ES-1
+confirmations across a re-run; ``FieldConfirmation``; ``JobStarted``; ``JobEvents``), US-6.1
+(``CaseExtraction.digest``, so a diagnosis knows what it read; ``JobKind``), US-6.3
+(``CaseExtraction.denial_date``, the date the appeal clock counts from; ``IsoDate``: dates are
+read only as ``YYYY-MM-DD``). Rules: ES-1
 (Pydantic v2, ``extra="forbid"``, frozen), BR-14 (these models hold case content: they travel
 worker → gateway → pane only and are never logged or put in an event).
 
@@ -13,6 +16,8 @@ This module imports nothing heavier than Pydantic, so the gateway can use it.
 
 from __future__ import annotations
 
+import hashlib
+import re
 from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
@@ -45,7 +50,9 @@ __all__ = [
     "FieldConfirmation",
     "FieldStatus",
     "GroupCode",
+    "IsoDate",
     "JobEvents",
+    "JobKind",
     "JobStarted",
     "Money",
     "PayerName",
@@ -93,6 +100,22 @@ Money = Annotated[
 ]
 """A dollar amount with at most two decimals."""
 PayerName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=120)]
+
+
+def _iso_date(value: object) -> object:
+    """Only ``YYYY-MM-DD`` text (or a date) is a date: never a timestamp, never a datetime."""
+    if isinstance(value, str) and not _ISO_DATE.fullmatch(value.strip()):
+        raise ValueError("a date is written YYYY-MM-DD")
+    if isinstance(value, int | float):
+        # Pydantic reads a number as a Unix timestamp. A ValueError, not a TypeError: only a
+        # ValueError becomes a validation error, so the value reads as unreadable.
+        raise ValueError("a number is not a date")  # noqa: TRY004
+    return value.strip() if isinstance(value, str) else value
+
+
+_ISO_DATE: Final = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+IsoDate = Annotated[date, BeforeValidator(_iso_date)]
+"""A calendar date written ``YYYY-MM-DD`` (US-6.3 review: ``1760486400`` is not a date)."""
 ClaimNumber = Annotated[
     str, StringConstraints(strip_whitespace=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9-]{0,49}$")
 ]
@@ -161,7 +184,7 @@ class ClaimLine(_Strict):
     """
 
     procedure_code: Extracted[ProcedureCode]
-    service_date: Extracted[date]
+    service_date: Extracted[IsoDate]
     billed_amount: Extracted[Money]
     paid_amount: Extracted[Money]
     adjustments: list[Adjustment] = Field(default_factory=list, max_length=99)
@@ -187,6 +210,8 @@ class CaseExtraction(_Strict):
         claim_id: The payer's claim number.
         billed_amount: Total charge.
         paid_amount: Total payment.
+        denial_date: The date of the payer's decision, printed on the remittance or notice (US-6.3);
+            unreadable in an extraction stored before it existed.
         adjustments: Claim-level adjustments.
         rarc_codes: Claim-level remark codes.
         lines: Service lines, in document order.
@@ -201,6 +226,9 @@ class CaseExtraction(_Strict):
     claim_id: Extracted[ClaimNumber]
     billed_amount: Extracted[Money]
     paid_amount: Extracted[Money]
+    denial_date: Extracted[IsoDate] = Field(
+        default_factory=lambda: Extracted[IsoDate](status=FieldStatus.UNREADABLE)
+    )
     adjustments: list[Adjustment] = Field(default_factory=list, max_length=99)
     rarc_codes: list[Extracted[RarcCode]] = Field(default_factory=list, max_length=99)
     lines: list[ClaimLine] = Field(default_factory=list, max_length=999)
@@ -212,6 +240,10 @@ class CaseExtraction(_Strict):
     def fields(self) -> Iterator[tuple[str, Extracted[Any]]]:
         """Yield every field with its path, in document order."""
         yield from _walk(self, "")
+
+    def digest(self) -> str:
+        """Return the SHA-256 of this extraction's JSON: any changed value changes it (US-6.1)."""
+        return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
 
     def needs_confirmation(self) -> list[str]:
         """Return the paths of the unreadable fields, which the pane highlights."""
@@ -267,18 +299,25 @@ class FieldConfirmation(_Strict):
     value: str = Field(min_length=1, max_length=200)
 
 
+JobKind = Literal["extract", "diagnose"]
+"""What a case job does: extraction (US-5.2) or diagnosis (US-6.1)."""
+
+
 class JobStarted(_Strict):
-    """``POST /cases/{case_id}/process``: the job that extracts the case.
+    """``POST /cases/{case_id}/process`` or ``/diagnose``: the job working on the case.
 
     Attributes:
         ok: Always ``True``.
         case_id: The case.
         job_id: The job; its progress arrives as ``plugin.claimcoach.case.progress`` events.
+        kind: What the job does. A case runs one job at a time, so asking for a diagnosis while
+            the case is being extracted returns the extraction job.
     """
 
     ok: Literal[True] = True
     case_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     job_id: str = Field(pattern=r"^job_[0-9a-f]{16}$")
+    kind: JobKind = "extract"
 
 
 class JobEvents(_Strict):
@@ -308,7 +347,8 @@ READERS: Final[dict[str, TypeAdapter[Any]]] = {
     "carc": TypeAdapter(CarcCode),
     "rarc_codes": TypeAdapter(RarcCode),
     "procedure_code": TypeAdapter(ProcedureCode),
-    "service_date": TypeAdapter(date),
+    "service_date": TypeAdapter(IsoDate),
+    "denial_date": TypeAdapter(IsoDate),
 }
 """The value type of every field name in ``CaseExtraction``."""
 

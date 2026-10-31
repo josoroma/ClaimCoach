@@ -370,7 +370,7 @@ describe('US-5.2 extraction progress is pushed as events', () => {
     const unsubscribe = plain.props.subscribe(() => {});
     assert.equal(typeof unsubscribe, 'function');
     unsubscribe();
-    assert.equal(CasePane({ rest }).props.children.length, 11, 'subscribe defaults to no events');
+    assert.equal(CasePane({ rest }).props.children.length, 14, 'subscribe defaults to no events');
   });
 
   test('Refresh while processing stops listening for that job and reopens the case', async () => {

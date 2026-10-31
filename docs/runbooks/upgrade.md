@@ -39,6 +39,13 @@ make worker-health
 
 - `doctor` reports no stale desktop copy; `worker-health` reports the new version.
 
+### Data migrations
+
+| From | Migration | Runs | Checked by |
+| --- | --- | --- | --- |
+| before US-6.1 | Each user store's `case_items` table is rebuilt once so its CHECK accepts every case-item kind (`diagnosis` from US-6.1); rows are copied unchanged, in one transaction | When the worker first opens the store | `test_us_6_1_case_items_check_migrates` |
+| before US-6.3 | None at upgrade: an extraction stored earlier reads its new `denial_date` field as unreadable. Every extraction stored or confirmed afterwards holds `denial_date`, which an earlier version refuses to read | — | `test_us_6_3_older_extraction_loads` |
+
 ## Rollback
 
 ```bash
@@ -50,3 +57,9 @@ make worker-start
 ```
 
 Then **Rescan** in Capabilities → Plugins.
+
+An earlier version opens a store migrated by a later one (the CHECK only grew) and ignores the
+case items it does not know, such as diagnoses. It cannot read an extraction stored or confirmed
+by US-6.3 or later (its model forbids the `denial_date` field), so such a case would not open:
+rolling back past US-6.3 means restoring the backup taken before the upgrade
+([corpus runbook](corpus-import-reindex-backup-restore.md)), which loses the work done since.
