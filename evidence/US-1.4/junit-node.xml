@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="US-1.4 registration contract" time="0.003354" disabled="0" errors="0" tests="3" failures="0" skipped="0" timestamp="2026-10-31T02:55:04.825Z" hostname="iX-00277">
+		<testcase name="test_us_1_4_plugin_js_registers_contributions" time="0.000730" classname="US-1.4 registration contract" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="registers without a settings page on hosts that lack registerSettingsPage" time="0.000123" classname="US-1.4 registration contract" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="pane and settings renders reach the backend through ctx.rest" time="0.001945" classname="US-1.4 registration contract" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-1.4 allowed imports (PC-3)" time="0.000873" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T02:55:04.829Z" hostname="iX-00277">
+		<testcase name="test_us_1_4_plugin_js_allowed_imports" time="0.000777" classname="US-1.4 allowed imports (PC-3)" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	</testsuite>
+	<testsuite name="worker status" time="0.001361" disabled="0" errors="0" tests="6" failures="0" skipped="0" timestamp="2026-10-31T02:55:04.829Z" hostname="iX-00277">
+		<testcase name="loadWorkerState reports a healthy worker" time="0.000122" classname="worker status" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="loadWorkerState treats a rejected request as unavailable" time="0.000101" classname="worker status" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="loadWorkerState treats an unexpected body as unavailable" time="0.000077" classname="worker status" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="describeWorker covers every state" time="0.000085" classname="worker status" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="WorkerStatus starts loading and updates when health arrives" time="0.000615" classname="worker status" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="WorkerStatus ignores a response that arrives after unmount" time="0.000192" classname="worker status" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	</testsuite>
+	<testsuite name="views" time="0.000156" disabled="0" errors="0" tests="2" failures="0" skipped="0" timestamp="2026-10-31T02:55:04.831Z" hostname="iX-00277">
+		<testcase name="CasePane and SettingsPage embed the worker status" time="0.000066" classname="views" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+		<testcase name="DashboardPage and LocalOnlyIndicator render static content" time="0.000046" classname="views" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	</testsuite>
+	<!-- tests 12 -->
+	<!-- suites 4 -->
+	<!-- pass 12 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 127.305833 -->
+</testsuites>

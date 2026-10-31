@@ -1,0 +1,110 @@
+[project]
+name = "claimcoach"
+version = "0.1.0"
+description = "Local-only denial-management coach for medical billers, shipped as a Hermes Desktop plugin."
+readme = "README.md"
+# Gateway-loaded code runs on the Hermes gateway's Python (3.11 in v0.22.5); the worker runs 3.12.
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.133",
+  "httpx>=0.28",
+  "pydantic>=2.13",
+  "uvicorn>=0.38",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.18",
+  "pre-commit>=4.3",
+  "pytest>=8.4",
+  "pytest-asyncio>=1.2",
+  "pytest-cov>=7.0",
+  "pyyaml>=6.0",
+  "ruff>=0.14",
+  "types-pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["plugin/claimcoach"]
+
+# --- ES-2 style ---------------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["plugin", "."]
+extend-exclude = ["node_modules", "openspec"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "B", "UP", "N", "S", "BLE", "A", "C4", "SIM", "PT", "RET", "ARG", "PTH",
+  "PL", "RUF", "D", "ANN", "TRY", "ERA", "T20",
+]
+ignore = [
+  "D203", "D213",   # pick D211/D212 (Google style)
+  "TRY003",         # short typed messages are fine
+  "PLR2004",        # magic values in assertions
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603", "S607", "D", "ANN401", "PLR0913", "S104", "S105", "S106"]
+"tools/**" = ["T20", "S603", "S607"]
+
+# --- ES-1 typing --------------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "plugin"
+explicit_package_bases = true
+files = ["plugin/claimcoach", "tests", "tools"]
+# plugin/__init__.py, _bootstrap.py and dashboard/plugin_api.py are package-relative entry points;
+# the Makefile checks them in a second pass with --no-explicit-package-bases.
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# Hermes-provided modules, present only inside the gateway venv.
+module = ["plugins.plugin_storage", "hermes_constants", "hermes_cli.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# --- ES-4 tests ---------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.4"
+testpaths = ["tests"]
+pythonpath = ["plugin", "."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+xfail_strict = true
+filterwarnings = ["error"]
+markers = [
+  "models: needs real local models under MODELS_HOME (excluded from make check)",
+  "gate: exercises make check itself (run by make verify, never inside make check)",
+  "hermes: drives the locally installed Hermes Agent (skipped when it is absent)",
+  "allow_network: lifts the socket guard; only valid together with models",
+]
+
+[tool.coverage.run]
+source = ["plugin"]
+branch = true
+# The worker runs in a child process in the loopback tests; measure it there too.
+patch = ["subprocess"]
+parallel = true
+# Save data when the worker child gets SIGTERM from stop_worker (uvicorn re-raises the signal).
+sigterm = true
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = true

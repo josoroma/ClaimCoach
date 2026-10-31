@@ -1,0 +1,7 @@
+{
+  "name": "claimcoach",
+  "label": "ClaimCoach",
+  "description": "Backend for the ClaimCoach desktop pane; proxies to the local ClaimCoach worker.",
+  "version": "0.1.0",
+  "api": "plugin_api.py"
+}

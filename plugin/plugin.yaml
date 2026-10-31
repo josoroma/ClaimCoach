@@ -1,0 +1,28 @@
+# ClaimCoach Hermes plugin manifest (v2). US-1.1; PRD §7.9 PC-1, PC-2, PC-5.
+# config_schema is rendered from claimcoach.settings.ClaimCoachSettings; a test fails on drift.
+name: claimcoach
+version: 0.1.0
+label: ClaimCoach
+description: Local-only denial-management coach for medical billers. PHI never leaves the Mac.
+author: ClaimCoach
+license: Proprietary
+manifest_version: 2
+api_version: 1
+requires_hermes: ">=0.22.5"
+python_runtime: external
+tags:
+  - medical-billing
+  - local-only
+provides_tools:
+  - claimcoach_explain_code
+  - claimcoach_payer_rules
+  - claimcoach_case_summary
+config_schema:
+  models_home:
+    type: str
+    default: ~/Models
+    description: Directory that holds local model weights (MODELS_HOME). Weights are never copied.
+  retention_days:
+    type: int
+    default: 90
+    description: Days after a case closes before its source documents are purged.

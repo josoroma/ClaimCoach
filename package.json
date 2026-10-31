@@ -1,0 +1,19 @@
+{
+  "name": "claimcoach-desktop",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling for the ClaimCoach desktop half (plugin/desktop/plugin.js). Nothing here ships.",
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import ./plugin/desktop/tests/register-fakes.mjs --test --experimental-test-coverage --test-coverage-include=plugin/desktop/plugin.js --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 plugin/desktop/tests/"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@types/react": "19.3.0",
+    "typescript": "7.0.2"
+  }
+}

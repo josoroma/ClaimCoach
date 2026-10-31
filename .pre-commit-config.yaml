@@ -1,0 +1,21 @@
+# ES-7: pre-commit runs the fast subset of `make check` (lint and format only).
+# Types and tests run in `make check`. Hooks use the project's pinned tools, so no network
+# access or separate hook environments are needed.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format --check
+        entry: uv run ruff format --check --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: biome
+        name: biome check
+        entry: npm exec --no -- biome check --no-errors-on-unmatched --files-ignore-unknown=true
+        language: system
+        types_or: [javascript, json, ts]
