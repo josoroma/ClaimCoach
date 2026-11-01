@@ -38,7 +38,8 @@
  * state with Retry), US-10.2 (the statusbar item's typed `IndicatorState`, local-only by default),
  * US-10.3 (the settings page shows model status, corpus status, and the retention period, which
  * the biller changes and saves), US-10.4 (the settings page previews a local corpus bundle file,
- * then imports it into the global corpus only when the manager confirms).
+ * then imports it into the global corpus only when the manager confirms), US-13.1 (`LOGO` and
+ * `ClaimCoachLogo`: the shared logo beside the case pane, dashboard, and settings headings).
  * Rules: PC-1 (opt-in: `defaultEnabled: false`), PC-3 (imports only
  * `@hermes/plugin-sdk`, `react`, `react/jsx-runtime`; optional SDK calls are feature-detected),
  * PC-4, BR-2 (case data goes pane → `ctx.rest` → plugin_api → worker, never the agent transcript),
@@ -56,6 +57,91 @@ export const PLUGIN_ID = 'claimcoach';
 export const DASHBOARD_PATH = '/claimcoach/dashboard';
 /** How often the statusbar re-reads `/settings` (US-3.5). */
 export const SETTINGS_REFRESH_MS = 15_000;
+
+/**
+ * The shapes of `plugin/assets/claimcoach-logo.svg` (US-13.1), with the file's attribute names.
+ * PC-3 leaves no way to load the file at run time, so the pages draw these and a test fails when
+ * they drift from the file.
+ *
+ * @type {{ viewBox: string, shapes: ReadonlyArray<{ tag: 'rect' | 'path', attrs: Readonly<Record<string, string>> }> }}
+ */
+export const LOGO = {
+  viewBox: '0 0 64 64',
+  shapes: [
+    {
+      tag: 'rect',
+      attrs: { x: '2', y: '2', width: '60', height: '60', rx: '14', fill: '#0F5E59' },
+    },
+    {
+      tag: 'path',
+      attrs: {
+        d: 'M22 12h14l10 10v27a3 3 0 0 1-3 3H22a3 3 0 0 1-3-3V15a3 3 0 0 1 3-3z',
+        fill: '#FFFFFF',
+      },
+    },
+    { tag: 'path', attrs: { d: 'M36 12v7a3 3 0 0 0 3 3h7z', fill: '#A7D8D1' } },
+    {
+      tag: 'path',
+      attrs: {
+        d: 'M24 22h8M24 28h14',
+        fill: 'none',
+        stroke: '#A7D8D1',
+        'stroke-width': '3',
+        'stroke-linecap': 'round',
+      },
+    },
+    {
+      tag: 'path',
+      attrs: {
+        d: 'M25 39l5 5 10-11',
+        fill: 'none',
+        stroke: '#F59E0B',
+        'stroke-width': '5',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+      },
+    },
+  ],
+};
+
+/** `stroke-width` → `strokeWidth`: React takes SVG presentation attributes in camelCase. */
+const reactAttr = (/** @type {string} */ name) =>
+  name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+
+/**
+ * The ClaimCoach logo, drawn beside a page heading (US-13.1). It is hidden from screen readers:
+ * the heading next to it already names the page.
+ *
+ * @param {{ size?: number }} props
+ */
+export function ClaimCoachLogo({ size = 20 }) {
+  return jsx('svg', {
+    viewBox: LOGO.viewBox,
+    width: size,
+    height: size,
+    'aria-hidden': 'true',
+    focusable: 'false',
+    style: { verticalAlign: 'middle', marginRight: '0.4em' },
+    children: LOGO.shapes.map((shape, index) =>
+      jsx(
+        shape.tag,
+        Object.fromEntries(
+          Object.entries(shape.attrs).map(([name, value]) => [reactAttr(name), value]),
+        ),
+        String(index),
+      ),
+    ),
+  });
+}
+
+/**
+ * A page heading led by the logo (US-13.1).
+ *
+ * @param {'h1' | 'h2'} level
+ * @param {string} text
+ */
+const brandHeading = (level, text) =>
+  jsxs(level, { children: [jsx(ClaimCoachLogo, { size: level === 'h1' ? 28 : 22 }), text] });
 
 /**
  * @typedef {import('@hermes/plugin-sdk').PluginRestOptions} RestOptions
@@ -2290,7 +2376,7 @@ export function CasePane({
     onDragOver,
     onDrop,
     children: [
-      jsx('h2', { children: 'ClaimCoach' }),
+      brandHeading('h2', 'ClaimCoach'),
       jsx(WorkerStatus, { rest }),
       jsx('input', {
         type: 'file',
@@ -2645,7 +2731,7 @@ export function DashboardPage({ rest }) {
     });
     setApproved(false); // each export is approved on its own
   };
-  const heading = jsx('h1', { children: 'ClaimCoach dashboard' });
+  const heading = brandHeading('h1', 'ClaimCoach dashboard');
   if (loaded.state !== 'ok') {
     const text =
       loaded.state === 'loading'
@@ -3172,7 +3258,7 @@ export function SettingsPage({ rest }) {
   return jsxs('section', {
     'aria-label': 'ClaimCoach settings',
     children: [
-      jsx('h2', { children: 'ClaimCoach' }),
+      brandHeading('h2', 'ClaimCoach'),
       jsx(WorkerStatus, { rest }),
       ModelsSection(models),
       CorpusSection(corpus),

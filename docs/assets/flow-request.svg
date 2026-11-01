@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 720" width="1160" height="720" role="img" aria-labelledby="t d">
+  <title id="t">A ClaimCoach request, from the pane to a model and back</title>
+  <desc id="d">The pane posts /cases/{case_id}/process with ctx.rest. plugin_api.py in the Hermes gateway forwards it to the worker's /cases/{case_id}/extract with the per-launch bearer token, and the worker answers JobStarted at once. While the job runs, the gateway long-polls the worker's /jobs/{job_id}/events and publishes each event to the pane as plugin.claimcoach.case.progress. Meanwhile the worker starts the extraction model server on first use under the memory guard, calls it on loopback, and stores the result in the user corpus, sealed per value, with an audit entry. The pane then reads the case again.</desc>
+  <style>
+    .bg{fill:#FFFFFF}
+    .head{fill:#EEF6F4;stroke:#0F5E59;stroke-width:1.5}
+    .life{stroke:#B9CCC8;stroke-width:2;stroke-dasharray:4 6}
+    .loop{fill:none;stroke:#6B7280;stroke-width:1.5;stroke-dasharray:3 4}
+    .tag{fill:#F3F4F6;stroke:#6B7280;stroke-width:1}
+    .h{font:700 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#111827}
+    .b{font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#111827}
+    .s{font:400 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#4B5563}
+    .m{font:500 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1F2937}
+    .n{font:700 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#FFFFFF}
+    .dot{fill:#0F5E59}
+    .call{stroke:#0F5E59;stroke-width:2;fill:none}
+    .back{stroke:#6B7280;stroke-width:2;fill:none;stroke-dasharray:6 5}
+    .evt{stroke:#B45309;stroke-width:2.5;fill:none}
+    .mcall{fill:#0F5E59}.mback{fill:#6B7280}.mevt{fill:#B45309}
+    .note{fill:#FFF8EB;stroke:#D97706;stroke-width:1.2}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0D1117}
+      .head{fill:#0F2A27;stroke:#2DD4BF}
+      .life{stroke:#30363D}
+      .loop{stroke:#8B949E}
+      .tag{fill:#161B22;stroke:#8B949E}
+      .h,.b{fill:#E6EDF3}
+      .s{fill:#9DA7B3}.m{fill:#C9D1D9}
+      .n{fill:#FFFFFF}
+      .dot{fill:#0F766E}
+      .call{stroke:#2DD4BF}.back{stroke:#8B949E}.evt{stroke:#F59E0B}
+      .mcall{fill:#2DD4BF}.mback{fill:#8B949E}.mevt{fill:#F59E0B}
+      .note{fill:#2A2110;stroke:#F59E0B}
+    }
+  </style>
+  <defs>
+    <marker id="a-call" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mcall" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="a-back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mback" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="a-evt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mevt" d="M0 0L10 5L0 10z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1160" height="720" rx="16"/>
+  <text class="h" x="28" y="40">A ClaimCoach request: extracting a case</text>
+
+  <rect class="head" x="30" y="62" width="140" height="58" rx="10"/>
+  <text class="b" x="44" y="88">Pane</text><text class="s" x="44" y="106">plugin.js · ctx.rest</text>
+  <rect class="head" x="270" y="62" width="140" height="58" rx="10"/>
+  <text class="b" x="284" y="88">plugin_api.py</text><text class="s" x="284" y="106">Hermes gateway</text>
+  <rect class="head" x="510" y="62" width="140" height="58" rx="10"/>
+  <text class="b" x="524" y="88">Worker</text><text class="s" x="524" y="106">127.0.0.1:18200</text>
+  <rect class="head" x="750" y="62" width="140" height="58" rx="10"/>
+  <text class="b" x="764" y="88">Model server</text><text class="s" x="764" y="106">extraction · :18201</text>
+  <rect class="head" x="990" y="62" width="140" height="58" rx="10"/>
+  <text class="b" x="1004" y="88">User corpus</text><text class="s" x="1004" y="106">SQLite, sealed values</text>
+
+  <path class="life" d="M100 120V640"/>
+  <path class="life" d="M340 120V640"/>
+  <path class="life" d="M580 120V640"/>
+  <path class="life" d="M820 120V640"/>
+  <path class="life" d="M1060 120V640"/>
+
+  <circle class="dot" cx="18" cy="160" r="9"/><text class="n" x="14.8" y="164">1</text>
+  <text class="m" x="110" y="152">POST /cases/{case_id}/process</text>
+  <path class="call" d="M100 160H336" marker-end="url(#a-call)"/>
+
+  <circle class="dot" cx="18" cy="204" r="9"/><text class="n" x="14.8" y="208">2</text>
+  <text class="m" x="350" y="196">POST /cases/{case_id}/extract</text>
+  <path class="call" d="M340 204H576" marker-end="url(#a-call)"/>
+  <text class="s" x="350" y="222">Authorization: Bearer per-launch token</text>
+
+  <circle class="dot" cx="18" cy="256" r="9"/><text class="n" x="14.8" y="260">3</text>
+  <text class="m" x="120" y="248">JobStarted {job_id, kind}</text>
+  <path class="back" d="M580 256H104" marker-end="url(#a-back)"/>
+
+  <rect class="loop" x="48" y="282" width="1092" height="300" rx="8"/>
+  <rect class="tag" x="48" y="282" width="190" height="24" rx="4"/>
+  <text class="s" x="58" y="299">loop · while the job runs</text>
+
+  <circle class="dot" cx="18" cy="336" r="9"/><text class="n" x="14.8" y="340">4</text>
+  <text class="m" x="350" y="328">GET /jobs/{job_id}/events</text>
+  <path class="call" d="M340 336H576" marker-end="url(#a-call)"/>
+  <text class="s" x="350" y="354">long poll, up to 20 s each</text>
+
+  <circle class="dot" cx="18" cy="386" r="9"/><text class="n" x="14.8" y="390">5</text>
+  <text class="m" x="590" y="378">start on first use</text>
+  <path class="call" d="M580 386H816" marker-end="url(#a-call)"/>
+  <text class="s" x="590" y="404">memory guard, health check</text>
+
+  <circle class="dot" cx="18" cy="436" r="9"/><text class="n" x="14.8" y="440">6</text>
+  <text class="m" x="590" y="428">POST /v1/chat/completions</text>
+  <path class="call" d="M580 436H816" marker-end="url(#a-call)"/>
+  <path class="back" d="M820 460H584" marker-end="url(#a-back)"/>
+  <text class="s" x="590" y="478">JSON fields, read as data only</text>
+
+  <circle class="dot" cx="18" cy="512" r="9"/><text class="n" x="14.8" y="516">7</text>
+  <text class="m" x="590" y="504">put_case_item + audit_log</text>
+  <path class="call" d="M580 512H1056" marker-end="url(#a-call)"/>
+  <text class="s" x="830" y="530">AES-256-GCM per value</text>
+
+  <circle class="dot" cx="18" cy="556" r="9"/><text class="n" x="14.8" y="560">8</text>
+  <text class="m" x="106" y="548">plugin.claimcoach.case.progress</text>
+  <path class="evt" d="M340 556H104" marker-end="url(#a-evt)"/>
+
+  <circle class="dot" cx="18" cy="616" r="9"/><text class="n" x="14.8" y="620">9</text>
+  <text class="m" x="110" y="608">GET /cases/{case_id} → Case</text>
+  <path class="call" d="M100 616H336" marker-end="url(#a-call)"/>
+
+  <rect class="note" x="660" y="604" width="480" height="96" rx="10"/>
+  <text class="s" x="676" y="626">Every route answers a typed model or the error envelope</text>
+  <text class="m" x="676" y="646">{"ok": false, "error": {"code", "message"}}</text>
+  <text class="s" x="676" y="666">with a fixed message per code; nothing echoes document text.</text>
+  <text class="s" x="676" y="686">Diagnose, draft, and correct follow the same steps.</text>
+</svg>

@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="t d">
+  <title id="t">ClaimCoach: what stays on the Mac</title>
+  <desc id="d">The biller's documents go from the ClaimCoach pane through plugin_api.py to the worker, the local model servers, and the encrypted user corpus, all on the Mac. The Hermes chat agent, which may run on a cloud model, gets only case IDs, codes, payer names, and redacted summaries from the agent tools. Model weights come in only after the user confirms each download. ClaimCoach never sends anything to a payer.</desc>
+  <style>
+    .bg{fill:#FFFFFF}
+    .zone{fill:#EEF6F4;stroke:#0F5E59;stroke-width:2}
+    .out{fill:#FFF8EB;stroke:#D97706;stroke-width:2;stroke-dasharray:8 6}
+    .card{fill:#FFFFFF;stroke:#B9CCC8;stroke-width:1.5}
+    .key{fill:#FFFFFF;stroke:#0F5E59;stroke-width:2}
+    .ext{fill:#FFFFFF;stroke:#D97706;stroke-width:1.5}
+    .h{font:700 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#111827}
+    .zl{font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#0F5E59}
+    .ol{font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#B45309}
+    .b{font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#111827}
+    .s{font:400 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#4B5563}
+    .al{font:600 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#B45309}
+    .phi{stroke:#0F5E59;stroke-width:2.5;fill:none}
+    .safe{stroke:#6B7280;stroke-width:2;fill:none}
+    .leave{stroke:#D97706;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+    .mphi{fill:#0F5E59}.msafe{fill:#6B7280}.mleave{fill:#D97706}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0D1117}
+      .zone{fill:#0F2A27;stroke:#2DD4BF}
+      .out{fill:#2A2110;stroke:#F59E0B}
+      .card{fill:#161B22;stroke:#30363D}
+      .key{fill:#161B22;stroke:#2DD4BF}
+      .ext{fill:#161B22;stroke:#F59E0B}
+      .h,.b{fill:#E6EDF3}
+      .zl{fill:#5EEAD4}
+      .ol,.al{fill:#FBBF24}
+      .s{fill:#9DA7B3}
+      .phi{stroke:#2DD4BF}.safe{stroke:#8B949E}.leave{stroke:#F59E0B}
+      .mphi{fill:#2DD4BF}.msafe{fill:#8B949E}.mleave{fill:#F59E0B}
+    }
+  </style>
+  <defs>
+    <marker id="a-phi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mphi" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="a-safe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="msafe" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="a-leave" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mleave" d="M0 0L10 5L0 10z"/></marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1200" height="600" rx="16"/>
+  <text class="h" x="28" y="40">ClaimCoach: what stays on the Mac</text>
+
+  <rect class="zone" x="16" y="60" width="894" height="520" rx="18"/>
+  <text class="zl" x="36" y="88">This Mac: case documents and PHI never leave it</text>
+  <rect class="out" x="930" y="60" width="254" height="520" rx="18"/>
+  <text class="ol" x="950" y="88">Outside the Mac</text>
+
+  <rect class="card" x="40" y="110" width="130" height="72" rx="10"/>
+  <text class="b" x="56" y="140">Biller or</text>
+  <text class="b" x="56" y="160">manager</text>
+
+  <rect class="key" x="200" y="110" width="150" height="72" rx="10"/>
+  <text class="b" x="214" y="140">ClaimCoach pane</text>
+  <text class="s" x="214" y="162">Hermes Desktop</text>
+
+  <rect class="key" x="380" y="110" width="150" height="72" rx="10"/>
+  <text class="b" x="394" y="140">plugin_api.py</text>
+  <text class="s" x="394" y="162">Hermes gateway</text>
+
+  <rect class="key" x="560" y="110" width="150" height="72" rx="10"/>
+  <text class="b" x="574" y="140">Worker</text>
+  <text class="s" x="574" y="162">127.0.0.1:18200</text>
+
+  <rect class="key" x="740" y="110" width="150" height="72" rx="10"/>
+  <text class="b" x="754" y="140">Local models</text>
+  <text class="s" x="754" y="162">MLX, 8B to 27B</text>
+
+  <rect class="card" x="200" y="252" width="150" height="78" rx="10"/>
+  <text class="b" x="214" y="280">PDF or DOCX</text>
+  <text class="s" x="214" y="300">for human review;</text>
+  <text class="s" x="214" y="318">you save and file it</text>
+
+  <path class="card" d="M440 262a75 12 0 0 1 150 0v58a75 12 0 0 1-150 0z"/>
+  <path class="card" d="M440 262a75 12 0 0 0 150 0"/>
+  <text class="b" x="456" y="296">Global corpus</text>
+  <text class="s" x="456" y="316">rules · codes · templates</text>
+
+  <path class="key" d="M670 262a75 12 0 0 1 150 0v58a75 12 0 0 1-150 0z"/>
+  <path class="key" d="M670 262a75 12 0 0 0 150 0"/>
+  <text class="b" x="686" y="296">User corpus</text>
+  <text class="s" x="686" y="316">cases, encrypted</text>
+
+  <rect class="card" x="560" y="400" width="150" height="72" rx="10"/>
+  <text class="b" x="574" y="430">Agent tools</text>
+  <text class="s" x="574" y="452">redact their results</text>
+
+  <rect class="ext" x="955" y="110" width="210" height="72" rx="10"/>
+  <text class="b" x="970" y="140">Model weights</text>
+  <text class="s" x="970" y="160">Hugging Face, only after</text>
+  <text class="s" x="970" y="176">you confirm each one</text>
+
+  <rect class="ext" x="955" y="252" width="210" height="78" rx="10"/>
+  <text class="b" x="970" y="280">Payers</text>
+  <text class="s" x="970" y="300">ClaimCoach never sends,</text>
+  <text class="s" x="970" y="318">submits, faxes, or e-mails</text>
+
+  <rect class="ext" x="955" y="400" width="210" height="72" rx="10"/>
+  <text class="b" x="970" y="430">Hermes chat agent</text>
+  <text class="s" x="970" y="452">may run on a cloud model</text>
+
+  <path class="phi" d="M170 146H196" marker-end="url(#a-phi)"/>
+  <path class="phi" d="M350 146H376" marker-end="url(#a-phi)"/>
+  <path class="phi" d="M530 146H556" marker-end="url(#a-phi)"/>
+  <path class="phi" d="M710 146H736" marker-end="url(#a-phi)"/>
+  <path class="phi" d="M275 182V248" marker-end="url(#a-phi)"/>
+  <path class="safe" d="M600 182L548 248" marker-end="url(#a-safe)"/>
+  <path class="phi" d="M670 182L722 248" marker-end="url(#a-phi)"/>
+  <path class="safe" d="M635 186V396" marker-start="url(#a-safe)" marker-end="url(#a-safe)"/>
+  <path class="leave" d="M710 436H951" marker-end="url(#a-leave)"/>
+  <text class="al" x="726" y="418">case IDs, codes, payer</text>
+  <text class="al" x="726" y="460">names, redacted summaries</text>
+  <path class="leave" d="M955 146H894" marker-end="url(#a-leave)"/>
+
+  <path class="phi" d="M40 520H84" marker-end="url(#a-phi)"/>
+  <text class="s" x="94" y="524">case content (PHI), loopback only</text>
+  <path class="safe" d="M330 520H374" marker-end="url(#a-safe)"/>
+  <text class="s" x="384" y="524">no PHI</text>
+  <path class="leave" d="M470 520H514" marker-end="url(#a-leave)"/>
+  <text class="s" x="524" y="524">crosses the Mac's edge, never with case content</text>
+  <text class="s" x="40" y="556">The user corpus is AES-256-GCM encrypted per value, with its key in the macOS Keychain. Logs, events, and agent tool results are redacted.</text>
+</svg>

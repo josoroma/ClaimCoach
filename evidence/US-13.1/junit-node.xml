@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/appeal_draft.test.mjs" time="0.213726" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_diagnosis.test.mjs" time="0.211073" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.206402" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.168719" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_outcome.test.mjs" time="0.208611" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.210909" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/corpus_import.test.mjs" time="0.191598" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corpus_import.test.mjs"/>
+	<testcase name="plugin/desktop/tests/corrected_claim.test.mjs" time="0.217897" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	<testcase name="plugin/desktop/tests/dashboard.test.mjs" time="0.207781" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/dashboard.test.mjs"/>
+	<testcase name="plugin/desktop/tests/desktop_ui.test.mjs" time="0.228737" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/desktop_ui.test.mjs"/>
+	<testcase name="plugin/desktop/tests/payer_calls.test.mjs" time="0.205540" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/payer_calls.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.131734" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testsuite name="US-13.1 shared logo" time="0.006275" disabled="0" errors="0" tests="4" failures="0" skipped="0" timestamp="2026-11-01T12:06:12.719Z" hostname="iX-00277">
+		<testcase name="test_us_13_1_pages_show_logo" time="0.001850" classname="US-13.1 shared logo" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/shared_logo.test.mjs"/>
+		<testcase name="test_us_13_1_logo_matches_file" time="0.002018" classname="US-13.1 shared logo" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/shared_logo.test.mjs"/>
+		<testcase name="test_us_13_1_logo_match_refuses_extra_content" time="0.001577" classname="US-13.1 shared logo" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/shared_logo.test.mjs"/>
+		<testcase name="test_us_13_1_logo_hidden_from_screen_readers" time="0.000266" classname="US-13.1 shared logo" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/shared_logo.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.120983" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 17 -->
+	<!-- suites 1 -->
+	<!-- pass 17 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 339.357958 -->
+</testsuites>

@@ -64,6 +64,12 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
   - [US-12.2: Classification and Draft-Quality Gates](#us-122-classification-and-draft-quality-gates)
   - [US-12.3: Upload-to-Draft Latency Measurement](#us-123-upload-to-draft-latency-measurement)
   - [US-12.4: Zero-Egress Check for Case Content](#us-124-zero-egress-check-for-case-content)
+- [EPIC-13: Product and Developer Documentation](#epic-13-product-and-developer-documentation)
+  - [US-13.1: Shared ClaimCoach Logo on the Plugin Pages](#us-131-shared-claimcoach-logo-on-the-plugin-pages)
+  - [US-13.2: Developer Guide: Models, Install, Configuration, First Run, and Daily Start](#us-132-developer-guide-models-install-configuration-first-run-and-daily-start)
+  - [US-13.3: Data, API, Storage, and Upload Reference](#us-133-data-api-storage-and-upload-reference)
+  - [US-13.4: App Flow Diagrams for Stakeholders and Users](#us-134-app-flow-diagrams-for-stakeholders-and-users)
+  - [US-13.5: Product README for Y Combinator](#us-135-product-readme-for-y-combinator)
 
 ## Work Item Status
 
@@ -277,6 +283,29 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-12.4#1 | Implement evals/egress_check.py using a socket audit hook in the worker and lsof sampling… | DONE | US-12.4 |
 | US-12.4#2 | Add test test_us_12_4_full_flow_no_non_loopback_connection | DONE | US-12.4 |
 | US-12.4#3 | Record evidence/US-12.4/test-report.md | DONE | US-12.4 |
+| EPIC-13 | Product and Developer Documentation | DONE | — |
+| US-13.1 | Shared ClaimCoach Logo on the Plugin Pages | DONE | EPIC-13 |
+| US-13.1#1 | Create plugin/assets/claimcoach-logo.svg (titled, viewBox, no scripts, external reference… | DONE | US-13.1 |
+| US-13.1#2 | Add a typed ClaimCoachLogo component to plugin.js, built from the same shapes, and show i… | DONE | US-13.1 |
+| US-13.1#3 | Add tests test_us_13_1_logo_file_self_contained, test_us_13_1_pages_show_logo, test_us_13… | DONE | US-13.1 |
+| US-13.1#4 | Record evidence/US-13.1/test-report.md | DONE | US-13.1 |
+| US-13.2 | Developer Guide: Models, Install, Configuration, First Run, and Daily Start | DONE | EPIC-13 |
+| US-13.2#1 | Write README-DEV.md sections Models, Install (first run), Configuration, and Start (every… | DONE | US-13.2 |
+| US-13.2#2 | Add tests test_us_13_2_model_roles_match_registry, test_us_13_2_first_run_uses_make_targe… | DONE | US-13.2 |
+| US-13.2#3 | Record evidence/US-13.2/test-report.md | DONE | US-13.2 |
+| US-13.3 | Data, API, Storage, and Upload Reference | DONE | EPIC-13 |
+| US-13.3#1 | Write README-DEV.md sections REST API, Database schema, Corpus and storage, and Uploads | DONE | US-13.3 |
+| US-13.3#2 | Add tests test_us_13_3_routes_documented, test_us_13_3_tables_documented, test_us_13_3_up… | DONE | US-13.3 |
+| US-13.3#3 | Record evidence/US-13.3/test-report.md | DONE | US-13.3 |
+| US-13.4 | App Flow Diagrams for Stakeholders and Users | DONE | EPIC-13 |
+| US-13.4#1 | Draw docs/assets/flow-stakeholder.svg and docs/assets/flow-user.svg, and a request-flow d… | DONE | US-13.4 |
+| US-13.4#2 | Add them to README-DEV.md under App flows | DONE | US-13.4 |
+| US-13.4#3 | Add tests test_us_13_4_stakeholder_diagram_shows_boundary, test_us_13_4_user_diagram_foll… | DONE | US-13.4 |
+| US-13.4#4 | Record evidence/US-13.4/test-report.md | DONE | US-13.4 |
+| US-13.5 | Product README for Y Combinator | DONE | EPIC-13 |
+| US-13.5#1 | Rewrite README.md as the product page (problem, personas, what it does, targets, privacy,… | DONE | US-13.5 |
+| US-13.5#2 | Add tests test_us_13_5_readme_is_product_page, test_us_13_5_targets_match_prd, test_us_13… | DONE | US-13.5 |
+| US-13.5#3 | Record evidence/US-13.5/test-report.md | DONE | US-13.5 |
 
 ## Dependency Diagram
 
@@ -354,6 +383,13 @@ flowchart TD
     US-12_3["US-12.3: Upload-to-Draft Latency Measurement"]
     US-12_4["US-12.4: Zero-Egress Check for Case Content"]
   end
+  subgraph EPIC_13["EPIC-13: Product and Developer Documentation"]
+    US-13_1["US-13.1: Shared ClaimCoach Logo on the Plugin Pages"]
+    US-13_2["US-13.2: Developer Guide: Models, Install, Configuratio…"]
+    US-13_3["US-13.3: Data, API, Storage, and Upload Reference"]
+    US-13_4["US-13.4: App Flow Diagrams for Stakeholders and Users"]
+    US-13_5["US-13.5: Product README for Y Combinator"]
+  end
   US-1_1 -.-> US-1_2
   US-1_2 -.-> US-1_3
   US-1_1 -.-> US-1_4
@@ -417,6 +453,15 @@ flowchart TD
   US-7_1 -.-> US-12_2
   US-7_1 -.-> US-12_3
   US-7_2 -.-> US-12_4
+  US-10_1 -.-> US-13_1
+  US-10_3 -.-> US-13_1
+  US-13_1 -.-> US-13_2
+  US-2_1 -.-> US-13_2
+  US-13_2 -.-> US-13_3
+  US-13_3 -.-> US-13_4
+  US-13_1 -.-> US-13_5
+  US-13_2 -.-> US-13_5
+  US-13_4 -.-> US-13_5
 ```
 
 ### EPIC-1 detail
@@ -835,6 +880,51 @@ flowchart TD
   US-12_4 --> US-12_4_T2
   US-12_4_T3["#3 Record evidence/US-12.4/test-report.md"]
   US-12_4 --> US-12_4_T3
+```
+
+### EPIC-13 detail
+
+```mermaid
+flowchart TD
+  US-13_1["US-13.1: Shared ClaimCoach Logo on the Plugin Pages"]
+  US-13_1_T1["#1 Create plugin/assets/claimcoach-logo.svg (title…"]
+  US-13_1 --> US-13_1_T1
+  US-13_1_T2["#2 Add a typed ClaimCoachLogo component to plugin.…"]
+  US-13_1 --> US-13_1_T2
+  US-13_1_T3["#3 Add tests test_us_13_1_logo_file_self_contained…"]
+  US-13_1 --> US-13_1_T3
+  US-13_1_T4["#4 Record evidence/US-13.1/test-report.md"]
+  US-13_1 --> US-13_1_T4
+  US-13_2["US-13.2: Developer Guide: Models, Install, Configuratio…"]
+  US-13_2_T1["#1 Write README-DEV.md sections Models, Install (f…"]
+  US-13_2 --> US-13_2_T1
+  US-13_2_T2["#2 Add tests test_us_13_2_model_roles_match_regist…"]
+  US-13_2 --> US-13_2_T2
+  US-13_2_T3["#3 Record evidence/US-13.2/test-report.md"]
+  US-13_2 --> US-13_2_T3
+  US-13_3["US-13.3: Data, API, Storage, and Upload Reference"]
+  US-13_3_T1["#1 Write README-DEV.md sections REST API, Database…"]
+  US-13_3 --> US-13_3_T1
+  US-13_3_T2["#2 Add tests test_us_13_3_routes_documented, test_…"]
+  US-13_3 --> US-13_3_T2
+  US-13_3_T3["#3 Record evidence/US-13.3/test-report.md"]
+  US-13_3 --> US-13_3_T3
+  US-13_4["US-13.4: App Flow Diagrams for Stakeholders and Users"]
+  US-13_4_T1["#1 Draw docs/assets/flow-stakeholder.svg and docs/…"]
+  US-13_4 --> US-13_4_T1
+  US-13_4_T2["#2 Add them to README-DEV.md under App flows"]
+  US-13_4 --> US-13_4_T2
+  US-13_4_T3["#3 Add tests test_us_13_4_stakeholder_diagram_show…"]
+  US-13_4 --> US-13_4_T3
+  US-13_4_T4["#4 Record evidence/US-13.4/test-report.md"]
+  US-13_4 --> US-13_4_T4
+  US-13_5["US-13.5: Product README for Y Combinator"]
+  US-13_5_T1["#1 Rewrite README.md as the product page (problem,…"]
+  US-13_5 --> US-13_5_T1
+  US-13_5_T2["#2 Add tests test_us_13_5_readme_is_product_page, …"]
+  US-13_5 --> US-13_5_T2
+  US-13_5_T3["#3 Record evidence/US-13.5/test-report.md"]
+  US-13_5 --> US-13_5_T3
 ```
 
 ## Product Context
@@ -2891,6 +2981,259 @@ Tasks:
 - [x] Implement evals/egress_check.py using a socket audit hook in the worker and lsof sampling of model-server processes
 - [x] Add test test_us_12_4_full_flow_no_non_loopback_connection
 - [x] Record evidence/US-12.4/test-report.md
+
+Open Questions:
+- None
+
+# EPIC-13: Product and Developer Documentation
+
+### US-13.1: Shared ClaimCoach Logo on the Plugin Pages
+
+Status: DONE
+
+As a biller
+I want the ClaimCoach logo on the case pane, the manager dashboard, and the settings page
+So that I recognize ClaimCoach's pages in Hermes Desktop, and the READMEs show the same mark.
+
+Source:
+- PRD.md §7 (desktop half: case pane, manager dashboard route, settings)
+- PRD.md §7.9 PC-3 (plain ESM, no build step, imports limited to the SDK and React)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: One logo file is the source of the mark
+  Given plugin/assets/claimcoach-logo.svg
+  When it is parsed
+  Then it is a self-contained SVG with a title, a viewBox, and no script, external reference, or embedded image
+
+Scenario: The plugin pages show the shared logo
+  Given the case pane, the manager dashboard, and the settings page
+  When each one renders
+  Then each shows the ClaimCoach logo next to its heading
+  And the logo's shapes and colors are the ones in plugin/assets/claimcoach-logo.svg
+
+Scenario: The logo does not repeat the heading to screen readers
+  Given a plugin page with the logo next to its heading
+  When a screen reader reads the page
+  Then the logo is hidden from it and the heading names the page
+```
+
+Dependencies:
+- US-10.1
+- US-10.3
+
+Tasks:
+- [x] Create plugin/assets/claimcoach-logo.svg (titled, viewBox, no scripts, external references, or images)
+- [x] Add a typed ClaimCoachLogo component to plugin.js, built from the same shapes, and show it beside the pane, dashboard, and settings headings
+- [x] Add tests test_us_13_1_logo_file_self_contained, test_us_13_1_pages_show_logo, test_us_13_1_logo_matches_file, test_us_13_1_logo_hidden_from_screen_readers
+- [x] Record evidence/US-13.1/test-report.md
+
+Open Questions:
+- Can plugin.js load the SVG file at run time?
+  Default: no. PC-3 allows no build step and no asset loader, so plugin.js draws the same shapes
+  inline and a test fails when they drift from the file.
+
+### US-13.2: Developer Guide: Models, Install, Configuration, First Run, and Daily Start
+
+Status: DONE
+
+As a developer setting up ClaimCoach on a Mac
+I want README-DEV.md to list the model each role uses and take me from a clean Mac to a working pane, then to the everyday start
+So that a first run follows one page instead of being pieced together from runbooks.
+
+Source:
+- PRD.md §7.1 (install/dev), §8 (local models, ports, memory guard), §7.9 PC-5 (config_schema)
+- PRD.md §13 ES-6 (runbooks hold copy-paste commands)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: Every model role is documented from the registry
+  Given the default models.yaml
+  When README-DEV.md is read
+  Then each role is listed with its model folder, source repository, venv, port, size tier, and what ClaimCoach uses it for
+  And a test fails when a role, folder, venv, or port in the guide differs from the registry
+
+Scenario: The first run is a sequence of existing make targets
+  Given a Mac with Hermes Desktop and the models folder
+  When the developer follows the first-run section
+  Then every command in it is a make target that exists in the Makefile or a hermes command
+  And the section ends by checking the worker's health and the models' status
+
+Scenario: The daily start is separate from the first run
+  Given an installed ClaimCoach
+  When the developer reads the start section
+  Then it starts the worker, checks it, and stops it, with no install step
+
+Scenario: Every setting and override is documented
+  Given the plugin.yaml config_schema and the Makefile's overridable variables
+  When README-DEV.md is read
+  Then each setting is listed with its default and meaning
+  And a test fails when a setting is missing from the guide
+```
+
+Dependencies:
+- US-13.1
+- US-2.1
+
+Tasks:
+- [x] Write README-DEV.md sections Models, Install (first run), Configuration, and Start (every day), with the shared logo
+- [x] Add tests test_us_13_2_model_roles_match_registry, test_us_13_2_first_run_uses_make_targets, test_us_13_2_daily_start_has_no_install, test_us_13_2_settings_documented
+- [x] Record evidence/US-13.2/test-report.md
+
+Open Questions:
+- Should the guide list the models in ~/Models that ClaimCoach does not use?
+  Default: no. The guide lists the registry's folders as the only ones ClaimCoach needs; other
+  folders belong to other apps and are never read.
+
+### US-13.3: Data, API, Storage, and Upload Reference
+
+Status: DONE
+
+As a developer or reviewer
+I want README-DEV.md to document every table with what writes and reads it, every REST route with its request and response, the corpus scopes and files on disk, and how uploads work
+So that I can change a flow without first reading every module.
+
+Source:
+- PRD.md §9 (corpus scopes, storage, retention, manager view, fine-tune export)
+- PRD.md §7 and §7.2 (the plugin_api routes and the PHI boundary)
+- PRD.md §13 ES-8 (typed success model or error envelope)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: Every gateway route is documented
+  Given the routes mounted at /api/plugins/claimcoach/
+  When README-DEV.md is read
+  Then each route is listed with its method, path, request body, and response model
+  And a test fails when a route is added, removed, or changes its response model without the guide
+
+Scenario: Every table is documented with its writers and readers
+  Given the corpus database schema
+  When README-DEV.md is read
+  Then each table and index table is listed with its columns, what writes it, and what reads it
+  And a test fails when a table is missing from the guide
+
+Scenario: Uploads are documented with the limits the code enforces
+  Given the document, paste, call recording, and corpus bundle uploads
+  When README-DEV.md is read
+  Then each lists its route, accepted types, and size limit
+  And the limits in the guide equal the limits in the code
+
+Scenario: Every place ClaimCoach stores data is documented
+  Given the global and user scopes, exports, fine-tune exports, the transcription queue, the worker state, and models.yaml
+  When README-DEV.md is read
+  Then each is listed with its path, what it holds, whether it holds PHI, and how it is protected
+```
+
+Dependencies:
+- US-13.2
+
+Tasks:
+- [x] Write README-DEV.md sections REST API, Database schema, Corpus and storage, and Uploads
+- [x] Add tests test_us_13_3_routes_documented, test_us_13_3_tables_documented, test_us_13_3_upload_limits_match_code, test_us_13_3_storage_documented
+- [x] Record evidence/US-13.3/test-report.md
+
+Open Questions:
+- Should the guide document the worker's own routes too?
+  Default: only the gateway routes in full; the worker's routes are listed by path, since only
+  plugin_api.py and the CLI call them, with the per-launch token.
+
+### US-13.4: App Flow Diagrams for Stakeholders and Users
+
+Status: DONE
+
+As a practice owner or a biller
+I want diagrams of how ClaimCoach works, one for the PHI boundary and one for a case from upload to outcome
+So that I understand what stays on the Mac and what I do at each step without reading code.
+
+Source:
+- PRD.md §6 (v1 user stories), §7.2 (the PHI boundary), §10 (no case content leaves the Mac)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: The stakeholder diagram shows the PHI boundary
+  Given docs/assets/flow-stakeholder.svg
+  When it is viewed
+  Then it shows the Mac boundary with the pane, plugin_api, the worker, the local model servers, and the two corpus scopes inside it
+  And the Hermes chat agent receives only case IDs, codes, payer names, and redacted summaries
+
+Scenario: The user diagram follows a case from upload to outcome
+  Given docs/assets/flow-user.svg
+  When it is viewed
+  Then it shows upload or paste, extraction and confirmation, diagnosis, drafting, edit and export, and the outcome, with the model each step uses
+
+Scenario: The developer diagram follows one request
+  Given docs/assets/flow-request.svg
+  When it is viewed
+  Then it shows one extraction from the pane through plugin_api and the worker to the model server and the user corpus, in order
+  And the job's progress events repeat while the job runs
+
+Scenario: The diagrams are self-contained and readable in light and dark themes
+  Given every diagram under docs/assets/
+  When it is parsed
+  Then it is a valid SVG with a title and no script, external reference, or embedded image
+  And it draws its own background and switches its colors for a dark color scheme
+  And README-DEV.md shows every diagram
+```
+
+Dependencies:
+- US-13.3
+
+Tasks:
+- [x] Draw docs/assets/flow-stakeholder.svg and docs/assets/flow-user.svg, and a request-flow diagram for developers
+- [x] Add them to README-DEV.md under App flows
+- [x] Add tests test_us_13_4_stakeholder_diagram_shows_boundary, test_us_13_4_user_diagram_follows_case, test_us_13_4_request_diagram_follows_request, test_us_13_4_diagrams_self_contained
+- [x] Record evidence/US-13.4/test-report.md
+
+Open Questions:
+- None
+
+### US-13.5: Product README for Y Combinator
+
+Status: DONE
+
+As a practice owner or an investor reading the repository
+I want README.md to read as ClaimCoach's product page, with its logo
+So that I learn the problem, who it is for, what it does, and why it is local-only, and find the developer guide one link away.
+
+Source:
+- PRD.md header (RFS: YC Winter 2027), §1 to §6 (summary, problem, personas, goals, non-goals, scope), §10 (privacy)
+- PRD.md §7.2 (what the chat agent sees), §8 (local models), §9 (encryption, retention, manager view, fine-tune export)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: README.md is the product page
+  Given the repository root
+  When a reader opens README.md
+  Then it shows the shared logo, the problem, who it is for, what it does, the v1 targets, and the privacy promise
+  And it shows the user flow diagram
+  And it has no install or engineering steps, and links README-DEV.md for them
+
+Scenario: The product claims come from the PRD
+  Given the v1 targets in PRD.md §4
+  When README.md states them
+  Then each target equals the PRD's
+
+Scenario: Every README uses the shared logo
+  Given every README*.md at the repository root
+  When it shows a logo
+  Then it references plugin/assets/claimcoach-logo.svg
+  And every relative link in it resolves to a file in the repository
+```
+
+Dependencies:
+- US-13.1
+- US-13.2
+- US-13.4
+
+Tasks:
+- [x] Rewrite README.md as the product page (problem, personas, what it does, targets, privacy, status) linking README-DEV.md
+- [x] Add tests test_us_13_5_readme_is_product_page, test_us_13_5_targets_match_prd, test_us_13_5_readmes_share_logo_and_links_resolve
+- [x] Record evidence/US-13.5/test-report.md
 
 Open Questions:
 - None
