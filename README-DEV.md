@@ -19,6 +19,8 @@ API, database, storage, and uploads. For what ClaimCoach is and who it is for, s
 - [Corpus and storage](#corpus-and-storage)
 - [Uploads](#uploads)
 - [Develop](#develop)
+- [Hermes bundle](#hermes-bundle)
+- [Claude Code tooling](#claude-code-tooling)
 - [Troubleshooting](#troubleshooting)
 
 ## App flows
@@ -425,11 +427,132 @@ openspec/                   # OpenSpec changes (one per story) and specs
 Delivery flow per story: OpenSpec change (`openspec/changes/us-x-y-*`) → implementation and tests
 → `make check` → `make evidence STORY=US-x.y` + `evidence/US-x.y/test-report.md` →
 `make evidence-check` → independent review → `openspec archive`. In Claude Code the
-`deliver-story` skill (`.claude/skills/`) runs this flow; project hooks format Python on every
-edit, keep `openspec/specs/` and archived changes immutable, and deny agents model downloads.
+`deliver-story` skill runs this flow; see [Claude Code tooling](#claude-code-tooling).
 
 Release: every EPIC-12 gate must pass against the running worker and the real local models:
 `make release-gate` ([evals-release-gates](docs/runbooks/evals-release-gates.md)).
+
+## Hermes bundle
+
+`plugin/` is one Hermes package that Hermes loads in two places: Hermes Desktop runs the desktop
+half (`plugin.js`), and the gateway imports the Python half (`__init__.py`, then
+`register(ctx)`) only once `claimcoach` is enabled. This is everything the bundle adds to Hermes:
+
+| Surface | Name | Registered by | Where it shows up |
+| --- | --- | --- | --- |
+| Pane | `case-pane` | `plugin/desktop/plugin.js` (`ctx.registerMany`) | Right side, 380 px: cases, uploads, drafts |
+| Route and nav | `dashboard`, `nav` | `plugin.js` | `/claimcoach/dashboard`, sidebar **ClaimCoach** |
+| Statusbar item | `local-only` | `plugin.js` | Right of the statusbar: the local-only indicator |
+| Settings page | `settings` | `plugin.js` (`ctx.registerSettingsPage`, when the host has it) | Hermes Desktop settings |
+| REST routes | `/api/plugins/claimcoach/…` | `plugin/dashboard/manifest.json` → `plugin_api.py` | Called by the pane through `ctx.rest` ([REST API](#rest-api)) |
+| Agent tools | `claimcoach_explain_code`, `claimcoach_payer_rules`, `claimcoach_case_summary` | `register_tools` in `claimcoach/agent/tools.py`; listed in `plugin.yaml` `provides_tools` | Hermes chat; the agent calls them |
+| Hook | `transform_tool_result` | `register_guard_hook` in `claimcoach/agent/guard.py`; `provides_hooks` | Every `claimcoach_*` tool result, before the transcript |
+| Skill | `claimcoach:denial-triage` | `register_skills` in `claimcoach/agent/skills.py` | `skill_view("claimcoach:denial-triage")`, served in place from `plugin/skills/denial-triage/SKILL.md` |
+| Slash command | `/denial [case ID]` | `register_commands` in `claimcoach/agent/commands.py` | Hermes chat |
+| CLI command | `hermes claimcoach corpus …` | `register_cli` in `claimcoach/cli.py` | Terminal: `import`, `list`, `status`, `reindex`, `purge`, `audit`, `backup`, `restore`, `key-export`, `key-import` |
+
+**How a chat answer is built.** The Hermes chat model may run in the cloud, so it never sees a
+document. The skill tells it to work from case IDs, codes, and payer names only, and never to ask
+for a document or a patient detail. Each tool handler proxies to the worker on `127.0.0.1:18200`,
+then redacts its own result through the worker's `/redact` (the local `phi_detection` model)
+before returning it; that is the primary guard (BR-3). The `transform_tool_result` hook redacts
+the result again; it is fail-open, so it is defense in depth only (PC-7). A handler never raises
+or echoes its arguments: a failure is a fixed envelope (`code_not_found`, `payer_not_found`,
+`case_not_found`, `worker_unavailable`, `redaction_failed`, …). A case summary appends
+`case_summarized` to the case's audit log. `/denial` renders the same guarded summary as text.
+
+Preconditions for the chat: the plugin is installed and enabled (`make plugin-install`), the
+worker is running (`make start`) with `phi_detection` weights present, and the global corpus holds
+codes and rule cards (`make corpus-list`).
+
+**Prompting in the Hermes chat.** Name cases by their ID from the pane (`case_` and 16 hex
+digits). The tool or skill each prompt ends up using is in the second column; you don't need to
+name it, but you can.
+
+| Prompt | What the agent uses |
+| --- | --- |
+| `/denial` | The fixed how-to-start guide |
+| `/denial case_0123456789abcdef` | `claimcoach_case_summary`: status, stage, payer, codes, denial reason, appeal likelihood, deadline state, next step |
+| `What does CO-197 mean, and what does remark N286 add?` | `claimcoach_explain_code`, once per code |
+| `What is Aetna's appeal limit, and which documents does an appeal need?` | `claimcoach_payer_rules`; a card marked `stale` is flagged for the manager |
+| `Triage case case_0123456789abcdef with the claimcoach:denial-triage playbook: why was it denied, appeal or corrected claim, and what do I do next in the pane?` | The skill, then the summary, each code, and the payer's rules |
+| `Explain case case_0123456789abcdef to a new biller in three sentences: the decision, the fix, the risk.` | Same tools; the skill's "Explaining to the biller" order |
+| `Is the diagnosis on case_0123456789abcdef still current?` | `claimcoach_case_summary` (`diagnosis_stale`) |
+
+What the chat cannot do, by design: return a patient name, member ID, claim number, date, or
+amount, or draft, send, or submit anything. Drafting, export, and outcomes stay in the pane. No
+tool takes document text, but ClaimCoach cannot stop what is typed into the chat: a pasted EOB,
+835, or letter goes to the chat model, which may be a cloud model. Drop documents in the pane.
+
+**Checking from the terminal what the agent gets.** These run the same guarded handlers Hermes
+runs ([agent-tools](docs/runbooks/agent-tools.md)):
+
+```bash
+make agent-tools
+```
+
+```bash
+make agent-call TOOL=claimcoach_explain_code ARGS='{"code": "CO-197"}'
+```
+
+```bash
+make agent-denial CASE=case_0123456789abcdef
+```
+
+```bash
+make agent-probe
+```
+
+`make agent-skill` prints the playbook, and `hermes claimcoach corpus list` is the same listing as
+`make corpus-list`, through Hermes.
+
+**Changing a surface.** A new tool goes in `TOOLS` (`claimcoach/agent/tools.py`) and in
+`provides_tools` (`plugin.yaml`); `tests/test_us_1_1_plugin_package.py` fails when they differ.
+Parameters and results are Pydantic models in `claimcoach/agent/types.py`, and a result holds IDs,
+codes, payer names, and enums only. The skill's name and description come from its own
+frontmatter. After a Python-half change (tools, hook, skill, `/denial`, CLI) run
+`make gateway-restart`; after a `plugin.js` change, **Rescan** in Hermes Desktop.
+
+## Claude Code tooling
+
+The repo carries its own Claude Code setup in `.claude/`, so every story is delivered the same
+way and leaves the same record.
+
+| Piece | File | What it does |
+| --- | --- | --- |
+| Skill `deliver-story` | `.claude/skills/deliver-story/SKILL.md`, `references/conventions.md` | Delivers `US-x.y` or `EPIC-n`: read the story, open the OpenSpec change, implement, test at 100%, evidence, independent review, archive. |
+| Agent `story-tester` | `.claude/agents/story-tester.md` | Runs a story's acceptance checks with `HERMES_HOME` and `MODELS_HOME` in a scratch folder, then writes `evidence/US-x.y/test-report.md` from what it saw. Never edits `plugin/` or `tests/`. |
+| Agent `story-reviewer` | `.claude/agents/story-reviewer.md` | Read-only review of one change, given the change name and changed files only (never the implementer's reasoning). Returns severity-ranked findings with failure scenarios. |
+| Hook `SessionStart` | `.claude/hooks/session-context.sh` | Tells Claude which OpenSpec changes are open and which stories have evidence. |
+| Hook `PreToolUse` (Write, Edit) | `.claude/hooks/guard-openspec.sh` | Denies edits to `openspec/specs/`, `openspec/changes/archive/`, and `evidence/US-*/junit*.xml`; those change only through `openspec archive` and `make evidence`. |
+| Hook `PostToolUse` (Write, Edit) | `.claude/hooks/format-python.sh` | Runs `ruff format` and `ruff check --fix` on an edited `.py` or `.pyi`; what ruff cannot fix comes back to Claude as context. |
+| Permissions | `.claude/settings.json` | Allows the gate and test commands (`make check`, `make verify`, `uv run pytest`, `openspec validate`, …) without a prompt. Denies `make models-download` and `make models-convert`: you run those yourself (BR-1). |
+
+**Gates.** Each layer catches what the one before it skips:
+
+| Gate | Command | Checks |
+| --- | --- | --- |
+| Pre-commit | `git commit` | `ruff check`, `ruff format --check`, `biome check` on staged files |
+| Quality gate (ES-7) | `make check` | Lint, mypy `--strict`, tsc `--checkJs`, offline pytest and `node --test` at 100% line and branch coverage; the socket guard fails any non-loopback connection |
+| Evidence | `make evidence-check` | Every `evidence/US-x.y` report and JUnit file |
+| Gate self-tests | `make verify` | `make check`, `make evidence-check`, then `pytest -m gate`: a type error fails the gate, no `# pragma: no cover` |
+| OpenSpec | `make openspec-validate` | Every change and spec, strict |
+| Release | `make release-gate` | `make verify`, then the EPIC-12 evals against the worker and real models: PHI recall ≥ 98%, classification ≥ 85%, drafts ≥ 70%, median upload-to-draft ≤ 10 min, no egress |
+
+**Prompting in Claude Code.** Plain requests work; the skill and agents are picked up from their
+descriptions.
+
+| Prompt | What runs |
+| --- | --- |
+| `/deliver-story US-15.1` or `Deliver US-15.1` | The skill, end to end; it stops before committing |
+| `Deliver EPIC-15` | One change per story, in SPECS.md dependency order |
+| `Run the story-tester agent for US-7.4 and tell me what is UNVERIFIED.` | `story-tester`; rewrites that story's test report |
+| `Have story-reviewer review the change us-15-1-<slug>. Changed files: plugin/claimcoach/…, tests/test_us_15_1_….py` | `story-reviewer`, given the files only |
+| `Which OpenSpec changes are open, and which stories have no evidence yet?` | Answered from the `SessionStart` context |
+| `Add a scenario to the quality-gate spec for …` | The edit goes into the open change's spec delta; a direct edit to `openspec/specs/` is denied by the hook |
+| `Run make check and fix what fails.` | Allowed without a prompt; Python edits are formatted by the hook |
+| `Download the drafting model.` | Denied by `.claude/settings.json`; run `make models-download ROLE=drafting CONFIRM=yes` yourself |
+| `Run the release gate and summarize which evals block the release.` | `make release-gate`; needs `make start` and the real models first |
 
 ## Troubleshooting
 
