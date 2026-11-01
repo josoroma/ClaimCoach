@@ -8,7 +8,9 @@ Implements: US-4.1 (``CorpusScope``, ``Document``, ``Chunk``, ``CaseRecord``, ``
 ``diagnosis`` case item and the ``case_diagnosed`` audit action), US-7.1 (the ``draft`` case item
 and the ``case_drafted`` audit action), US-7.2 (the ``draft_edited`` and ``draft_exported`` audit
 actions), US-8.2 (``OutcomeRow``: an outcome as the manager's summary reads it), US-9.2 (the
-``case_summarized`` audit action). Rules:
+``case_summarized`` audit action), US-11.1 (the ``call`` and ``transcript`` case items and the
+``call_added`` and ``call_transcribed`` audit actions), US-10.1 (``CaseListEntry``: a case as the
+pane's case list shows it, without case content). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
 IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
 ``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
@@ -43,6 +45,7 @@ __all__ = [
     "CaseId",
     "CaseItem",
     "CaseItemKind",
+    "CaseListEntry",
     "CaseOutcome",
     "CaseRecord",
     "Chunk",
@@ -188,9 +191,10 @@ class CaseRecord(_Strict):
     purged_at: Timestamp | None = None
 
 
-CaseItemKind = Literal["source", "extraction", "diagnosis", "draft"]
+CaseItemKind = Literal["source", "extraction", "diagnosis", "draft", "call", "transcript"]
 """A case item: an attached source file (US-5.1), the case's structured extraction (US-5.2), its
-diagnosis (US-6.1), or its appeal draft (US-7.1)."""
+diagnosis (US-6.1), its appeal draft (US-7.1), a payer-call recording, or a call's transcript
+(US-11.1)."""
 
 
 class CaseItem(_Strict):
@@ -231,6 +235,34 @@ class OutcomeRecord(_Strict):
     case_id: CaseId
     outcome: CaseOutcome
     recorded_at: Timestamp
+
+
+class CaseListEntry(_Strict):
+    """One case in the pane's case list (US-10.1): metadata only, never case content.
+
+    Attributes:
+        case_id: The case.
+        opened_at: When it was created.
+        closed_at: When it was closed.
+        purged_at: When its content was purged.
+        outcome: How it ended, once recorded.
+        documents: Attached source documents.
+        calls: Attached payer-call recordings.
+        extracted: Extraction ran.
+        diagnosed: Diagnosis ran.
+        drafted: An appeal draft exists.
+    """
+
+    case_id: CaseId
+    opened_at: Timestamp
+    closed_at: Timestamp | None = None
+    purged_at: Timestamp | None = None
+    outcome: CaseOutcome | None = None
+    documents: int = Field(default=0, ge=0)
+    calls: int = Field(default=0, ge=0)
+    extracted: StrictBool = False
+    diagnosed: StrictBool = False
+    drafted: StrictBool = False
 
 
 MAX_FEATURES_CHARS: Final = 65536
@@ -394,6 +426,10 @@ class AuditAction(StrEnum):
     """By an approved single-case purge (phi-purge runbook)."""
     CASE_SUMMARIZED = "case_summarized"
     """The Hermes agent read the case's redacted summary (US-9.2)."""
+    CALL_ADDED = "call_added"
+    """A payer-call recording was attached to the case (US-11.1)."""
+    CALL_TRANSCRIBED = "call_transcribed"
+    """A call's transcript was stored with the case (US-11.1)."""
 
 
 class AuditEntry(_Strict):

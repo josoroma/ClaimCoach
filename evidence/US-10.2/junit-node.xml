@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/appeal_draft.test.mjs" time="0.160476" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_diagnosis.test.mjs" time="0.165731" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.157993" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.157998" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_outcome.test.mjs" time="0.154585" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.169970" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/dashboard.test.mjs" time="0.161220" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/dashboard.test.mjs"/>
+	<testsuite name="US-10.2 local-only statusbar indicator" time="0.003366" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T02:43:05.464Z" hostname="iX-00277">
+		<testcase name="test_us_10_2_indicator_local_only_default" time="0.002380" classname="US-10.2 local-only statusbar indicator" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/desktop_ui.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/payer_calls.test.mjs" time="0.167713" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/payer_calls.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.170690" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.168017" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 11 -->
+	<!-- suites 1 -->
+	<!-- pass 11 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 185.085125 -->
+</testsuites>

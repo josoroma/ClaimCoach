@@ -19,3 +19,5 @@ ES-6: every runbook has **Preconditions, Steps (copy-paste commands), Verificati
 | [appeal-drafting](appeal-drafting.md) | US-7.1, US-7.2, US-7.3 | complete |
 | [outcomes-and-export](outcomes-and-export.md) | US-8.1, US-8.2, US-8.3 | complete |
 | [agent-tools](agent-tools.md) | US-9.1, US-9.2, US-9.3, US-9.4 | complete |
+| [desktop-pane-and-settings](desktop-pane-and-settings.md) | US-10.1, US-10.2, US-10.3 | complete |
+| [payer-call-transcription](payer-call-transcription.md) | US-11.1 | complete |

@@ -5,7 +5,8 @@ healthy, idle sweep, typed status), US-2.3 (admission through ``MemoryGuard``; b
 ``queued``, idle blockers are evicted, waits are bounded by ``queue_timeout_s``). Rules: BR-11
 (servers bind ``127.0.0.1`` on ports 18201-18219; weights read in place), BR-12, BR-14 (logs carry
 roles, ports, and PIDs only; US-3.4: the idle sweep logs under its job ID), PRD §7.9 (the worker
-owns these processes).
+owns these processes), US-11.1 (servers start with umask 077 and get a ``{logs}`` folder in the
+data dir, so ``mlx_audio.server``'s files are owner-only and never land in the install dir).
 
 All server state is guarded by one ``asyncio.Condition`` so the memory guard always sees every
 server. A server is *resident* while it is starting, ready, or stopping: a stopping process still
@@ -574,7 +575,9 @@ class ModelManager:
             raise
 
     async def _launch(self, server: _Server) -> bool:
-        argv = server.spec.argv(self.models_home, LOOPBACK)
+        logs = self.state_dir / "server-logs"
+        logs.mkdir(mode=0o700, exist_ok=True)
+        argv = server.spec.argv(self.models_home, LOOPBACK, logs)
         if _port_in_use(server.port):
             # Never adopt a server ClaimCoach did not start, even one that looks healthy.
             _log.warning("port %d is already in use; not starting its model server", server.port)
@@ -592,6 +595,8 @@ class ModelManager:
                 stderr=subprocess.STDOUT,
                 env={**os.environ, **_SERVER_ENV},
                 start_new_session=True,
+                # Files a server writes (mlx_audio.server's decoded call in /tmp) are owner-only.
+                umask=0o077,
             )
         except OSError:
             _log.warning("model server for port %d could not be executed", server.port)

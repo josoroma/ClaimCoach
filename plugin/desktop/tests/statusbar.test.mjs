@@ -73,7 +73,7 @@ describe('US-3.5 statusbar', () => {
     stored = false;
     t.mock.timers.tick(SETTINGS_REFRESH_MS);
     await tick();
-    assert.deepEqual(hooks.states[0].updates, [false, true, false]);
+    assert.deepEqual(hooks.states[0].updates, ['local-only', 'richer-access', 'local-only']);
     runCleanups();
     t.mock.timers.tick(SETTINGS_REFRESH_MS);
     await tick();

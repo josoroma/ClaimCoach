@@ -29,7 +29,7 @@ import plugin, {
   REFUSALS,
   saveDraft,
 } from '../plugin.js';
-import { byArea, createFakeCtx } from './fake_ctx.mjs';
+import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hostAccesses, setFileDownload } from './fakes/plugin-sdk.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
@@ -144,7 +144,7 @@ function rerender(element, ...seed) {
 function mounted(rest) {
   const ctx = createFakeCtx({ rest, events: true });
   plugin.register(ctx);
-  return { ctx, element: byArea(ctx.recorded).panes[0].render() };
+  return { ctx, element: casePaneOf(byArea(ctx.recorded).panes[0].render()) };
 }
 
 /** The pane's draft panel, rendered. */
@@ -687,7 +687,7 @@ describe('US-7.3 no contribution offers send or submit', () => {
       }
     }
     // The case pane in every state, a diagnosed case with a stale, edited draft and an export.
-    const pane = byArea(ctx.recorded).panes[0].render();
+    const pane = casePaneOf(byArea(ctx.recorded).panes[0].render());
     const draft = { ...DRAFT, edited_at: '2026-10-31T12:10:00Z' };
     const ready = await openCase(
       createCaseApi(async () => caseBody({ draft, draftStale: true })),

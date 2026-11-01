@@ -15,7 +15,7 @@ import plugin, {
   processCase,
   uploadCase,
 } from '../plugin.js';
-import { byArea, createFakeCtx } from './fake_ctx.mjs';
+import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hostAccesses, sessions } from './fakes/plugin-sdk.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
@@ -37,7 +37,7 @@ const caseBackend = async (path, opts) => {
 
 /** Render the registered pane, pick a file, and return the case state the pane ends in. */
 async function uploadFromPane(ctx) {
-  const element = byArea(ctx.recorded).panes[0].render();
+  const element = casePaneOf(byArea(ctx.recorded).panes[0].render());
   const pane = element.type(element.props);
   pane.props.children[2].props.onChange({ currentTarget: { files: [file] } });
   await tick();

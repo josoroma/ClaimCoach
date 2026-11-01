@@ -9,7 +9,8 @@ routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` eve
 are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider),
 US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper),
 US-8.2 (``/outcomes`` routes over the corpus root), US-9.1 and US-9.2 (``/agent`` routes behind
-the Hermes agent tools).
+the Hermes agent tools), US-11.1 (payer-call routes, the transcription queue, and the after-hours
+transcription scheduler in the lifespan).
 Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
@@ -30,9 +31,12 @@ from starlette.exceptions import HTTPException
 
 from claimcoach import __version__
 from claimcoach.api.models import ErrorCode, HealthResponse, envelope
+from claimcoach.calls.queue import QUEUE_FILE, TranscriptionQueue, window_reader
+from claimcoach.calls.scheduler import TranscriptionScheduler
 from claimcoach.cases.errors import CaseError
 from claimcoach.cases.service import CaseService
 from claimcoach.corpus.errors import CorpusError
+from claimcoach.corpus.paths import transcription_dir
 from claimcoach.corpus.retention import RetentionJob
 from claimcoach.corpus.service import CorpusService
 from claimcoach.letters.draft import Drafter
@@ -47,6 +51,7 @@ from claimcoach.redact.detector import PhiDetector
 from claimcoach.redact.redactor import Redactor
 from claimcoach.worker import (
     agent_routes,
+    call_routes,
     case_routes,
     corpus_routes,
     model_routes,
@@ -116,17 +121,26 @@ def _closer(corpus: CorpusService) -> Callable[[], Awaitable[None]]:
     return close
 
 
-def _mount_corpus(
+def _mount_corpus(  # noqa: PLR0913 - the app, its stores, its models, and its lifespan lists
     app: FastAPI,
     corpus: CorpusService,
     pipeline_models: EndpointProvider | None,
     tasks: list[Callable[[], Coroutine[Any, Any, None]]],
     shutdowns: list[Callable[[], Awaitable[None]]],
+    *,
+    transcriptions: TranscriptionQueue | None,
 ) -> None:
-    """Mount the corpus and case routes, the scheduled purge, case jobs, and the stores' close."""
+    """Mount the corpus, case, and call routes, the purge, transcriptions, and case jobs.
+
+    The stores close on shutdown.
+    """
     app.state.corpus = corpus
     tasks.append(RetentionJob(corpus.purge_all).run)
-    cases = CaseService(corpus)
+    if transcriptions is None:
+        transcriptions = TranscriptionQueue(
+            transcription_dir(corpus.root) / QUEUE_FILE, window_reader(corpus.root)
+        )
+    cases = CaseService(corpus, transcriptions)
     app.state.cases = cases
     exports = Exports(corpus.root)
     app.state.exports = exports
@@ -140,20 +154,25 @@ def _mount_corpus(
         app.state.drafter = Drafter(cases, pipeline_models)
         shutdowns.append(jobs.shutdown)  # cancel extraction before the stores close
         app.include_router(case_routes.jobs_router)
+        # Cancelled with the other lifespan tasks, before the stores close (US-11.1).
+        tasks.append(TranscriptionScheduler(cases, transcriptions, pipeline_models).run)
     shutdowns.append(_closer(corpus))
     app.include_router(corpus_routes.router)
     app.include_router(case_routes.router)
+    app.include_router(call_routes.router)
+    app.include_router(call_routes.transcriptions_router)
     app.include_router(outcome_routes.router)
     app.include_router(agent_routes.router)
 
 
-def create_app(
+def create_app(  # noqa: PLR0913 - the token and each optional part of the worker
     token: str,
     models: ModelManager | None = None,
     *,
     redactor: Redactor | None = None,
     corpus: CorpusService | None = None,
     pipeline_models: EndpointProvider | None = None,
+    transcriptions: TranscriptionQueue | None = None,
 ) -> FastAPI:
     """Build the worker app that accepts only ``Authorization: Bearer <token>``.
 
@@ -169,6 +188,8 @@ def create_app(
         pipeline_models: The model provider of the case pipeline (extraction, US-5.2;
             classification, US-6.1); defaults to ``models.use``. With ``corpus`` it mounts the
             case jobs. Tests pass one over fake model servers.
+        transcriptions: The payer-call transcription queue (US-11.1); defaults to the queue file
+            under ``corpus.root``. Tests pass one with a fixed clock and zone.
 
     Returns:
         The ASGI app.
@@ -256,7 +277,7 @@ def create_app(
     if corpus is not None:
         if pipeline_models is None and models is not None:
             pipeline_models = models.use
-        _mount_corpus(app, corpus, pipeline_models, tasks, shutdowns)
+        _mount_corpus(app, corpus, pipeline_models, tasks, shutdowns, transcriptions=transcriptions)
     if tasks:
         app.router.lifespan_context = _lifespan(tasks, shutdowns)
     return app

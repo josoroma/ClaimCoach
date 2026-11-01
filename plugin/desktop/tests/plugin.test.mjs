@@ -18,7 +18,7 @@ import plugin, {
   SettingsPage,
   WorkerStatus,
 } from '../plugin.js';
-import { byArea, createFakeCtx } from './fake_ctx.mjs';
+import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
 const ALLOWED = new Set(['@hermes/plugin-sdk', 'react', 'react/jsx-runtime']);
@@ -63,12 +63,19 @@ describe('US-1.4 registration contract', () => {
   test('pane and settings renders reach the backend through ctx.rest', async () => {
     const ctx = createFakeCtx({ rest: healthy });
     plugin.register(ctx);
-    const pane = byArea(ctx.recorded).panes[0].render();
+    const pane = casePaneOf(byArea(ctx.recorded).panes[0].render());
     const page = ctx.recorded.settingsPages[0].render();
     WorkerStatus(pane.type(pane.props).props.children[1].props);
     WorkerStatus(page.type(page.props).props.children[1].props);
     await tick();
-    assert.deepEqual(ctx.recorded.restCalls, ['/health', '/health']);
+    // The settings page also reads its sections (US-10.3); every read goes through ctx.rest.
+    assert.deepEqual(ctx.recorded.restCalls, [
+      '/health',
+      '/models/status',
+      '/corpus/status',
+      '/settings',
+      '/health',
+    ]);
   });
 });
 

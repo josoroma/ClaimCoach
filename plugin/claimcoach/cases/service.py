@@ -7,10 +7,13 @@ stale), US-6.3 (the appeal deadline, computed whenever a case is read), US-7.1 (
 the extraction and its current diagnosis; the stored draft and whether it is stale), US-7.2 (the
 biller's edits to the draft, and the draft an export renders), US-8.1 (recording the case's
 outcome, which closes it; the case shows its outcome), US-8.2 (the outcome's de-identified
-snapshot is taken from the extraction and its current diagnosis). Rules: BR-2 (runs in the
-worker; the pane reaches it through ``plugin_api.py``), BR-6 and BR-13 (files are sealed into the
-profile's user scope), BR-7 (they are case items, deleted by the retention purge), BR-14 (nothing
-here logs content).
+snapshot is taken from the extraction and its current diagnosis), US-11.1 (payer-call recordings
+are sealed into the case, queued for after-hours transcription, and shown with their job and
+transcript; the scheduler reads a recording and stores its transcript), US-10.1 (``list_cases``:
+the profile's newest cases for the pane's list, not audited because no content is read). Rules:
+BR-2 (runs in the worker; the pane reaches it through ``plugin_api.py``), BR-6 and BR-13 (files
+are sealed into the profile's user scope), BR-7 (they are case items, deleted by the retention
+purge), BR-14 (nothing here logs content).
 
 Methods open stores and may prompt the Keychain, so routes call them off the event loop.
 """
@@ -25,8 +28,20 @@ from typing import Final
 
 from pydantic import ValidationError
 
+from claimcoach.calls.audio import sniff_audio
+from claimcoach.calls.queue import TranscriptionQueue
+from claimcoach.calls.types import (
+    CallAdded,
+    CallRecording,
+    CallTranscript,
+    PayerCall,
+    TranscriptionQueued,
+    new_call_id,
+    transcript_item_id,
+)
 from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.errors import (
+    CallNotFoundError,
     DocumentTooLargeError,
     DraftEditedError,
     FieldError,
@@ -37,8 +52,16 @@ from claimcoach.cases.errors import (
 )
 from claimcoach.cases.extraction import CaseExtraction, FieldConfirmation
 from claimcoach.cases.intake import UploadedFile, sniff, text_kind
-from claimcoach.cases.models import MAX_PASTE_BYTES, Case, DocumentAdded, SourceDocument, SourceKind
-from claimcoach.corpus.errors import CaseClosedError, CaseNotFoundError
+from claimcoach.cases.models import (
+    MAX_LISTED_CASES,
+    MAX_PASTE_BYTES,
+    Case,
+    CaseList,
+    DocumentAdded,
+    SourceDocument,
+    SourceKind,
+)
+from claimcoach.corpus.errors import CaseClosedError, CaseNotFoundError, ProfileNotFoundError
 from claimcoach.corpus.lookup import payer_rule_cards
 from claimcoach.corpus.service import CorpusService
 from claimcoach.corpus.store import CorpusStore
@@ -53,6 +76,7 @@ from claimcoach.corpus.types import (
 )
 from claimcoach.events import CASE_ID_PATTERN, new_case_id
 from claimcoach.letters.types import AppealDraft, DraftEdit
+from claimcoach.models.manager import ModelUnavailableError
 from claimcoach.outcomes.features import outcome_features
 from claimcoach.pipeline.deadline import appeal_deadline
 
@@ -84,11 +108,16 @@ class CaseService:
 
     Args:
         corpus: The worker's corpus service (it opens the user stores).
+        transcriptions: The payer-call transcription queue (US-11.1); without it calls can be
+            attached but not queued.
     """
 
-    def __init__(self, corpus: CorpusService) -> None:
+    def __init__(
+        self, corpus: CorpusService, transcriptions: TranscriptionQueue | None = None
+    ) -> None:
         """Keep the corpus service; no store opens until a call needs it."""
         self.corpus = corpus
+        self.transcriptions = transcriptions
         self._guard = threading.Lock()
         self._case_locks: dict[tuple[str, str], threading.Lock] = {}
 
@@ -109,6 +138,20 @@ class CaseService:
         """Create an open, empty case; the first case creates the profile's user scope."""
         record = self.corpus.user_store(profile, create=True).create_case(new_case_id())
         return _case(record, [])
+
+    def list_cases(self, profile: str) -> CaseList:
+        """Return the profile's newest cases, without case content (not audited; US-10.1).
+
+        A profile without a user scope has no cases yet.
+
+        Raises:
+            InvalidProfileError: ``profile`` is not a Hermes profile name.
+        """
+        try:
+            store = self.store(profile)
+        except ProfileNotFoundError:
+            return CaseList(cases=[])
+        return CaseList(cases=store.case_index(MAX_LISTED_CASES))
 
     def open(self, profile: str, case_id: str) -> Case:
         """Return the case with its source documents (audited ``case_opened``).
@@ -138,6 +181,7 @@ class CaseService:
             deadline=self.deadline(extraction),
             draft=self.draft(store, case_id),
             outcome=store.outcome(case_id),
+            calls=self.calls(store, case_id),
         )
 
     def deadline(self, extraction: CaseExtraction | None) -> AppealDeadline | None:
@@ -177,6 +221,129 @@ class CaseService:
         """Return the case's stored appeal draft, if drafting ran (not audited; US-7.1)."""
         items = store.case_items(case_id, "draft")
         return AppealDraft.model_validate_json(items[0].payload) if items else None
+
+    @staticmethod
+    def recordings(store: CorpusStore, case_id: str) -> list[CallRecording]:
+        """Return the case's call recordings, oldest first (not audited; US-11.1)."""
+        return [
+            CallRecording.model_validate_json(item.payload)
+            for item in store.case_items(case_id, "call")
+        ]
+
+    def calls(self, store: CorpusStore, case_id: str) -> list[PayerCall]:
+        """Return the case's calls with their latest job and transcript (not audited; US-11.1)."""
+        jobs = (
+            {}
+            if self.transcriptions is None or store.profile is None
+            else self.transcriptions.for_case(store.profile, case_id)
+        )
+        transcripts = {
+            transcript.call_id: transcript
+            for transcript in (
+                CallTranscript.model_validate_json(item.payload)
+                for item in store.case_items(case_id, "transcript")
+            )
+        }
+        return [
+            PayerCall(
+                recording=recording,
+                transcription=jobs.get(recording.call_id),
+                transcript=transcripts.get(recording.call_id),
+            )
+            for recording in self.recordings(store, case_id)
+        ]
+
+    def _recording(self, store: CorpusStore, case_id: str, call_id: str) -> CallRecording:
+        for recording in self.recordings(store, case_id):
+            if recording.call_id == call_id:
+                return recording
+        raise CallNotFoundError
+
+    def add_call(self, profile: str, case_id: str, upload: UploadedFile) -> CallAdded:
+        """Attach a payer-call recording; its format comes from its bytes (audited ``call_added``).
+
+        Raises:
+            UnsupportedAudioError: Not WAV, MP3, FLAC, or M4A audio.
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case is closed or purged.
+        """
+        store = self._require_open(profile, case_id)
+        recording = CallRecording(
+            call_id=new_call_id(),
+            format=sniff_audio(upload.data),
+            filename=upload.filename,
+            content_type=upload.content_type,
+            size_bytes=len(upload.data),
+            added_at=utc_now(),
+        )
+        item = CaseItem(
+            case_id=case_id,
+            item_id=recording.call_id,
+            kind="call",
+            created_at=recording.added_at,
+            payload=recording.model_dump_json().encode(),
+        )
+        store.put_case_item(item, upload.data, audit=AuditAction.CALL_ADDED)
+        return CallAdded(case_id=case_id, call=recording)
+
+    def check_call(self, profile: str, case_id: str, call_id: str) -> None:
+        """Refuse a transcription of a call that is not in an open case (US-11.1).
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case is closed or purged.
+            CallNotFoundError: No such call in the case.
+        """
+        self._recording(self._require_open(profile, case_id), case_id, call_id)
+
+    def queue_transcription(self, profile: str, case_id: str, call_id: str) -> TranscriptionQueued:
+        """Queue the call for its profile's after-hours window, or return its pending job.
+
+        Raises:
+            ModelUnavailableError: This worker has no transcription queue.
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case is closed or purged.
+            CallNotFoundError: No such call in the case.
+        """
+        if self.transcriptions is None:
+            raise ModelUnavailableError
+        self.check_call(profile, case_id, call_id)
+        job = self.transcriptions.enqueue(profile, case_id, call_id)
+        return TranscriptionQueued(case_id=case_id, job=job)
+
+    def call_audio(self, profile: str, case_id: str, call_id: str) -> tuple[CallRecording, bytes]:
+        """Return a recording with its bytes, for transcription (not audited; US-11.1).
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case closed (or was purged) while the job waited.
+            CallNotFoundError: No such call in the case.
+        """
+        store = self._require_open(profile, case_id)
+        recording = self._recording(store, case_id, call_id)
+        data = store.case_item_data(case_id, call_id)
+        if data is None:
+            raise CallNotFoundError
+        return recording, data
+
+    def save_transcript(self, profile: str, case_id: str, transcript: CallTranscript) -> None:
+        """Store a call's transcript, replacing an earlier one (audited ``call_transcribed``).
+
+        Raises:
+            CaseClosedError: The case closed while the call was transcribed.
+        """
+        item = CaseItem(
+            case_id=case_id,
+            item_id=transcript_item_id(transcript.call_id),
+            kind="transcript",
+            created_at=transcript.transcribed_at,
+            payload=transcript.model_dump_json().encode(),
+        )
+        self.store(profile).put_case_item(item, audit=AuditAction.CALL_TRANSCRIBED)
 
     def sources(self, profile: str, case_id: str) -> list[tuple[SourceDocument, bytes]]:
         """Return the case's source documents with their bytes, for extraction (US-5.2)."""
@@ -512,6 +679,7 @@ def _case(  # noqa: PLR0913 - the case and each of its items
     deadline: AppealDeadline | None = None,
     draft: AppealDraft | None = None,
     outcome: OutcomeRecord | None = None,
+    calls: list[PayerCall] | None = None,
 ) -> Case:
     digest = None if extraction is None else extraction.digest()
     stale = diagnosis is not None and diagnosis.extraction_digest != digest
@@ -534,4 +702,5 @@ def _case(  # noqa: PLR0913 - the case and each of its items
         draft=draft,
         draft_stale=draft_stale,
         outcome=outcome,
+        calls=calls or [],
     )

@@ -18,7 +18,7 @@ import plugin, {
   REFUSALS,
   recordOutcome,
 } from '../plugin.js';
-import { byArea, createFakeCtx } from './fake_ctx.mjs';
+import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hostAccesses } from './fakes/plugin-sdk.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
@@ -101,7 +101,7 @@ function rerender(element, ...seed) {
 function mounted(rest) {
   const ctx = createFakeCtx({ rest, events: true });
   plugin.register(ctx);
-  return { ctx, element: byArea(ctx.recorded).panes[0].render() };
+  return { ctx, element: casePaneOf(byArea(ctx.recorded).panes[0].render()) };
 }
 
 const panelOf = (pane) => {

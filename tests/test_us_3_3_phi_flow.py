@@ -33,10 +33,17 @@ THIRD_PARTY = frozenset(
 """Declared dependencies (pyproject ``[project] dependencies``) and starlette, fastapi's base."""
 
 HERMES_ALLOWED = frozenset(
-    {"hermes_cli.config", "hermes_cli.plugin_events", "hermes_constants", "plugins.plugin_storage"}
+    {
+        "hermes_cli.config",
+        "hermes_cli.plugin_events",
+        "hermes_cli.plugins_settings",
+        "hermes_constants",
+        "plugins.plugin_storage",
+    }
 )
-"""The only Hermes modules ClaimCoach may import: config read, event broadcast, data dirs. Nothing
-that reaches the session store, the agent loop, tool dispatch, or a gateway transport."""
+"""The only Hermes modules ClaimCoach may import: config read, event broadcast, the plugin-settings
+writer (US-10.3: the retention period), data dirs. Nothing that reaches the session store, the agent
+loop, tool dispatch, or a gateway transport."""
 
 
 def allowed(module: str) -> bool:

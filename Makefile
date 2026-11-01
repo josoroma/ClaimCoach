@@ -32,6 +32,7 @@ FILE ?=
 SCOPE ?=
 PROFILE ?=
 CASE ?=
+CALL ?=
 FROM ?=
 TO ?=
 BACKUP_DIR ?= $(HOME)/ClaimCoach-backups
@@ -95,8 +96,12 @@ REQUIRE_CORPUS_CONFIRM = [ "$(CONFIRM)" = yes ] || { \
 CASE_PROFILE = $(or $(PROFILE),$(shell $(UV) run python -c \
 	'from claimcoach.corpus.paths import active_profile; print(active_profile())'))
 REQUIRE_CASE = [[ "$(CASE)" =~ ^[A-Za-z0-9_-]{1,64}$$ ]] || { \
-	echo "usage: make $@ CASE=<case id>$(if $(filter case-add case-paste,$@), FILE=<document>)"; exit 2; }
-REQUIRE_CASE_FILE = test -f "$(FILE)" || { echo "usage: make $@ CASE=<case id> FILE=<document>"; exit 2; }
+	echo "usage: make $@ CASE=<case id>$(if $(filter case-add case-paste,$@), FILE=<document>)$(if \
+	  $(filter case-call,$@), FILE=<recording>)$(if $(filter case-transcribe,$@), CALL=<call id>)"; exit 2; }
+REQUIRE_CALL = [[ "$(CALL)" =~ ^call_[0-9a-f]{16}$$ ]] || { \
+	echo "usage: make $@ CASE=<case id> CALL=<call id from make case-call>"; exit 2; }
+REQUIRE_CASE_FILE = test -f "$(FILE)" || { \
+	echo "usage: make $@ CASE=<case id> FILE=<$(if $(filter case-call,$@),recording,document)>"; exit 2; }
 # TEMPLATE goes through the environment into JSON (the worker validates it); FORMAT is checked by
 # make itself, before any shell sees it.
 DRAFT_BODY = $(if $(TEMPLATE),-H 'Content-Type: application/json' --data-binary @<(python3 -c \
@@ -149,12 +154,13 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         models-init models-check models-status models-load models-unload models-download \
         models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
-        case-new case-add case-paste case-show case-process case-confirm case-diagnose \
-        case-draft case-edit case-export case-outcome outcomes-summary outcomes-export \
+        case-new case-list case-add case-paste case-show case-process case-confirm case-diagnose \
+        case-draft case-edit case-export case-outcome case-call case-transcribe transcription-queue \
+        outcomes-summary outcomes-export \
         agent-tools agent-skill agent-call agent-denial agent-probe clean
 
 help: ## List targets
-	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # --- Setup ---------------------------------------------------------------------------------------
 
@@ -399,6 +405,10 @@ corpus-key-import: ## Put a backed-up key into the Keychain: make corpus-key-imp
 case-new: ## Create an empty case and print its ID: make case-new [PROFILE=p]
 	@$(WORKER_CURL) -X POST "$(WORKER_URL)/cases?profile=$(CASE_PROFILE)" | python3 -m json.tool
 
+# IDs, dates, outcome, counts, and steps only (US-10.1): the pane's case list. Not audited.
+case-list: ## List the profile's newest cases without case content: make case-list [PROFILE=p]
+	@$(WORKER_CURL) "$(WORKER_URL)/cases?profile=$(CASE_PROFILE)" | python3 -m json.tool
+
 case-add: ## Attach a PDF, PNG, JPEG, or text file: make case-add CASE=id FILE=eob.pdf
 	@$(REQUIRE_CASE)
 	@$(REQUIRE_CASE_FILE)
@@ -463,6 +473,26 @@ case-export: ## Export the case's draft as PDF or DOCX: make case-export CASE=id
 	  fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600) \
 	    if not os.path.lexists(target) else sys.exit(f"{target} exists; choose another TO"); \
 	  os.write(fd, data); os.close(fd); print("copied to", target)' || exit 1; fi
+
+# --- Payer calls (docs/runbooks/payer-call-transcription.md) -------------------------------------
+# A recording is sealed into the case; the worker transcribes it in the profile's after-hours
+# window (transcription_start_hour..transcription_end_hour), alone, with the local Voxtral server.
+
+case-call: ## Attach a WAV, MP3, FLAC, or M4A payer-call recording: make case-call CASE=id FILE=call.wav
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_CASE_FILE)
+	@$(WORKER_CURL) -X POST -F "file=@\"$(FILE)\"" \
+	  "$(WORKER_URL)/cases/$(CASE)/calls?profile=$(CASE_PROFILE)" | python3 -m json.tool
+
+case-transcribe: ## Queue a call for after-hours transcription: make case-transcribe CASE=id CALL=call_id
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_CALL)
+	@$(WORKER_CURL) -X POST "$(WORKER_URL)/cases/$(CASE)/calls/$(CALL)/transcribe?profile=$(CASE_PROFILE)" \
+	  | python3 -m json.tool
+
+# IDs, states, windows, dates, and error codes only: no recording, transcript, or filename.
+transcription-queue: ## List the transcription queue (no case content)
+	@$(WORKER_CURL) "$(WORKER_URL)/transcriptions" | python3 -m json.tool
 
 # --- Outcomes (docs/runbooks/outcomes-and-export.md) ---------------------------------------------
 

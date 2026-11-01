@@ -57,10 +57,17 @@ SEND: Final = re.compile(
 GATEWAY_ROUTES: Final = {
     ("GET", "/health"),
     ("GET", "/settings"),
+    # US-10.3: the retention period goes to this profile's config.yaml through Hermes' writer.
+    ("POST", "/settings/retention"),
+    ("GET", "/corpus/status"),
+    # US-10.4: a local bundle file is previewed, then imported into the global corpus on confirm.
+    ("POST", "/corpus/import/preview"),
+    ("POST", "/corpus/import"),
     ("GET", "/models/status"),
     ("POST", "/models/download"),
     ("POST", "/models/convert"),
     ("POST", "/cases"),
+    ("GET", "/cases"),
     ("GET", "/cases/{case_id}"),
     ("POST", "/cases/{case_id}/documents"),
     ("POST", "/cases/{case_id}/paste"),
@@ -73,6 +80,9 @@ GATEWAY_ROUTES: Final = {
     ("POST", "/cases/{case_id}/fields"),
     ("GET", "/outcomes/summary"),
     ("POST", "/outcomes/export"),
+    # US-11.1: a recording is stored in the case and queued for local transcription; nothing sent.
+    ("POST", "/cases/{case_id}/calls"),
+    ("POST", "/cases/{case_id}/calls/{call_id}/transcribe"),
 }
 """Every ``plugin_api.py`` route; each proxies to the loopback worker. Review before changing."""
 
@@ -91,6 +101,7 @@ WORKER_ROUTES: Final = {
     ("POST", "/corpus/purge"),
     ("GET", "/corpus/audit"),
     ("POST", "/cases"),
+    ("GET", "/cases"),
     ("GET", "/cases/{case_id}"),
     ("POST", "/cases/{case_id}/documents"),
     ("POST", "/cases/{case_id}/paste"),
@@ -108,6 +119,10 @@ WORKER_ROUTES: Final = {
     ("POST", "/agent/explain-code"),
     ("POST", "/agent/rule-cards"),
     ("POST", "/agent/case-summary"),
+    # US-11.1: recordings, the local transcription queue, and its PHI-free listing.
+    ("POST", "/cases/{case_id}/calls"),
+    ("POST", "/cases/{case_id}/calls/{call_id}/transcribe"),
+    ("GET", "/transcriptions"),
 }
 """Every worker route with every optional part mounted. Review before changing."""
 
@@ -120,6 +135,7 @@ HTTP_CLIENT_MODULES: Final = {
     "claimcoach/models/manager.py": "model servers' health checks (127.0.0.1)",
     "claimcoach/corpus/embed.py": "embeddings and reranking from a ModelEndpoint (127.0.0.1)",
     "claimcoach/worker/launcher.py": "the worker's /health (WorkerConfig: 127.0.0.1)",
+    "claimcoach/calls/transcribe.py": "audio transcription to a ModelEndpoint (127.0.0.1)",
 }
 """The reviewed modules that create HTTP clients, and the loopback service each one talks to."""
 

@@ -12,7 +12,15 @@ and relays its events), US-7.2 (``POST /cases/{case_id}/draft/text`` saves the b
 ``POST /cases/{case_id}/export`` answers where the exported file is, for the host's save dialog),
 US-8.1 (``POST /cases/{case_id}/outcome`` records how the case ended, which closes it), US-8.2
 (``GET /outcomes/summary`` is the manager's weekly summary of opted-in profiles' de-identified
-outcomes), US-8.3 (``POST /outcomes/export`` writes the manager-approved fine-tune export). Rules:
+outcomes), US-8.3 (``POST /outcomes/export`` writes the manager-approved fine-tune export),
+US-11.1 (``POST /cases/{case_id}/calls`` forwards a payer-call recording's raw upload body;
+``POST /cases/{case_id}/calls/{call_id}/transcribe`` queues it for the after-hours window),
+US-10.1 (``GET /cases`` lists the active profile's cases for the pane, without case content),
+US-10.3 (``GET /settings`` also answers ``retention_days``; ``POST /settings/retention`` saves it
+with Hermes' plugin-settings writer; ``GET /corpus/status`` answers the global scope and the
+active profile's user scope only), US-10.4 (``POST /corpus/import/preview`` validates a picked
+bundle file and says what it would import and replace, writing nothing; ``POST
+/corpus/import?confirm=true`` imports it through the worker, only with that confirmation). Rules:
 ES-8, PC-2, PC-4 (runs inside the gateway; proxies to the worker), BR-1, BR-2 (PHI flows go desktop
 pane → ``plugin_api.py`` → worker), BR-4 (no route sends, submits, or transmits a draft or case
 content; every route here proxies to the loopback worker, and ``test_us_7_3_no_transmitting_route``
@@ -24,8 +32,10 @@ replaced here; routes with a body read it raw and answer bad input with the enve
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Awaitable, Callable
+from datetime import date
 from typing import Annotated, Any, Final, TypeVar
 
 from fastapi import APIRouter, Depends, Request
@@ -37,23 +47,37 @@ from claimcoach.api.models import (
     ErrorCode,
     ErrorEnvelope,
     HealthResponse,
+    RetentionUpdate,
     SettingsResponse,
     envelope,
 )
 from claimcoach.api.relay import start_relay
-from claimcoach.cases.errors import CaseError
+from claimcoach.calls.audio import read_call_body
+from claimcoach.calls.types import CALL_ID_PATTERN, CallAdded, TranscriptionQueued
+from claimcoach.cases.errors import CaseError, DocumentTooLargeError, UnsupportedDocumentError
 from claimcoach.cases.extraction import FieldConfirmation, JobStarted
-from claimcoach.cases.intake import read_limited
+from claimcoach.cases.intake import parse_upload, read_limited
 from claimcoach.cases.models import (
     MAX_PASTE_BODY,
     MAX_UPLOAD_BODY,
     Case,
     CaseCreate,
+    CaseList,
     DocumentAdded,
     OutcomeRequest,
     PastedText,
 )
+from claimcoach.corpus.bundle import (
+    MAX_BUNDLE_BYTES,
+    BundleError,
+    BundlePreview,
+    CorpusBundle,
+    ImportResult,
+    parse_bundle_bytes,
+    preview_of,
+)
 from claimcoach.corpus.paths import active_profile
+from claimcoach.corpus.types import CorpusStatusResponse
 from claimcoach.events import EventSink, hermes_sink
 from claimcoach.letters.types import (
     MAX_LETTER_CHARS,
@@ -70,7 +94,13 @@ from claimcoach.models.types import (
 )
 from claimcoach.outcomes.types import FineTuneExport, FineTuneExportRequest, WeeklySummary
 from claimcoach.paths import app_data_dir
-from claimcoach.settings import load_settings
+from claimcoach.settings import (
+    SettingsError,
+    SettingsUnavailableError,
+    load_settings,
+    save_retention_days,
+    stored_retention_days,
+)
 from claimcoach.worker.config import WorkerConfig
 from claimcoach.worker.token import read_token
 
@@ -80,10 +110,15 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
     status: {"model": ErrorEnvelope} for status in (401, 403, 404, 409, 413, 415, 422, 502, 503)
 }
 _CASE_ID: Final = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_CALL_ID: Final = re.compile(CALL_ID_PATTERN)
 _WEEK: Final = re.compile(r"^[0-9]{4}-W[0-9]{2}$")
 """The shape of an ISO week; the worker checks that the week exists."""
 SMALL_BODY: Final = 64 * 1024
 """Largest JSON body of a case action other than a paste or a draft (an empty object, a field)."""
+MAX_BUNDLE_BODY: Final = MAX_BUNDLE_BYTES + 64 * 1024
+"""Largest bundle upload read: the 5 MiB file plus its multipart framing (US-10.4)."""
+SAVE_TIMEOUT: Final = 30.0
+"""Seconds a settings save may wait on Hermes' config lock before it is reported unavailable."""
 MAX_DRAFT_BODY: Final = 12 * MAX_LETTER_CHARS + 1024
 """Largest ``DraftEdit`` JSON body read: JSON may escape one character as twelve bytes."""
 
@@ -107,7 +142,7 @@ def _envelope(code: ErrorCode, status_code: int) -> JSONResponse:
     return JSONResponse(envelope(code).model_dump(), status_code=status_code)
 
 
-def _error_response(exc: WorkerError | CaseError) -> JSONResponse:
+def _error_response(exc: WorkerError | CaseError | SettingsError) -> JSONResponse:
     return _envelope(exc.code, exc.status_code)
 
 
@@ -129,7 +164,41 @@ async def health(
 @router.get("/settings", response_model=SettingsResponse)
 def settings() -> SettingsResponse:
     """Return the settings the desktop half displays; read in the gateway, no worker needed."""
-    return SettingsResponse(richer_agent_access=load_settings().richer_agent_access)
+    return SettingsResponse(
+        richer_agent_access=load_settings().richer_agent_access,
+        retention_days=stored_retention_days(),  # read alone, as the worker's purge reads it
+    )
+
+
+@router.post("/settings/retention", response_model=SettingsResponse, responses=_ERRORS)
+async def save_retention(request: Request) -> SettingsResponse | JSONResponse:
+    """Save the active profile's retention period (US-10.3); the worker's next purge reads it."""
+    try:
+        body = await _body(request, RetentionUpdate, SMALL_BODY)
+        if body is None:
+            return _invalid()
+        await asyncio.wait_for(
+            asyncio.to_thread(save_retention_days, body.retention_days), SAVE_TIMEOUT
+        )
+    except TimeoutError:
+        return _error_response(SettingsUnavailableError())
+    except (CaseError, SettingsError) as exc:
+        return _error_response(exc)
+    return settings()
+
+
+@router.get("/corpus/status", response_model=CorpusStatusResponse, responses=_ERRORS)
+async def corpus_status(
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> CorpusStatusResponse | JSONResponse:
+    """Return the global scope and the active profile's user scope (US-10.3)."""
+    profile = active_profile()
+    try:
+        status = await client.corpus_status(profile)
+    except WorkerError as exc:
+        return _error_response(exc)
+    mine = [scope for scope in status.user_scopes if scope.profile == profile]
+    return status.model_copy(update={"user_scopes": mine})
 
 
 @router.get("/models/status", response_model=ModelsStatusResponse, responses=_ERRORS)
@@ -207,6 +276,17 @@ async def create_case(
         return _error_response(exc)
 
 
+@router.get("/cases", response_model=CaseList, responses=_ERRORS)
+async def list_cases(
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> CaseList | JSONResponse:
+    """Return the active profile's newest cases: IDs, dates, outcome, counts, and steps only."""
+    try:
+        return await client.list_cases(active_profile())
+    except WorkerError as exc:
+        return _error_response(exc)
+
+
 @router.get("/cases/{case_id}", response_model=Case, responses=_ERRORS)
 async def open_case(
     case_id: str,
@@ -256,6 +336,49 @@ async def paste(
         if body is None:
             return _invalid()
         return await client.paste_text(active_profile(), case_id, body)
+    except (CaseError, WorkerError) as exc:
+        return _error_response(exc)
+
+
+@router.post("/cases/{case_id}/calls", response_model=CallAdded, responses=_ERRORS)
+async def add_call(
+    case_id: str,
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> CallAdded | JSONResponse:
+    """Forward a payer-call recording's ``ctx.rest`` upload to the worker unparsed (US-11.1)."""
+    content_type = request.headers.get("content-type", "")
+    if not _CASE_ID.fullmatch(case_id) or not content_type.lower().startswith(
+        "multipart/form-data"
+    ):
+        return _invalid()
+    try:
+        body = await read_call_body(request.stream(), request.headers.get("content-length"))
+        return await client.upload_call(active_profile(), case_id, body, content_type)
+    except (CaseError, WorkerError) as exc:
+        return _error_response(exc)
+
+
+@router.post(
+    "/cases/{case_id}/calls/{call_id}/transcribe",
+    response_model=TranscriptionQueued,
+    responses=_ERRORS,
+)
+async def transcribe_call(
+    case_id: str,
+    call_id: str,
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> TranscriptionQueued | JSONResponse:
+    """Queue a call for after-hours transcription; an empty JSON body is required (US-11.1)."""
+    try:
+        if (
+            not _CASE_ID.fullmatch(case_id)
+            or not _CALL_ID.fullmatch(call_id)
+            or await _body(request, CaseCreate, SMALL_BODY) is None
+        ):
+            return _invalid()
+        return await client.queue_transcription(active_profile(), case_id, call_id)
     except (CaseError, WorkerError) as exc:
         return _error_response(exc)
 
@@ -421,4 +544,72 @@ async def export_fine_tune(
             return _invalid()
         return await client.export_fine_tune(body)
     except (CaseError, WorkerError) as exc:
+        return _error_response(exc)
+
+
+async def _bundle_upload(request: Request) -> CorpusBundle:
+    """The bundle file a ``ctx.rest`` upload carries, validated (US-10.4).
+
+    Raises:
+        BundleError: The file is too large, empty, or not a valid bundle.
+        MalformedUploadError: The body is not one ``multipart/form-data`` part named ``file``.
+    """
+    content_type = request.headers.get("content-type", "")
+    try:
+        body = await read_limited(
+            request.stream(), MAX_BUNDLE_BODY, request.headers.get("content-length")
+        )
+        upload = parse_upload(body, content_type, MAX_BUNDLE_BYTES)
+    except DocumentTooLargeError as exc:
+        raise BundleError("bundle is larger than 5 MiB") from exc
+    except UnsupportedDocumentError as exc:
+        raise BundleError("bundle file is empty") from exc
+    # Off the event loop: Hermes serves every plugin and the desktop from this process.
+    return await asyncio.to_thread(parse_bundle_bytes, upload.data, upload.filename)
+
+
+@router.post("/corpus/import/preview", response_model=BundlePreview, responses=_ERRORS)
+async def preview_corpus_import(
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> BundlePreview | JSONResponse:
+    """Say what a picked bundle file would import and replace (US-10.4); nothing is written.
+
+    An invalid file is a valid answer: ``valid: false`` with its first problem.
+    """
+    try:
+        bundle = await _bundle_upload(request)
+    except BundleError as exc:
+        return BundlePreview(valid=False, problem=str(exc))
+    except CaseError as exc:
+        return _error_response(exc)
+    try:
+        stored = await client.corpus_view()
+    except WorkerError as exc:
+        return _error_response(exc)
+    existing = {(item.kind, item.key) for item in stored.items}
+    return preview_of(bundle, existing, date.today())
+
+
+@router.post("/corpus/import", response_model=ImportResult, responses=_ERRORS)
+async def import_corpus(
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+    confirm: str = "",
+) -> ImportResult | JSONResponse:
+    """Import a previewed bundle file into the global corpus, only with ``confirm=true``.
+
+    The worker stores all of it or none of it (US-4.3); every profile on the Mac reads it.
+    """
+    if confirm != "true":
+        return _envelope("import_not_confirmed", 409)  # the body is never read
+    try:
+        bundle = await _bundle_upload(request)
+    except BundleError:
+        return _envelope("invalid_bundle", 422)
+    except CaseError as exc:
+        return _error_response(exc)
+    try:
+        return await client.import_corpus(bundle)
+    except WorkerError as exc:
         return _error_response(exc)

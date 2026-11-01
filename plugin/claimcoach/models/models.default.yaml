@@ -3,7 +3,8 @@
 #
 # Weights are read in place from MODELS_HOME (default ~/Models) and never copied (BR-11).
 # Ports: 18200 is the worker; model servers use 18201-18219. Roles on one port share one server.
-# Command placeholders: {venv} {model} {host} {port}. {host} is always 127.0.0.1.
+# Command placeholders: {venv} {model} {host} {port} {logs}. {host} is always 127.0.0.1; {logs}
+# is a 0700 folder in the worker's data dir for servers that write their own log files.
 version: 1
 
 # Seconds a server may sit unused before it is stopped (US-2.2).
@@ -93,12 +94,13 @@ roles:
     tier_b: 27
     startup_timeout_s: 600
 
-  # v1.1 batch transcription (EPIC-11); runs only when nothing else is loaded.
+  # v1.1 batch transcription (EPIC-11); runs only when nothing else is loaded. mlx_audio.server
+  # has no --model flag: it loads the model each request names, and ClaimCoach names {model}.
   transcription:
     repo_id: mlx-community/Voxtral-Small-24B-2507-4bit
     model_dir: Voxtral-Small-24B-2507-4bit
     venv: mlx-vlm
-    command: ["{venv}/bin/python", "-m", "mlx_audio.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
+    command: ["{venv}/bin/python", "-m", "mlx_audio.server", "--host", "{host}", "--port", "{port}", "--log-dir", "{logs}"]
     port: 18207
     tier_b: 24
     runs_alone: true

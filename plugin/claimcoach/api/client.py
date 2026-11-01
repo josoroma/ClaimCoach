@@ -10,7 +10,9 @@ creation, open, upload, and paste calls; an upload is forwarded as the raw multi
 (start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac), US-8.1
 (record a case's outcome), US-8.2 (the manager's weekly summary), US-8.3 (the manager-approved
 fine-tune export), US-9.1 (explain a code, a payer's rule cards), US-9.2 (a case's redacted
-summary), all for the agent tools.
+summary), all for the agent tools, US-11.1 (attach a payer-call recording, queue it for
+after-hours transcription), US-10.1 (the profile's case list), US-10.4 (a corpus import waits up
+to 15 minutes).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -32,8 +34,9 @@ from claimcoach.agent.types import (
     PayerRulesResult,
 )
 from claimcoach.api.models import ErrorCode, ErrorEnvelope, HealthResponse
+from claimcoach.calls.types import CallAdded, TranscriptionQueued
 from claimcoach.cases.extraction import FieldConfirmation, JobEvents, JobStarted
-from claimcoach.cases.models import Case, DocumentAdded, OutcomeRequest, PastedText
+from claimcoach.cases.models import Case, CaseList, DocumentAdded, OutcomeRequest, PastedText
 from claimcoach.corpus.bundle import CorpusBundle, CorpusViewResponse, ImportResult
 from claimcoach.corpus.types import (
     AuditResponse,
@@ -90,11 +93,18 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "export_not_approved": 403,
     "code_not_found": 404,
     "payer_not_found": 404,
+    "unsupported_audio": 415,
+    "call_too_large": 413,
+    "call_not_found": 404,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
 
 CASE_TIMEOUT: Final = 60.0
 """Seconds per case call: the first one may wait on a Keychain prompt, an upload seals 16 MiB."""
+CALL_TIMEOUT: Final = 300.0
+"""Seconds per recording upload: the worker seals up to 128 MiB (US-11.1)."""
+IMPORT_TIMEOUT: Final = 900.0
+"""Seconds per corpus import: the embedding model may load, then embed thousands of chunks."""
 POLL_TIMEOUT: Final = 35.0
 """Seconds per job-events poll: longer than the worker's longest wait (25 s)."""
 
@@ -216,13 +226,14 @@ class WorkerClient:
         """
         return await self._request("POST", "/redact", RedactResponse, request)
 
-    async def corpus_status(self) -> CorpusStatusResponse:
-        """Return both corpus scopes' status (US-4.1).
+    async def corpus_status(self, profile: str | None = None) -> CorpusStatusResponse:
+        """Return both corpus scopes' status (US-4.1), or only ``profile``'s user scope (US-10.3).
 
         Raises:
             WorkerError: The call failed; the subclass names why.
         """
-        return await self._request("GET", "/corpus/status", CorpusStatusResponse)
+        params = None if profile is None else {"profile": profile}
+        return await self._request("GET", "/corpus/status", CorpusStatusResponse, params=params)
 
     async def import_corpus(self, bundle: CorpusBundle) -> ImportResult:
         """Import a bundle into the global scope (US-4.3).
@@ -230,7 +241,9 @@ class WorkerClient:
         Raises:
             WorkerError: The call failed; the subclass names why. Nothing is stored then.
         """
-        return await self._request("POST", "/corpus/import", ImportResult, bundle)
+        return await self._request(
+            "POST", "/corpus/import", ImportResult, bundle, timeout=IMPORT_TIMEOUT
+        )
 
     async def corpus_view(self) -> CorpusViewResponse:
         """Return the global corpus view with provenance (US-4.3).
@@ -273,6 +286,16 @@ class WorkerClient:
         """
         return await self._request(
             "POST", "/cases", Case, params={"profile": profile}, timeout=CASE_TIMEOUT
+        )
+
+    async def list_cases(self, profile: str) -> CaseList:
+        """Return the profile's newest cases, without case content (US-10.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "GET", "/cases", CaseList, params={"profile": profile}, timeout=CASE_TIMEOUT
         )
 
     async def get_case(self, profile: str, case_id: str) -> Case:
@@ -386,6 +409,39 @@ class WorkerClient:
             f"/cases/{case_id}/export",
             ExportedFile,
             body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def upload_call(
+        self, profile: str, case_id: str, body: bytes, content_type: str
+    ) -> CallAdded:
+        """Forward a recording upload's raw ``multipart/form-data`` body to the worker (US-11.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing is stored then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/calls",
+            CallAdded,
+            RawBody(body, content_type),
+            params={"profile": profile},
+            timeout=CALL_TIMEOUT,
+        )
+
+    async def queue_transcription(
+        self, profile: str, case_id: str, call_id: str
+    ) -> TranscriptionQueued:
+        """Queue a call for the after-hours window, or return its pending job (US-11.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing is queued then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/calls/{call_id}/transcribe",
+            TranscriptionQueued,
             params={"profile": profile},
             timeout=CASE_TIMEOUT,
         )

@@ -113,7 +113,8 @@ def test_us_2_1_paths_resolve_under_models_home(
     for spec in registry.roles.values():
         path = spec.model_path(resolved)
         assert path.is_relative_to(home)
-        assert str(path) in spec.argv(resolved, "127.0.0.1")
+        if "{model}" in spec.command:  # mlx_audio.server takes it per request (US-11.1)
+            assert str(path) in spec.argv(resolved, "127.0.0.1")
         spec.weights(resolved)
         spec.source_present(resolved)
         spec.venv_present(resolved)

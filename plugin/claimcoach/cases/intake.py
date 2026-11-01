@@ -87,19 +87,20 @@ def _filename(disposition: str) -> str | None:
     return base[:255] or None
 
 
-def parse_upload(body: bytes, content_type: str) -> UploadedFile:
+def parse_upload(body: bytes, content_type: str, max_bytes: int = MAX_FILE_BYTES) -> UploadedFile:
     """Return the one ``file`` part of a ``multipart/form-data`` body.
 
     Args:
         body: The whole request body.
         content_type: The request's ``Content-Type`` header (it names the boundary).
+        max_bytes: Largest file accepted (a call recording's is larger, US-11.1).
 
     Returns:
         The file.
 
     Raises:
         MalformedUploadError: Not exactly one part named ``file``.
-        DocumentTooLargeError: The file is over ``MAX_FILE_BYTES``.
+        DocumentTooLargeError: The file is over ``max_bytes``.
         UnsupportedDocumentError: The file is empty.
     """
     media_type = content_type.split(";", 1)[0].strip().lower()
@@ -121,7 +122,7 @@ def parse_upload(body: bytes, content_type: str) -> UploadedFile:
     name = re.search(_PARAM.format(name="name"), disposition)
     if not disposition.lower().startswith("form-data") or name is None or name.group(1) != "file":
         raise MalformedUploadError
-    if len(data) > MAX_FILE_BYTES:
+    if len(data) > max_bytes:
         raise DocumentTooLargeError
     if not data:
         raise UnsupportedDocumentError

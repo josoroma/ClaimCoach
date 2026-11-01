@@ -56,6 +56,7 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
   - [US-10.1: Case Pane and Manager Dashboard Route](#us-101-case-pane-and-manager-dashboard-route)
   - [US-10.2: Local-Only Statusbar Indicator](#us-102-local-only-statusbar-indicator)
   - [US-10.3: Settings Page for Models, Corpus, and Retention](#us-103-settings-page-for-models-corpus-and-retention)
+  - [US-10.4: Global Corpus Import from the Settings Page](#us-104-global-corpus-import-from-the-settings-page)
 - [EPIC-11: Payer-Call Transcription (v1.1)](#epic-11-payer-call-transcription-v11)
   - [US-11.1: Transcribe Recorded Payer Calls After Hours](#us-111-transcribe-recorded-payer-calls-after-hours)
 - [EPIC-12: Evals and Release Gates](#epic-12-evals-and-release-gates)
@@ -239,21 +240,25 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-9.4#2 | Add tests test_us_9_4_denial_returns_text_without_phi, test_us_9_4_denial_summarizes_a_case | DONE | US-9.4 |
 | US-9.4#3 | Record evidence/US-9.4/test-report.md | DONE | US-9.4 |
 | EPIC-10 | Desktop UI | — | — |
-| US-10.1 | Case Pane and Manager Dashboard Route | READY | EPIC-10 |
-| US-10.1#1 | Implement pane and route components with jsx()/jsxs() (no JSX) and JSDoc types for every… | TODO | US-10.1 |
-| US-10.1#2 | Add tests test_us_10_1_case_pane_registered, test_us_10_1_dashboard_route_registered, tes… | TODO | US-10.1 |
-| US-10.1#3 | Record evidence/US-10.1/test-report.md | TODO | US-10.1 |
-| US-10.2 | Local-Only Statusbar Indicator | READY | EPIC-10 |
-| US-10.2#1 | Implement the statusbar contribution (STATUSBAR_AREAS.right) with a JSDoc-typed state mod… | TODO | US-10.2 |
-| US-10.2#2 | Add test test_us_10_2_indicator_local_only_default | TODO | US-10.2 |
-| US-10.2#3 | Record evidence/US-10.2/test-report.md | TODO | US-10.2 |
-| US-10.3 | Settings Page for Models, Corpus, and Retention | READY | EPIC-10 |
-| US-10.3#1 | Implement the settings page with model status (from US-2.4), corpus status, and retention… | TODO | US-10.3 |
-| US-10.3#2 | Add tests test_us_10_3_settings_registers_when_supported, test_us_10_3_settings_degrade_w… | TODO | US-10.3 |
-| US-10.3#3 | Record evidence/US-10.3/test-report.md | TODO | US-10.3 |
+| US-10.1 | Case Pane and Manager Dashboard Route | DONE | EPIC-10 |
+| US-10.1#1 | Implement pane and route components with jsx()/jsxs() (no JSX) and JSDoc types for every… | DONE | US-10.1 |
+| US-10.1#2 | Add tests test_us_10_1_case_pane_registered, test_us_10_1_dashboard_route_registered, tes… | DONE | US-10.1 |
+| US-10.1#3 | Record evidence/US-10.1/test-report.md | DONE | US-10.1 |
+| US-10.2 | Local-Only Statusbar Indicator | DONE | EPIC-10 |
+| US-10.2#1 | Implement the statusbar contribution (STATUSBAR_AREAS.right) with a JSDoc-typed state mod… | DONE | US-10.2 |
+| US-10.2#2 | Add test test_us_10_2_indicator_local_only_default | DONE | US-10.2 |
+| US-10.2#3 | Record evidence/US-10.2/test-report.md | DONE | US-10.2 |
+| US-10.3 | Settings Page for Models, Corpus, and Retention | DONE | EPIC-10 |
+| US-10.3#1 | Implement the settings page with model status (from US-2.4), corpus status, and retention… | DONE | US-10.3 |
+| US-10.3#2 | Add tests test_us_10_3_settings_registers_when_supported, test_us_10_3_settings_degrade_w… | DONE | US-10.3 |
+| US-10.3#3 | Record evidence/US-10.3/test-report.md | DONE | US-10.3 |
+| US-10.4 | Global Corpus Import from the Settings Page | DONE | EPIC-10 |
+| US-10.4#1 | Implement the settings-page import: preview a local bundle, import only after confirmatio… | DONE | US-10.4 |
+| US-10.4#2 | Add tests test_us_10_4_bundle_previewed, test_us_10_4_import_after_confirmation, test_us_… | DONE | US-10.4 |
+| US-10.4#3 | Record evidence/US-10.4/test-report.md | DONE | US-10.4 |
 | EPIC-11 | Payer-Call Transcription (v1.1) | — | — |
-| US-11.1 | Transcribe Recorded Payer Calls After Hours | NEEDS CLARIFICATION | EPIC-11 |
-| US-11.1#1 | Implement the transcription job with typed TranscriptionJob once the window and outputs a… | TODO | US-11.1 |
+| US-11.1 | Transcribe Recorded Payer Calls After Hours | DONE | EPIC-11 |
+| US-11.1#1 | Implement the transcription job with typed TranscriptionJob once the window and outputs a… | DONE | US-11.1 |
 | EPIC-12 | Evals and Release Gates | — | — |
 | US-12.1 | Redaction Recall Release Gate | READY | EPIC-12 |
 | US-12.1#1 | Implement evals/redaction_recall.py with typed EvalResult output and per-category recall | TODO | US-12.1 |
@@ -335,6 +340,7 @@ flowchart TD
     US-10_1["US-10.1: Case Pane and Manager Dashboard Route"]
     US-10_2["US-10.2: Local-Only Statusbar Indicator"]
     US-10_3["US-10.3: Settings Page for Models, Corpus, and Retention"]
+    US-10_4["US-10.4: Global Corpus Import from the Settings Page"]
   end
   subgraph EPIC_11["EPIC-11: Payer-Call Transcription (v1.1)"]
     US-11_1["US-11.1: Transcribe Recorded Payer Calls After Hours"]
@@ -399,6 +405,8 @@ flowchart TD
   US-10_1 -.-> US-10_3
   US-2_4 -.-> US-10_3
   US-4_5 -.-> US-10_3
+  US-10_3 -.-> US-10_4
+  US-4_3 -.-> US-10_4
   US-2_3 -.-> US-11_1
   US-5_1 -.-> US-11_1
   US-3_1 -.-> US-12_1
@@ -772,6 +780,13 @@ flowchart TD
   US-10_3 --> US-10_3_T2
   US-10_3_T3["#3 Record evidence/US-10.3/test-report.md"]
   US-10_3 --> US-10_3_T3
+  US-10_4["US-10.4: Global Corpus Import from the Settings Page"]
+  US-10_4_T1["#1 Implement the settings-page import: preview a l…"]
+  US-10_4 --> US-10_4_T1
+  US-10_4_T2["#2 Add tests test_us_10_4_bundle_previewed, test_u…"]
+  US-10_4 --> US-10_4_T2
+  US-10_4_T3["#3 Record evidence/US-10.4/test-report.md"]
+  US-10_4 --> US-10_4_T3
 ```
 
 ### EPIC-11 detail
@@ -2430,7 +2445,7 @@ Open Questions:
 
 ### US-10.1: Case Pane and Manager Dashboard Route
 
-Status: READY
+Status: DONE
 
 As a biller
 I want a case list and case detail pane, and managers want a dashboard route
@@ -2464,16 +2479,16 @@ Dependencies:
 - US-3.3
 
 Tasks:
-- [ ] Implement pane and route components with jsx()/jsxs() (no JSX) and JSDoc types for every prop
-- [ ] Add tests test_us_10_1_case_pane_registered, test_us_10_1_dashboard_route_registered, test_us_10_1_backend_errors_render_error_state
-- [ ] Record evidence/US-10.1/test-report.md
+- [x] Implement pane and route components with jsx()/jsxs() (no JSX) and JSDoc types for every prop
+- [x] Add tests test_us_10_1_case_pane_registered, test_us_10_1_dashboard_route_registered, test_us_10_1_backend_errors_render_error_state
+- [x] Record evidence/US-10.1/test-report.md
 
 Open Questions:
 - None
 
 ### US-10.2: Local-Only Statusbar Indicator
 
-Status: READY
+Status: DONE
 
 As a biller
 I want a statusbar indicator that shows ClaimCoach is local-only
@@ -2497,16 +2512,16 @@ Dependencies:
 - US-10.1
 
 Tasks:
-- [ ] Implement the statusbar contribution (STATUSBAR_AREAS.right) with a JSDoc-typed state model
-- [ ] Add test test_us_10_2_indicator_local_only_default
-- [ ] Record evidence/US-10.2/test-report.md
+- [x] Implement the statusbar contribution (STATUSBAR_AREAS.right) with a JSDoc-typed state model
+- [x] Add test test_us_10_2_indicator_local_only_default
+- [x] Record evidence/US-10.2/test-report.md
 
 Open Questions:
 - None
 
 ### US-10.3: Settings Page for Models, Corpus, and Retention
 
-Status: READY
+Status: DONE
 
 As a biller
 I want a settings page for models, corpus, and retention
@@ -2541,9 +2556,55 @@ Dependencies:
 - US-4.5
 
 Tasks:
-- [ ] Implement the settings page with model status (from US-2.4), corpus status, and retention, feature-detecting ctx.registerSettingsPage
-- [ ] Add tests test_us_10_3_settings_registers_when_supported, test_us_10_3_settings_degrade_when_unsupported, test_us_10_3_retention_saved
-- [ ] Record evidence/US-10.3/test-report.md
+- [x] Implement the settings page with model status (from US-2.4), corpus status, and retention, feature-detecting ctx.registerSettingsPage
+- [x] Add tests test_us_10_3_settings_registers_when_supported, test_us_10_3_settings_degrade_when_unsupported, test_us_10_3_retention_saved
+- [x] Record evidence/US-10.3/test-report.md
+
+Open Questions:
+- Where does the global-corpus bundle import that US-4.3 left to this settings page live?
+  Deferred (openspec us-10-3-settings-page, Non-Goals): a manager import replaces reference
+  material for every profile and needs its own confirmation design. Moved to US-10.4.
+
+### US-10.4: Global Corpus Import from the Settings Page
+
+Status: DONE
+
+As a billing manager
+I want to import a corpus bundle from the settings page after seeing what it holds
+So that rule cards, codes, and letter templates reach every biller without a terminal.
+
+Source:
+- PRD.md §9 (global contents; settings page and hermes claimcoach corpus import)
+- US-4.3 (the settings-page import it left to US-10.3); US-10.3 (deferred it here)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: A bundle is previewed before it is imported
+  Given the settings page
+  When the manager picks a local corpus bundle file
+  Then the page shows what the bundle holds and which global items it replaces
+  And nothing is imported
+
+Scenario: The import runs only after confirmation
+  Given a previewed bundle
+  When the manager confirms the import
+  Then the bundle is imported into the global corpus and the page shows what was stored
+
+Scenario: An invalid bundle is refused
+  Given the settings page
+  When the manager picks a file that is not a valid corpus bundle
+  Then the page says which part is invalid and nothing is imported
+```
+
+Dependencies:
+- US-10.3
+- US-4.3
+
+Tasks:
+- [x] Implement the settings-page import: preview a local bundle, import only after confirmation, through the gateway to the worker's import route
+- [x] Add tests test_us_10_4_bundle_previewed, test_us_10_4_import_after_confirmation, test_us_10_4_invalid_bundle_refused
+- [x] Record evidence/US-10.4/test-report.md
 
 Open Questions:
 - None
@@ -2552,7 +2613,7 @@ Open Questions:
 
 ### US-11.1: Transcribe Recorded Payer Calls After Hours
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a biller
 I want to attach a recorded payer call and have it transcribed after hours
@@ -2576,12 +2637,21 @@ Dependencies:
 - US-5.1
 
 Tasks:
-- [ ] Implement the transcription job with typed `TranscriptionJob` once the window and outputs are decided
+- [x] Implement the transcription job with typed `TranscriptionJob` once the window and outputs are decided
 
 Open Questions:
 - What defines "after hours" (fixed window, user-configured, idle detection)?
+  Resolved (openspec us-11-1-payer-call-transcription, design decision 1): a per-profile local
+  window, `transcription_start_hour` to `transcription_end_hour` (default 19 to 7, wrapping
+  midnight); a call starts only with 45 minutes of window left and is stopped 15 minutes after it
+  closes. Idle detection was rejected.
 - Which audio formats are accepted?
+  Resolved (design decision 3): WAV, MP3, FLAC, and M4A, decided from the bytes, up to 128 MiB;
+  Voxtral transcribes about 30 minutes in one pass, and a longer call is flagged as cut off.
 - How are the reference number and rep instructions extracted and shown in the case?
+  Resolved (design decision 4): fixed rules over the transcript (the last spoken reference number;
+  up to ten instruction statements), stored sealed with the transcript and shown under the call in
+  the pane's Payer calls section for the biller to check.
 
 # EPIC-12: Evals and Release Gates
 

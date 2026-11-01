@@ -40,3 +40,13 @@ config_schema:
     description: Share this profile's de-identified case outcomes (no documents, names, or IDs) with
       the manager's weekly summary and the manager-approved fine-tune export. Off by default; turn
       it off to stop sharing.
+  transcription_start_hour:
+    type: int
+    default: 19
+    description: Hour (0-23, this Mac's time) after which recorded payer calls are transcribed. The
+      transcription model runs alone, so keep this outside working hours.
+  transcription_end_hour:
+    type: int
+    default: 7
+    description: Hour (0-23) at which call transcription stops starting new calls; before the start
+      hour it means the next morning.

@@ -25,7 +25,16 @@
  * disabled), US-8.2 (the manager dashboard shows the last completed week's de-identified outcome
  * summary of the profiles that share their outcomes: counts and overturn rate per payer and denial
  * reason), US-8.3 (the dashboard's fine-tune export runs only after the manager types their
- * name and ticks the approval; it says where the de-identified file was written).
+ * name and ticks the approval; it says where the de-identified file was written), US-11.1 (a
+ * Payer calls section attaches a recorded payer call to the open case and queues it for the
+ * after-hours window; each call shows its transcription state, then the reference number and the
+ * rep's instructions read from its transcript, for the biller to check, and the transcript),
+ * US-10.1 (the pane is a case list view above the case detail view: the list shows the profile's
+ * cases without case content and opens one in the detail view; a backend error renders an error
+ * state with Retry), US-10.2 (the statusbar item's typed `IndicatorState`, local-only by default),
+ * US-10.3 (the settings page shows model status, corpus status, and the retention period, which
+ * the biller changes and saves), US-10.4 (the settings page previews a local corpus bundle file,
+ * then imports it into the global corpus only when the manager confirms).
  * Rules: PC-1 (opt-in: `defaultEnabled: false`), PC-3 (imports only
  * `@hermes/plugin-sdk`, `react`, `react/jsx-runtime`; optional SDK calls are feature-detected),
  * PC-4, BR-2 (case data goes pane → `ctx.rest` → plugin_api → worker, never the agent transcript),
@@ -85,7 +94,13 @@ export const SETTINGS_REFRESH_MS = 15_000;
  * @typedef {{ state: 'ready', caseId: string, documents: DocumentView[], fields: FieldView[],
  *   otherClaims?: number, unreadSources?: number, notice?: Refusal,
  *   diagnosis?: DiagnosisView, deadline?: DeadlineView, draft?: DraftView,
- *   outcome?: OutcomeView, closed?: true }} ReadyState
+ *   outcome?: OutcomeView, closed?: true, calls?: CallView[] }} ReadyState
+ * @typedef {'none' | 'queued' | 'running' | 'done' | 'failed'} CallState
+ * @typedef {{ text: string, referenceNumber: string | null, instructions: string[],
+ *   truncated: boolean }} TranscriptView
+ * @typedef {{ callId: string, label: string, state: CallState,
+ *   window: { start: number, end: number } | null, errorCode: string | null,
+ *   transcript?: TranscriptView }} CallView
  * @typedef {'extract' | 'diagnose' | 'draft'} JobKind
  * @typedef {{ state: 'idle', notice?: Refusal } | { state: 'busy' } | ReadyState
  *   | { state: 'processing', caseId: string, progress: number, diagnosing?: true,
@@ -98,10 +113,37 @@ export const SETTINGS_REFRESH_MS = 15_000;
  *   | { state: 'refused', notice: Refusal } | { state: 'failed' }} ExportResult
  * @typedef {{ caseId: string, stage: string, progress: number, errorCode: string | null }} Progress
  * @typedef {(listener: (payload: unknown) => void) => () => void} SubscribeFn
+ * @typedef {'new' | 'extracted' | 'diagnosed' | 'drafted'} CaseStep
+ * @typedef {{ caseId: string, openedOn: string, step: CaseStep, closed: boolean, purged: boolean,
+ *   outcome: Outcome | null, documents: number, calls: number }} CaseRow
+ * @typedef {{ state: 'loading' } | { state: 'ok', cases: CaseRow[] } | { state: 'unavailable' }}
+ *   CaseListState
+ * @typedef {{ open: (caseId: string) => void, changed: () => void,
+ *   drop: (files: ArrayLike<PickedFile> | null | undefined) => void }} PaneLink
+ * @typedef {'local-only' | 'richer-access'} IndicatorState
+ * @typedef {{ role: string, state: string, weights: string, venv: boolean }} ModelRow
+ * @typedef {{ state: 'loading' } | { state: 'ok', models: ModelRow[] } | { state: 'unavailable' }}
+ *   ModelsState
+ * @typedef {{ cases: number, documents: number, encrypted: boolean, available: boolean }} ScopeView
+ * @typedef {{ state: 'loading' } | { state: 'ok', global: ScopeView, user: ScopeView | null }
+ *   | { state: 'unavailable' }} CorpusState
+ * @typedef {{ state: 'loading' } | { state: 'ok', days: number } | { state: 'invalid' }
+ *   | { state: 'unavailable' }} RetentionState
+ * @typedef {{ state: 'saving' } | { state: 'saved', days: number } | { state: 'refused', code: string }
+ *   | { state: 'failed' }} SaveResult
+ * @typedef {{ items: number, byKind: Record<string, number>, payers: string[], morePayers: number,
+ *   stale: number, replaces: number, replaced: string[] }} BundleSummary
+ * @typedef {{ state: 'idle' } | { state: 'checking' } | { state: 'invalid', problem: string }
+ *   | { state: 'preview', upload: DocumentUpload, summary: BundleSummary } | { state: 'importing' }
+ *   | { state: 'imported', imported: Record<string, number> }
+ *   | { state: 'failed', code: string | null, upload?: DocumentUpload }} ImportState
  */
 
 /** Largest file the backend accepts (US-5.1); bigger ones are refused before they are read. */
 export const MAX_FILE_BYTES = 16 * 1024 * 1024;
+
+/** Largest call recording the backend accepts (US-11.1). */
+export const MAX_CALL_BYTES = 128 * 1024 * 1024;
 
 /** Wire name of the worker's progress events (US-5.2, PC-4). */
 export const PROGRESS_EVENT = 'plugin.claimcoach.case.progress';
@@ -132,6 +174,11 @@ export const REFUSALS = Object.freeze({
     'again to replace them.',
   invalid_draft: 'The draft needs some text, and at most 20,000 characters.',
   outcome_busy: 'The case is being processed; record its outcome when that finishes.',
+  unsaved_draft: 'Save the draft edits before opening another case.',
+  unsupported_audio: 'ClaimCoach accepts WAV, MP3, FLAC, and M4A call recordings only.',
+  call_too_large: 'That recording is too large. ClaimCoach accepts recordings up to 128 MiB.',
+  call_not_found: 'That call recording is no longer in the case; refresh the case.',
+  transcription_failed: 'The call could not be transcribed; queue it again.',
 });
 
 /** How a case can end, as the pane names it (US-8.1: the backend's `CaseOutcome`). */
@@ -204,6 +251,8 @@ export function createCaseApi(rest) {
   return {
     /** Create an empty case. */
     createCase: () => rest('/cases', { method: 'POST', body: {} }),
+    /** The profile's newest cases, without case content (US-10.1). */
+    listCases: () => rest('/cases'),
     /**
      * @param {string} caseId
      * @param {DocumentUpload} upload
@@ -242,6 +291,20 @@ export function createCaseApi(rest) {
      */
     recordOutcome: (caseId, outcome) =>
       rest(`${casePath(caseId)}/outcome`, { method: 'POST', body: { outcome } }),
+    /**
+     * @param {string} caseId
+     * @param {DocumentUpload} upload
+     */
+    uploadCall: (caseId, upload) => rest(`${casePath(caseId)}/calls`, { method: 'POST', upload }),
+    /**
+     * @param {string} caseId
+     * @param {string} callId
+     */
+    transcribeCall: (caseId, callId) =>
+      rest(`${casePath(caseId)}/calls/${encodeURIComponent(callId)}/transcribe`, {
+        method: 'POST',
+        body: {},
+      }),
     /**
      * @param {string} caseId
      * @param {string} path
@@ -565,6 +628,73 @@ export function outcomeOf(body) {
   return { outcome: /** @type {Outcome} */ (value), recordedAt: outcome.recorded_at };
 }
 
+const CALL_STATES = new Set(['queued', 'running', 'done', 'failed']);
+const isHour = (/** @type {unknown} */ value) =>
+  Number.isInteger(value) &&
+  /** @type {number} */ (value) >= 0 &&
+  /** @type {number} */ (value) < 24;
+
+/**
+ * A call's transcript, when it is a well-formed one (US-11.1).
+ *
+ * @param {unknown} value
+ * @returns {TranscriptView | null}
+ */
+function transcriptOf(value) {
+  const transcript =
+    /** @type {{ text?: unknown, reference_number?: unknown, rep_instructions?: unknown,
+     *   truncated?: unknown } | null} */ (value);
+  if (typeof transcript?.text !== 'string') return null;
+  const reference = transcript.reference_number;
+  return {
+    text: transcript.text,
+    referenceNumber: typeof reference === 'string' ? reference : null,
+    instructions: stringsOf(transcript.rep_instructions),
+    truncated: transcript.truncated === true,
+  };
+}
+
+/**
+ * A case body's payer calls (US-11.1); malformed entries are skipped.
+ *
+ * @param {unknown} body
+ * @returns {CallView[]}
+ */
+export function callsOf(body) {
+  const list = /** @type {{ calls?: unknown } | null} */ (body)?.calls;
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((entry) => {
+    const call = /** @type {{ recording?: { call_id?: unknown, filename?: unknown } | null,
+     *   transcription?: { state?: unknown, error_code?: unknown,
+     *     window?: { start_hour?: unknown, end_hour?: unknown } | null } | null,
+     *   transcript?: unknown }} */ (entry);
+    const callId = call?.recording?.call_id;
+    if (typeof callId !== 'string') return [];
+    const filename = call.recording?.filename;
+    const job = call.transcription;
+    const transcript = transcriptOf(call.transcript);
+    // A finished job is forgotten after 30 days; its transcript stays with the case.
+    const state =
+      typeof job?.state === 'string' && CALL_STATES.has(job.state)
+        ? job.state
+        : transcript
+          ? 'done'
+          : 'none';
+    const start = job?.window?.start_hour;
+    const end = job?.window?.end_hour;
+    /** @type {CallView} */
+    const view = {
+      callId,
+      label: typeof filename === 'string' ? filename : 'Call recording',
+      state: /** @type {CallState} */ (state),
+      window: isHour(start) && isHour(end) ? { start: Number(start), end: Number(end) } : null,
+      errorCode: typeof job?.error_code === 'string' ? job.error_code : null,
+    };
+    if (transcript) view.transcript = transcript;
+    return [view];
+  });
+}
+
 /**
  * The ready state for a case body.
  *
@@ -595,6 +725,8 @@ function readyFrom(caseId, body) {
   if (draft) ready.draft = draft;
   const outcome = outcomeOf(body);
   if (outcome) ready.outcome = outcome;
+  const calls = callsOf(body);
+  if (calls.length > 0) ready.calls = calls;
   if (typeof (/** @type {{ closed_at?: unknown } | null} */ (body)?.closed_at) === 'string') {
     ready.closed = true;
   }
@@ -973,6 +1105,171 @@ export async function recordOutcome(api, caseId, outcome) {
     const notice = code === 'model_busy' ? 'outcome_busy' : known(code);
     return notice === null ? { state: 'unavailable' } : reopenWith(api, caseId, notice);
   }
+}
+
+/**
+ * Attach a recorded payer call to the open case, then reopen it (US-11.1). A recording over the
+ * backend's limit is refused here, before the webview reads it.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {PickedFile} file
+ * @returns {Promise<CaseState>}
+ */
+export async function addCall(api, caseId, file) {
+  if ((file.size ?? 0) > MAX_CALL_BYTES) return reopenWith(api, caseId, 'call_too_large');
+  try {
+    const bytes = await file.arrayBuffer();
+    const contentType = file.type || 'application/octet-stream';
+    await api.uploadCall(caseId, { filename: file.name, contentType, bytes });
+  } catch (error) {
+    const notice = refusalOf(error);
+    return notice === null ? { state: 'unavailable', caseId } : reopenWith(api, caseId, notice);
+  }
+  return openCase(api, caseId);
+}
+
+/**
+ * Queue a call for after-hours transcription, then reopen the case to show its job (US-11.1).
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {string} callId
+ * @returns {Promise<CaseState>}
+ */
+export async function queueTranscription(api, caseId, callId) {
+  try {
+    await api.transcribeCall(caseId, callId);
+  } catch (error) {
+    const notice = refusalOf(error);
+    return notice === null ? { state: 'unavailable', caseId } : reopenWith(api, caseId, notice);
+  }
+  return openCase(api, caseId);
+}
+
+/** @param {number} hour */
+const clockHour = (hour) => `${String(hour).padStart(2, '0')}:00`;
+
+/**
+ * Where a call's transcription is, in the biller's words (US-11.1).
+ *
+ * @param {CallView} call
+ * @returns {string}
+ */
+export function describeCall(call) {
+  switch (call.state) {
+    case 'queued': {
+      const hours = call.window
+        ? ` (${clockHour(call.window.start)} to ${clockHour(call.window.end)})`
+        : '';
+      return `Queued for transcription after hours${hours}, on this Mac.`;
+    }
+    case 'running':
+      return 'Transcribing on this Mac…';
+    case 'done':
+      return 'Transcribed on this Mac.';
+    case 'failed': {
+      const notice = known(call.errorCode) ?? 'transcription_failed';
+      return `Not transcribed: ${REFUSALS[notice]}`;
+    }
+    default:
+      return 'Not transcribed yet.';
+  }
+}
+
+/**
+ * One call's transcript notes: the reference number and the rep's instructions, read by fixed
+ * rules for the biller to check, then the transcript itself.
+ *
+ * @param {TranscriptView} transcript
+ */
+function TranscriptNotes(transcript) {
+  return [
+    transcript.truncated
+      ? jsx('p', {
+          role: 'alert',
+          children:
+            'The transcript stops before the call ended (about 30 minutes is the most it ' +
+            'holds); the reference number may be missing. Check the recording.',
+        })
+      : null,
+    jsx('p', {
+      children: transcript.referenceNumber
+        ? `Reference number: ${transcript.referenceNumber}`
+        : 'No reference number was heard; check the transcript.',
+    }),
+    transcript.instructions.length
+      ? jsx('ul', {
+          'aria-label': 'Rep instructions',
+          children: transcript.instructions.map((text, index) =>
+            jsx('li', { children: text }, String(index)),
+          ),
+        })
+      : jsx('p', { children: 'No rep instructions were heard; check the transcript.' }),
+    jsx('p', { children: 'Read from the transcript on this Mac; check them against it.' }),
+    jsxs('details', {
+      children: [
+        jsx('summary', { children: 'Transcript' }),
+        jsx('p', { children: transcript.text }),
+      ],
+    }),
+  ];
+}
+
+/**
+ * The case's recorded payer calls (US-11.1): attach a recording, queue it for the after-hours
+ * window, and read what its transcript says. Nothing here plays, sends, or shares a recording.
+ *
+ * @param {{ calls: CallView[], disabled: boolean, closed: boolean,
+ *   onAttach: (files: ArrayLike<PickedFile> | null) => void,
+ *   onTranscribe: (callId: string) => void }} props
+ */
+export function CallsPanel({ calls, disabled, closed, onAttach, onTranscribe }) {
+  return jsxs('section', {
+    'aria-label': 'Payer calls',
+    children: [
+      jsx('h3', { children: 'Payer calls' }),
+      jsx('input', {
+        type: 'file',
+        'aria-label': 'Attach a call recording',
+        accept: '.wav,.mp3,.flac,.m4a',
+        disabled: disabled || closed,
+        onChange: (
+          /** @type {{ currentTarget: { files: ArrayLike<PickedFile> | null } }} */ event,
+        ) => onAttach(event.currentTarget.files),
+      }),
+      calls.length === 0
+        ? jsx('p', {
+            children: 'No recorded calls. Attach one to have it transcribed after hours.',
+          })
+        : jsx('ul', {
+            'aria-label': 'Recorded calls',
+            children: calls.map((call) =>
+              jsxs(
+                'li',
+                {
+                  children: [
+                    jsx('p', { children: call.label }),
+                    jsx('p', { role: 'status', children: describeCall(call) }),
+                    jsx('button', {
+                      type: 'button',
+                      disabled:
+                        disabled || closed || call.state === 'queued' || call.state === 'running',
+                      onClick: () => onTranscribe(call.callId),
+                      children:
+                        call.state === 'none'
+                          ? 'Transcribe after hours'
+                          : 'Transcribe again after hours',
+                    }),
+                    ...(call.transcript ? TranscriptNotes(call.transcript) : []),
+                  ],
+                },
+                call.callId,
+              ),
+            ),
+          }),
+    ],
+  });
 }
 
 /**
@@ -1409,12 +1706,18 @@ function noop() {}
 const noEvents = () => noop;
 
 /**
- * The case pane. The whole pane is the drop zone; the file input, the paste box, and a drop all
- * add to the open case, or start one. Processing progress arrives through `subscribe`.
+ * The case detail view. The whole view is the drop zone; the file input, the paste box, and a drop
+ * all add to the open case, or start one. Processing progress arrives through `subscribe`. The
+ * case list opens a case through `link.open`; the view calls `link.changed` when it moves to
+ * another case, so the list shows a new one (US-10.1).
  *
- * @param {{ rest: RestFn, subscribe?: SubscribeFn }} props
+ * @param {{ rest: RestFn, subscribe?: SubscribeFn, link?: PaneLink }} props
  */
-export function CasePane({ rest, subscribe = noEvents }) {
+export function CasePane({
+  rest,
+  subscribe = noEvents,
+  link = { open: noop, changed: noop, drop: noop },
+}) {
   const api = createCaseApi(rest);
   const [current, setCurrent] = useState(/** @type {CaseState} */ ({ state: 'idle' }));
   // One object per mounted pane: answers that arrive after unmount, or after a newer action
@@ -1462,6 +1765,7 @@ export function CasePane({ rest, subscribe = noEvents }) {
         if (next.caseId !== life.caseId) {
           setEdits({});
           setLetter(null);
+          link.changed(); // a new case appears in the list
         }
         life.caseId = next.caseId;
       }
@@ -1518,11 +1822,14 @@ export function CasePane({ rest, subscribe = noEvents }) {
   };
   /** @param {{ currentTarget: { files: ArrayLike<PickedFile> | null } }} event */
   const onFile = (event) => addPicked(event.currentTarget.files);
-  /** @param {{ preventDefault: () => void, dataTransfer: { files: ArrayLike<PickedFile> } | null }} event */
+  /** @param {{ preventDefault: () => void, stopPropagation?: () => void,
+   *   dataTransfer: { files: ArrayLike<PickedFile> } | null }} event */
   const onDrop = (event) => {
     event.preventDefault(); // keep the webview from opening the file
+    event.stopPropagation?.(); // the pane's own drop zone (US-10.1) would add it twice
     addPicked(event.dataTransfer?.files);
   };
+  link.drop = addPicked; // a drop on the case list joins the open case too
   /** @param {{ preventDefault: () => void }} event */
   const onDragOver = (event) => event.preventDefault(); // marks the pane as a drop target
   const onProcess = () => {
@@ -1573,11 +1880,38 @@ export function CasePane({ rest, subscribe = noEvents }) {
     settle(recordOutcome(api, current.caseId, pendingOutcome));
   };
   const onCancelOutcome = () => setPendingOutcome(null);
+  /** @param {ArrayLike<PickedFile> | null} files */
+  const onCallFile = (files) => {
+    const file = Array.from(files ?? [])[0];
+    if (current.state !== 'ready' || closed || !file) return;
+    settle(addCall(api, current.caseId, file));
+  };
+  /** @param {string} callId */
+  const onTranscribe = (callId) => {
+    if (current.state !== 'ready' || closed) return;
+    settle(queueTranscription(api, current.caseId, callId));
+  };
   const onRefresh = () => {
     if (life.caseId === null || current.state === 'busy') return;
     follow(null, 'extract');
     setEdits({});
     settle(openCase(api, life.caseId));
+  };
+  // The case list opens a case here, through this view's own action queue (US-10.1).
+  link.open = (caseId) => {
+    if (current.state === 'busy') return;
+    if (current.state === 'ready' && unsaved(current.draft, letter)) {
+      setCurrent({ ...current, notice: 'unsaved_draft' }); // the editor keeps the text
+      return;
+    }
+    follow(null, 'extract');
+    setEdits({});
+    // A failed open still names the case, so the next document or Refresh goes to it.
+    settle(
+      openCase(api, caseId).then((next) =>
+        next.state === 'unavailable' ? { state: 'unavailable', caseId } : next,
+      ),
+    );
   };
   const onNewCase = () => {
     life.action += 1; // an upload still running no longer updates the pane
@@ -1710,6 +2044,13 @@ export function CasePane({ rest, subscribe = noEvents }) {
         onMark: onOutcome,
         onConfirm: onConfirmOutcome,
         onCancel: onCancelOutcome,
+      }),
+      jsx(CallsPanel, {
+        calls: current.state === 'ready' ? (current.calls ?? []) : [],
+        disabled: current.state !== 'ready',
+        closed,
+        onAttach: onCallFile,
+        onTranscribe,
       }),
     ],
   });
@@ -2030,15 +2371,17 @@ export async function loadRicherAccess(rest) {
 }
 
 /**
+ * The local-only statusbar item (US-3.5, US-10.2), refreshed every `SETTINGS_REFRESH_MS`.
+ *
  * @param {{ rest: RestFn }} props
  */
 export function LocalOnlyIndicator({ rest }) {
-  const [richer, setRicher] = useState(false);
+  const [state, setState] = useState(/** @type {IndicatorState} */ ('local-only'));
   useEffect(() => {
     let current = true;
     const refresh = () => {
-      loadRicherAccess(rest).then((next) => {
-        if (current) setRicher(next);
+      loadIndicatorState(rest).then((next) => {
+        if (current) setState(next);
       });
     };
     refresh();
@@ -2049,22 +2392,872 @@ export function LocalOnlyIndicator({ rest }) {
       clearInterval(timer);
     };
   }, [rest]);
+  const view = indicatorView(state);
+  return jsx('span', { 'data-state': state, title: view.title, children: view.label });
+}
+
+/**
+ * The statusbar item's text for a state (US-10.2). Both states run on local models only: richer
+ * access changes what the agent may be given later, not where models run.
+ *
+ * @param {IndicatorState} state
+ * @returns {{ label: string, title: string }}
+ */
+export function indicatorView(state) {
   const base = 'ClaimCoach runs on local models only. Case content never leaves this Mac.';
-  return jsx('span', {
-    title: richer
-      ? `${base} Richer agent access is on; agent tool results are still redacted.`
-      : base,
-    children: richer ? 'Local-only · richer agent access on' : 'Local-only',
+  if (state === 'richer-access') {
+    return {
+      label: 'Local-only · richer agent access on',
+      title: `${base} Richer agent access is on; agent tool results are still redacted.`,
+    };
+  }
+  return { label: 'Local-only', title: base };
+}
+
+/**
+ * The statusbar item's state: `richer-access` only for an explicit `true` (US-10.2).
+ *
+ * @param {RestFn} rest
+ * @returns {Promise<IndicatorState>}
+ */
+export async function loadIndicatorState(rest) {
+  return (await loadRicherAccess(rest)) ? 'richer-access' : 'local-only';
+}
+
+/** Fixed text per code a retention save may be refused with (BR-14). */
+export const SETTINGS_REFUSALS = Object.freeze({
+  invalid_request: 'Enter a whole number of days from 1 to 3650.',
+  settings_unavailable: 'Settings are saved only inside Hermes; nothing was saved.',
+  settings_managed: 'An administrator manages this setting; nothing was saved.',
+});
+
+/**
+ * The model status rows of a `GET /models/status` body, or `null` when it is not one (US-10.3).
+ *
+ * @param {unknown} body
+ * @returns {ModelRow[] | null}
+ */
+export function modelsOf(body) {
+  const answer = /** @type {{ ok?: unknown, models?: unknown } | null} */ (body);
+  if (answer?.ok !== true || !Array.isArray(answer.models)) return null;
+  return answer.models.flatMap((entry) => {
+    const model =
+      /** @type {{ role?: unknown, state?: unknown, weights?: unknown, venv_present?: unknown }} */ (
+        entry
+      );
+    if (
+      typeof model?.role !== 'string' ||
+      typeof model.state !== 'string' ||
+      typeof model.weights !== 'string'
+    ) {
+      return [];
+    }
+    return [
+      {
+        role: model.role,
+        state: model.state,
+        weights: model.weights,
+        venv: model.venv_present === true,
+      },
+    ];
   });
 }
 
 /**
+ * @param {unknown} value
+ * @returns {ScopeView | null}
+ */
+function scopeOf(value) {
+  const scope =
+    /** @type {{ cases?: unknown, documents?: unknown, encrypted?: unknown, available?: unknown }
+     *   | null} */ (value);
+  if (typeof scope?.encrypted !== 'boolean') return null;
+  return {
+    cases: isCount(scope.cases) ? Number(scope.cases) : 0,
+    documents: isCount(scope.documents) ? Number(scope.documents) : 0,
+    encrypted: scope.encrypted,
+    available: scope.available !== false,
+  };
+}
+
+/**
+ * The global scope and this profile's user scope of a `GET /corpus/status` body (US-10.3).
+ *
+ * @param {unknown} body
+ * @returns {{ global: ScopeView, user: ScopeView | null } | null}
+ */
+export function corpusOf(body) {
+  const answer =
+    /** @type {{ ok?: unknown, global_scope?: unknown, user_scopes?: unknown } | null} */ (body);
+  const global = scopeOf(answer?.global_scope);
+  if (answer?.ok !== true || global === null) return null;
+  const users = Array.isArray(answer.user_scopes) ? answer.user_scopes : [];
+  return { global, user: scopeOf(users[0]) };
+}
+
+/**
+ * Read one settings-page section; any failure reads as `unavailable` (BR-14).
+ *
+ * @template T
+ * @param {() => Promise<unknown>} read
+ * @param {(body: unknown) => T | null} parse
+ * @returns {Promise<{ state: 'ok', value: T } | { state: 'unavailable' }>}
+ */
+async function loadSection(read, parse) {
+  try {
+    const value = parse(await read());
+    return value === null ? { state: 'unavailable' } : { state: 'ok', value };
+  } catch {
+    return { state: 'unavailable' };
+  }
+}
+
+/**
+ * @param {RestFn} rest
+ * @returns {Promise<ModelsState>}
+ */
+export async function loadModels(rest) {
+  const section = await loadSection(() => rest('/models/status'), modelsOf);
+  return section.state === 'ok' ? { state: 'ok', models: section.value } : section;
+}
+
+/**
+ * @param {RestFn} rest
+ * @returns {Promise<CorpusState>}
+ */
+export async function loadCorpus(rest) {
+  const section = await loadSection(() => rest('/corpus/status'), corpusOf);
+  return section.state === 'ok' ? { state: 'ok', ...section.value } : section;
+}
+
+/**
+ * @param {unknown} body
+ * @returns {number | null}
+ */
+function retentionOf(body) {
+  const answer = /** @type {{ ok?: unknown, retention_days?: unknown } | null} */ (body);
+  return answer?.ok === true && isDays(answer.retention_days)
+    ? Number(answer.retention_days)
+    : null;
+}
+
+/**
+ * The stored period of a `GET /settings` body: days, `invalid` when the stored value is invalid
+ * (the purge skips the profile), or `null` when the body is not settings.
+ *
+ * @param {unknown} body
+ * @returns {number | 'invalid' | null}
+ */
+function storedPeriodOf(body) {
+  const answer = /** @type {{ ok?: unknown, retention_days?: unknown } | null} */ (body);
+  if (answer?.ok === true && answer.retention_days === null) return 'invalid';
+  return retentionOf(body);
+}
+
+/** @param {unknown} value */
+const isDays = (value) =>
+  Number.isInteger(value) &&
+  /** @type {number} */ (value) >= 1 &&
+  /** @type {number} */ (value) <= 3650;
+
+/**
+ * @param {RestFn} rest
+ * @returns {Promise<RetentionState>}
+ */
+export async function loadRetention(rest) {
+  const section = await loadSection(() => rest('/settings'), storedPeriodOf);
+  if (section.state !== 'ok') return section;
+  return section.value === 'invalid' ? { state: 'invalid' } : { state: 'ok', days: section.value };
+}
+
+/**
+ * The days the biller typed, or `null` unless a whole number from 1 to 3650.
+ *
+ * @param {string} text
+ * @returns {number | null}
+ */
+export function parseDays(text) {
+  const trimmed = text.trim();
+  if (!/^\d{1,4}$/.test(trimmed)) return null;
+  const days = Number(trimmed);
+  return isDays(days) ? days : null;
+}
+
+/**
+ * Save the retention period (US-10.3); the worker's next purge reads it.
+ *
+ * @param {RestFn} rest
+ * @param {number} days
+ * @returns {Promise<SaveResult>}
+ */
+export async function saveRetention(rest, days) {
+  try {
+    const saved = retentionOf(
+      await rest('/settings/retention', { method: 'POST', body: { retention_days: days } }),
+    );
+    return saved === null ? { state: 'failed' } : { state: 'saved', days: saved };
+  } catch (error) {
+    const code = codeOf(error);
+    return code === null ? { state: 'failed' } : { state: 'refused', code };
+  }
+}
+
+/**
+ * @param {SaveResult} result
+ * @returns {string}
+ */
+export function describeSave(result) {
+  switch (result.state) {
+    case 'saving':
+      return 'Saving…';
+    case 'saved':
+      return `Saved. The next purge removes the content of cases closed more than ${result.days} days ago.`;
+    case 'refused':
+      return Object.hasOwn(SETTINGS_REFUSALS, result.code)
+        ? SETTINGS_REFUSALS[/** @type {keyof typeof SETTINGS_REFUSALS} */ (result.code)]
+        : 'The retention period was not saved.';
+    default:
+      return 'The retention period was not saved. Check that ClaimCoach is enabled.';
+  }
+}
+
+const SECTION_UNAVAILABLE =
+  'Unavailable. Check that the ClaimCoach backend and worker are running.';
+
+/**
+ * Each model role's server state, weights, and venv (US-2.2 to US-2.4).
+ *
+ * @param {ModelsState} models
+ */
+export function ModelsSection(models) {
+  const body =
+    models.state === 'ok'
+      ? jsx('ul', {
+          'aria-label': 'Model roles',
+          children: models.models.map((model) =>
+            jsx(
+              'li',
+              {
+                children:
+                  `${model.role}: ${model.state} · weights ${model.weights} · ` +
+                  `venv ${model.venv ? 'ready' : 'missing'}`,
+              },
+              model.role,
+            ),
+          ),
+        })
+      : jsx('p', {
+          role: models.state === 'loading' ? 'status' : 'alert',
+          children: models.state === 'loading' ? 'Loading model status…' : SECTION_UNAVAILABLE,
+        });
+  return jsxs('section', {
+    'aria-label': 'Models',
+    children: [jsx('h3', { children: 'Models' }), body],
+  });
+}
+
+/**
+ * The global corpus and this profile's case store (US-4.1, US-4.2).
+ *
+ * @param {CorpusState} corpus
+ */
+export function CorpusSection(corpus) {
+  /** @type {unknown[]} */
+  let lines;
+  if (corpus.state === 'ok') {
+    const { global, user } = corpus;
+    lines = [
+      jsx('p', {
+        children: global.available
+          ? `Global corpus: ${global.documents} document(s).`
+          : 'Global corpus: could not be opened.',
+      }),
+      jsx('p', {
+        children:
+          user === null
+            ? 'Your case store: none yet; it is created with your first case.'
+            : user.available
+              ? `Your case store: ${user.cases} case(s), ${user.documents} document(s), ` +
+                `${user.encrypted ? 'encrypted' : 'not encrypted'} at rest.`
+              : 'Your case store: could not be opened (its key is missing or wrong).',
+      }),
+    ];
+  } else {
+    lines = [
+      jsx('p', {
+        role: corpus.state === 'loading' ? 'status' : 'alert',
+        children: corpus.state === 'loading' ? 'Loading corpus status…' : SECTION_UNAVAILABLE,
+      }),
+    ];
+  }
+  return jsxs('section', {
+    'aria-label': 'Corpus',
+    children: [jsx('h3', { children: 'Corpus' }), ...lines],
+  });
+}
+
+/**
+ * The retention period with an input and Save (US-4.5, US-10.3).
+ *
+ * @param {{ retention: RetentionState, draft: string | null, result: SaveResult | null,
+ *   onDraft: (text: string) => void, onSave: () => void }} props
+ */
+export function RetentionSection({ retention, draft, result, onDraft, onSave }) {
+  const stored = retention.state === 'ok' ? retention.days : null;
+  const days = draft === null ? stored : parseDays(draft);
+  const status =
+    retention.state === 'ok'
+      ? `Closed cases keep their content for ${retention.days} days, then it is purged.`
+      : retention.state === 'invalid'
+        ? 'The stored retention period is invalid, so no closed case is purged; save a valid one.'
+        : retention.state === 'loading'
+          ? 'Loading the retention period…'
+          : SECTION_UNAVAILABLE;
+  return jsxs('section', {
+    'aria-label': 'Retention',
+    children: [
+      jsx('h3', { children: 'Retention' }),
+      jsx('p', { role: 'status', children: status }),
+      jsx('input', {
+        type: 'number',
+        'aria-label': 'Retention period in days',
+        min: 1,
+        max: 3650,
+        value: draft ?? (stored === null ? '' : String(stored)),
+        disabled: stored === null && retention.state !== 'invalid',
+        onChange: (/** @type {{ currentTarget: { value: string } }} */ event) =>
+          onDraft(event.currentTarget.value),
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled: days === null || days === stored || result?.state === 'saving',
+        onClick: onSave,
+        children: 'Save',
+      }),
+      jsx('p', {
+        children:
+          'A shorter period purges more closed cases at the next purge (within six hours); ' +
+          'purged content cannot be restored.',
+      }),
+      result ? jsx('p', { role: 'status', children: describeSave(result) }) : null,
+    ],
+  });
+}
+
+/**
+ * The ClaimCoach settings page (US-1.4, US-10.3, US-10.4): worker status, models, corpus,
+ * retention, and the global corpus import.
+ * Each section loads on its own, so a stopped worker still leaves retention editable.
+ *
  * @param {{ rest: RestFn }} props
  */
 export function SettingsPage({ rest }) {
+  const [models, setModels] = useState(/** @type {ModelsState} */ ({ state: 'loading' }));
+  const [corpus, setCorpus] = useState(/** @type {CorpusState} */ ({ state: 'loading' }));
+  const [retention, setRetention] = useState(/** @type {RetentionState} */ ({ state: 'loading' }));
+  const [draft, setDraft] = useState(/** @type {string | null} */ (null));
+  const [result, setResult] = useState(/** @type {SaveResult | null} */ (null));
+  // A saved period wins over a first read that answers after the save.
+  const [life] = useState({ live: true, saved: false });
+  const [corpusImport, setImport] = useState(/** @type {ImportState} */ ({ state: 'idle' }));
+  // The last pick or cancel wins: a slower answer about an earlier file is dropped.
+  const [picks] = useState({ last: 0 });
+  useEffect(() => {
+    life.live = true;
+    loadModels(rest).then((next) => life.live && setModels(next));
+    loadCorpus(rest).then((next) => life.live && setCorpus(next));
+    loadRetention(rest).then((next) => life.live && !life.saved && setRetention(next));
+    return () => {
+      life.live = false;
+    };
+  }, [rest, life]);
+  const onSave = () => {
+    const days = draft === null ? null : parseDays(draft);
+    if (days === null || result?.state === 'saving') return;
+    setResult({ state: 'saving' });
+    saveRetention(rest, days).then((saved) => {
+      if (!life.live) return;
+      setResult(saved);
+      if (saved.state === 'saved') {
+        life.saved = true;
+        setRetention({ state: 'ok', days: saved.days });
+        setDraft(null);
+      }
+    });
+  };
+  /** @param {Promise<ImportState>} pending */
+  const follow = (pending) => {
+    picks.last += 1;
+    const pick = picks.last;
+    pending.then((next) => {
+      if (!life.live || pick !== picks.last) return;
+      setImport(next);
+      // After any import attempt: a failed or slow one may still have stored the bundle.
+      if (next.state === 'imported' || (next.state === 'failed' && next.upload)) {
+        loadCorpus(rest).then((c) => life.live && setCorpus(c));
+      }
+    });
+  };
+  /** @param {ArrayLike<PickedFile> | null} files */
+  const onPick = (files) => {
+    const file = Array.from(files ?? [])[0];
+    if (!file || corpusImport.state === 'importing') return;
+    setImport({ state: 'checking' });
+    follow(checkBundle(rest, file));
+  };
+  const onImport = () => {
+    // From the preview, or Try again after a failed import of the same file.
+    const upload =
+      corpusImport.state === 'preview' || corpusImport.state === 'failed'
+        ? corpusImport.upload
+        : undefined;
+    if (upload === undefined) return;
+    setImport({ state: 'importing' });
+    follow(importBundle(rest, upload));
+  };
+  const onCancel = () => {
+    picks.last += 1; // an answer still on its way is dropped
+    setImport({ state: 'idle' });
+  };
   return jsxs('section', {
     'aria-label': 'ClaimCoach settings',
-    children: [jsx('h2', { children: 'ClaimCoach' }), jsx(WorkerStatus, { rest })],
+    children: [
+      jsx('h2', { children: 'ClaimCoach' }),
+      jsx(WorkerStatus, { rest }),
+      ModelsSection(models),
+      CorpusSection(corpus),
+      jsx(RetentionSection, { retention, draft, result, onDraft: setDraft, onSave }),
+      jsx(CorpusImportSection, { state: corpusImport, onPick, onImport, onCancel }),
+    ],
+  });
+}
+
+/** Largest corpus bundle the backend accepts (US-4.3); a bigger file is refused before it is read. */
+export const MAX_BUNDLE_BYTES = 5 * 1024 * 1024;
+/**
+ * How long the pane waits for an import: a minute past the gateway's own 15 minutes, so the
+ * gateway answers first (the embedding model may load and embed thousands of chunks).
+ */
+export const IMPORT_TIMEOUT_MS = 960_000;
+
+const KIND_NAMES = Object.freeze({
+  rule_card: 'rule card(s)',
+  code: 'code(s)',
+  letter_template: 'letter template(s)',
+});
+const KIND_SINGULAR = Object.freeze({
+  rule_card: 'rule card',
+  code: 'code',
+  letter_template: 'letter template',
+});
+
+/** Fixed text per code an import may be refused with (BR-14). */
+const IMPORT_REFUSALS = Object.freeze({
+  invalid_bundle: 'The file is not a valid corpus bundle; nothing was imported.',
+  import_not_confirmed: 'The import was not confirmed; nothing was imported.',
+  index_stale: 'The corpus index was built with another embedding model; reindex it first.',
+  model_unavailable: 'The embedding model is missing or not responding; nothing was imported.',
+  model_busy: 'The local models are busy; import again in a moment.',
+  worker_unavailable: 'The ClaimCoach worker is not running; start it and pick the file again.',
+});
+
+/**
+ * Counts per kind, in words.
+ *
+ * @param {Record<string, number>} counts
+ * @returns {string}
+ */
+function kindsInWords(counts) {
+  return Object.entries(counts)
+    .map(([kind, n]) => {
+      const name = Object.hasOwn(KIND_NAMES, kind)
+        ? KIND_NAMES[/** @type {keyof typeof KIND_NAMES} */ (kind)]
+        : kind;
+      return `${n} ${name}`;
+    })
+    .join(', ');
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function countsByKind(value) {
+  if (value === null || typeof value !== 'object') return {};
+  return Object.fromEntries(Object.entries(value).filter(([, n]) => isCount(n)));
+}
+
+/**
+ * A `POST /corpus/import/preview` answer (US-10.4), or `null` when the body is not one.
+ *
+ * @param {unknown} body
+ * @returns {{ valid: true, summary: BundleSummary } | { valid: false, problem: string } | null}
+ */
+export function previewOf(body) {
+  const answer = /** @type {{ ok?: unknown, valid?: unknown, problem?: unknown, items?: unknown,
+   *   by_kind?: unknown, payers?: unknown, more_payers?: unknown, stale?: unknown,
+   *   replaces?: unknown, replaced?: unknown } | null} */ (body);
+  if (answer?.ok !== true || typeof answer.valid !== 'boolean') return null;
+  if (!answer.valid) {
+    const problem = typeof answer.problem === 'string' ? answer.problem : 'invalid bundle';
+    return { valid: false, problem };
+  }
+  return {
+    valid: true,
+    summary: {
+      items: isCount(answer.items) ? Number(answer.items) : 0,
+      byKind: countsByKind(answer.by_kind),
+      payers: stringsOf(answer.payers),
+      morePayers: isCount(answer.more_payers) ? Number(answer.more_payers) : 0,
+      stale: isCount(answer.stale) ? Number(answer.stale) : 0,
+      replaces: isCount(answer.replaces) ? Number(answer.replaces) : 0,
+      replaced: stringsOf(answer.replaced),
+    },
+  };
+}
+
+/**
+ * Preview a picked bundle file (US-10.4); nothing is imported. A file over the limit is refused
+ * before it is read.
+ *
+ * @param {RestFn} rest
+ * @param {PickedFile} file
+ * @returns {Promise<ImportState>}
+ */
+export async function checkBundle(rest, file) {
+  if ((file.size ?? 0) > MAX_BUNDLE_BYTES) {
+    return { state: 'invalid', problem: 'bundle is larger than 5 MiB' };
+  }
+  try {
+    const bytes = await file.arrayBuffer();
+    const upload = {
+      filename: file.name,
+      contentType: file.type || 'application/octet-stream',
+      bytes,
+    };
+    const preview = previewOf(await rest('/corpus/import/preview', { method: 'POST', upload }));
+    if (preview === null) return { state: 'failed', code: null };
+    return preview.valid
+      ? { state: 'preview', upload, summary: preview.summary }
+      : { state: 'invalid', problem: preview.problem };
+  } catch (error) {
+    return { state: 'failed', code: codeOf(error) };
+  }
+}
+
+/**
+ * Import a previewed bundle into the global corpus (US-10.4): the confirmed request.
+ *
+ * @param {RestFn} rest
+ * @param {DocumentUpload} upload
+ * @returns {Promise<ImportState>}
+ */
+export async function importBundle(rest, upload) {
+  try {
+    const body = /** @type {{ ok?: unknown, imported?: unknown } | null} */ (
+      await rest('/corpus/import?confirm=true', {
+        method: 'POST',
+        upload,
+        timeoutMs: IMPORT_TIMEOUT_MS,
+      })
+    );
+    return body?.ok === true
+      ? { state: 'imported', imported: countsByKind(body.imported) }
+      : { state: 'failed', code: null, upload };
+  } catch (error) {
+    return { state: 'failed', code: codeOf(error), upload }; // kept for Try again
+  }
+}
+
+/**
+ * A replaced item (`rule_card Aetna/appeal_levels`) as the manager reads it.
+ *
+ * @param {string} entry
+ * @returns {string}
+ */
+function replacedName(entry) {
+  const [kind = '', ...key] = entry.split(' ');
+  const name = Object.hasOwn(KIND_SINGULAR, kind)
+    ? KIND_SINGULAR[/** @type {keyof typeof KIND_SINGULAR} */ (kind)]
+    : kind;
+  return [name, ...key].join(' ');
+}
+
+/**
+ * Where an import is, in the manager's words.
+ *
+ * @param {ImportState} state
+ * @returns {string}
+ */
+export function describeImport(state) {
+  switch (state.state) {
+    case 'checking':
+      return 'Checking the file…';
+    case 'invalid':
+      return `This file is not a valid corpus bundle (${state.problem}); nothing was imported.`;
+    case 'preview': {
+      const { summary } = state;
+      const replaced = summary.replaces
+        ? ` ${summary.replaces} of them replace items already in the global corpus.`
+        : ' None of them is in the global corpus yet.';
+      const stale = summary.stale
+        ? ` ${summary.stale} were verified more than ${STALE_AFTER_DAYS} days ago.`
+        : '';
+      return (
+        `This bundle holds ${summary.items} item(s): ${kindsInWords(summary.byKind)}.` +
+        `${replaced}${stale} Nothing is imported until you confirm.`
+      );
+    }
+    case 'importing':
+      return 'Importing into the global corpus on this Mac…';
+    case 'imported':
+      return `Imported ${kindsInWords(state.imported)} into the global corpus.`;
+    case 'failed':
+      // A stopped or slow worker may still finish an import the gateway gave up on.
+      if (state.upload && (state.code === null || state.code === 'worker_unavailable')) {
+        return (
+          'The import may still be finishing on this Mac (a large bundle can take minutes). ' +
+          'Check the Corpus section, then try again only if nothing changed.'
+        );
+      }
+      return state.code !== null && Object.hasOwn(IMPORT_REFUSALS, state.code)
+        ? IMPORT_REFUSALS[/** @type {keyof typeof IMPORT_REFUSALS} */ (state.code)]
+        : 'The bundle was not imported. Check that ClaimCoach and its worker are running.';
+    default:
+      return '';
+  }
+}
+
+/**
+ * The global corpus import (US-10.4): pick a local bundle file, read what it holds and replaces,
+ * then import it into the global corpus or cancel. Nothing is written before the confirmation.
+ *
+ * @param {{ state: ImportState, onPick: (files: ArrayLike<PickedFile> | null) => void,
+ *   onImport: () => void, onCancel: () => void }} props
+ */
+export function CorpusImportSection({ state, onPick, onImport, onCancel }) {
+  const working = state.state === 'checking' || state.state === 'importing';
+  const preview = state.state === 'preview' ? state.summary : null;
+  const payers = preview?.payers.length
+    ? `Payers: ${preview.payers.join(', ')}${preview.morePayers ? ` and ${preview.morePayers} more` : ''}.`
+    : null;
+  const more = preview ? preview.replaces - preview.replaced.length : 0;
+  const replaced = preview?.replaced.length
+    ? `Replaces: ${preview.replaced.map(replacedName).join(', ')}${more > 0 ? ` and ${more} more` : ''}.`
+    : null;
+  const retry = state.state === 'failed' && state.upload !== undefined;
+  return jsxs('section', {
+    'aria-label': 'Global corpus import',
+    children: [
+      jsx('h3', { children: 'Global corpus import' }),
+      jsx('p', {
+        children:
+          'Import a corpus bundle (.yaml, .yml, or .json, up to 5 MiB) from this Mac. Every ' +
+          'profile on this Mac uses the global corpus; items with the same key are replaced.',
+      }),
+      jsx('input', {
+        type: 'file',
+        'aria-label': 'Pick a corpus bundle',
+        accept: '.yaml,.yml,.json',
+        disabled: working,
+        onChange: (
+          /** @type {{ currentTarget: { files: ArrayLike<PickedFile> | null, value: string } }} */ event,
+        ) => {
+          const files = Array.from(event.currentTarget.files ?? []);
+          // Cleared, so picking the same file again (fixed, or after Cancel) is a change too.
+          event.currentTarget.value = '';
+          onPick(files);
+        },
+      }),
+      state.state === 'idle' ? null : jsx('p', { role: 'status', children: describeImport(state) }),
+      payers ? jsx('p', { children: payers }) : null,
+      replaced ? jsx('p', { 'aria-label': 'Replaced items', children: replaced }) : null,
+      preview
+        ? jsx('button', {
+            type: 'button',
+            onClick: onImport,
+            children: 'Import into the global corpus',
+          })
+        : null,
+      preview ? jsx('button', { type: 'button', onClick: onCancel, children: 'Cancel' }) : null,
+      retry ? jsx('button', { type: 'button', onClick: onImport, children: 'Try again' }) : null,
+    ],
+  });
+}
+
+/** Fixed text when the case list cannot be read (BR-14: never the backend's own text). */
+export const CASE_LIST_UNAVAILABLE =
+  'Cases could not be loaded. Check that the ClaimCoach backend and worker are running.';
+
+const STEPS = Object.freeze({
+  new: 'New',
+  extracted: 'Fields read',
+  diagnosed: 'Diagnosed',
+  drafted: 'Appeal drafted',
+});
+
+/**
+ * The rows of a `GET /cases` body, or `null` when it is not one (US-10.1). No case content.
+ *
+ * @param {unknown} body
+ * @returns {CaseRow[] | null}
+ */
+export function casesOf(body) {
+  const answer = /** @type {{ ok?: unknown, cases?: unknown } | null} */ (body);
+  if (answer?.ok !== true || !Array.isArray(answer.cases)) return null;
+  return answer.cases.flatMap((entry) => {
+    const row = /** @type {{ case_id?: unknown, opened_at?: unknown, closed_at?: unknown,
+     *   purged_at?: unknown, outcome?: unknown, documents?: unknown, calls?: unknown,
+     *   extracted?: unknown, diagnosed?: unknown, drafted?: unknown } | null} */ (entry);
+    if (typeof row?.case_id !== 'string' || typeof row.opened_at !== 'string') return [];
+    const outcome =
+      typeof row.outcome === 'string' && Object.hasOwn(OUTCOMES, row.outcome)
+        ? /** @type {Outcome} */ (row.outcome)
+        : null;
+    /** @type {CaseStep} */
+    const step =
+      row.drafted === true
+        ? 'drafted'
+        : row.diagnosed === true
+          ? 'diagnosed'
+          : row.extracted === true
+            ? 'extracted'
+            : 'new';
+    return [
+      {
+        caseId: row.case_id,
+        openedOn: localDay(row.opened_at),
+        step,
+        closed: typeof row.closed_at === 'string',
+        purged: typeof row.purged_at === 'string',
+        outcome,
+        documents: isCount(row.documents) ? Number(row.documents) : 0,
+        calls: isCount(row.calls) ? Number(row.calls) : 0,
+      },
+    ];
+  });
+}
+
+/**
+ * An ISO timestamp's date on this Mac's calendar; the date part as sent when it does not parse.
+ *
+ * @param {string} timestamp
+ * @returns {string}
+ */
+function localDay(timestamp) {
+  const when = new Date(timestamp);
+  return Number.isNaN(when.getTime()) ? timestamp.slice(0, 10) : isoToday(when);
+}
+
+/**
+ * One case-list row in words.
+ *
+ * @param {CaseRow} row
+ * @returns {string}
+ */
+export function describeCaseRow(row) {
+  const parts = [`opened ${row.openedOn}`, STEPS[row.step], `${row.documents} document(s)`];
+  if (row.calls > 0) parts.push(`${row.calls} call(s)`);
+  if (row.outcome) parts.push(OUTCOMES[row.outcome]);
+  if (row.purged) parts.push('content purged');
+  else if (row.closed) parts.push('closed');
+  return `${row.caseId}: ${parts.join(' · ')}`;
+}
+
+/**
+ * Read the case list; any failure, an envelope included, reads as `unavailable`.
+ *
+ * @param {CaseApi} api
+ * @returns {Promise<CaseListState>}
+ */
+export async function loadCaseList(api) {
+  const section = await loadSection(api.listCases, casesOf);
+  return section.state === 'ok' ? { state: 'ok', cases: section.value } : section;
+}
+
+/**
+ * The case list view (US-10.1): the profile's newest cases; selecting one opens it in the detail
+ * view through `link.open`. The detail view reloads the list through `link.changed`.
+ *
+ * @param {{ rest: RestFn, link: PaneLink }} props
+ */
+export function CaseListView({ rest, link }) {
+  const api = createCaseApi(rest);
+  const [list, setList] = useState(/** @type {CaseListState} */ ({ state: 'loading' }));
+  // The last read wins; a read answered after unmount is dropped.
+  const [life] = useState({ live: true, read: 0 });
+  const reload = () => {
+    life.read += 1;
+    const read = life.read;
+    loadCaseList(api).then((next) => {
+      if (life.live && read === life.read) setList(next);
+    });
+  };
+  link.changed = reload;
+  useEffect(() => {
+    life.live = true;
+    reload();
+    return () => {
+      life.live = false;
+    };
+  }, [rest, life]);
+  const body =
+    list.state === 'loading'
+      ? jsx('p', { role: 'status', children: 'Loading cases…' })
+      : list.state === 'unavailable'
+        ? jsx('p', { role: 'alert', children: CASE_LIST_UNAVAILABLE })
+        : list.cases.length === 0
+          ? jsx('p', { children: 'No cases yet. Drop a denial document below to start one.' })
+          : jsx('ul', {
+              'aria-label': 'Cases',
+              children: list.cases.map((row) =>
+                jsx(
+                  'li',
+                  {
+                    children: jsx('button', {
+                      type: 'button',
+                      onClick: () => link.open(row.caseId),
+                      children: describeCaseRow(row),
+                    }),
+                  },
+                  row.caseId,
+                ),
+              ),
+            });
+  return jsxs('nav', {
+    'aria-label': 'Case list',
+    children: [
+      jsx('h3', { children: 'Cases' }),
+      body,
+      jsx('button', {
+        type: 'button',
+        onClick: reload,
+        children: list.state === 'unavailable' ? 'Retry' : 'Refresh list',
+      }),
+    ],
+  });
+}
+
+/**
+ * The registered pane (US-10.1): the case list view above the case detail view, joined by one
+ * link object that lives as long as the pane. A drop anywhere on it goes to the detail view.
+ *
+ * @param {{ rest: RestFn, subscribe?: SubscribeFn }} props
+ */
+export function ClaimCoachPane({ rest, subscribe = noEvents }) {
+  const [link] = useState(/** @type {PaneLink} */ ({ open: noop, changed: noop, drop: noop }));
+  return jsxs('div', {
+    'aria-label': 'ClaimCoach',
+    // The whole pane is the drop zone: a file dropped on the list must never open in the webview.
+    onDragOver: (/** @type {{ preventDefault: () => void }} */ event) => event.preventDefault(),
+    onDrop: (
+      /** @type {{ preventDefault: () => void,
+       *   dataTransfer: { files: ArrayLike<PickedFile> } | null }} */ event,
+    ) => {
+      event.preventDefault();
+      link.drop(event.dataTransfer?.files);
+    },
+    children: [jsx(CaseListView, { rest, link }), jsx(CasePane, { rest, subscribe, link })],
   });
 }
 
@@ -2087,7 +3280,7 @@ const plugin = {
         area: sdk.PANES_AREA,
         title: 'ClaimCoach',
         data: { placement: 'right', width: '380px' },
-        render: () => jsx(CasePane, { rest, subscribe }),
+        render: () => jsx(ClaimCoachPane, { rest, subscribe }),
       },
       {
         id: 'dashboard',

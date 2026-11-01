@@ -233,14 +233,14 @@ def test_us_4_3_bundle_refusals(tmp_path: Path) -> None:
     with pytest.raises(BundleError, match="invalid bundle at bundle: model_type"):
         parse_bundle(tmp_path / "empty.yaml")
     future = write_bundle(tmp_path / "f.yaml", [rule_card(TODAY + timedelta(days=2))])
-    with pytest.raises(BundleError, match="verified_on: value_error"):
+    with pytest.raises(BundleError, match="verified_on: verified_on is in the future"):
         parse_bundle(future)
     extra = write_bundle(tmp_path / "x.yaml", [rule_card(patient="Jane Doe")])
     with pytest.raises(BundleError, match="extra_forbidden") as caught:
         parse_bundle(extra)
     assert "Jane" not in str(caught.value)
     duplicate = write_bundle(tmp_path / "d.yaml", [rule_card(), rule_card()])
-    with pytest.raises(BundleError, match="value_error"):
+    with pytest.raises(BundleError, match="at bundle: duplicate item key in bundle"):
         parse_bundle(duplicate)
 
 

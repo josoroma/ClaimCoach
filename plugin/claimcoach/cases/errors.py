@@ -4,7 +4,8 @@ Implements: US-5.1 (``MalformedUploadError``, ``UnsupportedDocumentError``,
 ``DocumentTooLargeError``), US-5.2 (``NoDocumentsError``, ``FieldError``, ``JobNotFoundError``),
 US-6.1 (``NotExtractedError``, ``DiagnosisFailedError``), US-7.1 (``NotDiagnosedError``,
 ``NoLetterTemplateError``, ``DraftingFailedError``), US-7.2 (``NotDraftedError``,
-``DraftEditedError``).
+``DraftEditedError``), US-11.1 (``UnsupportedAudioError``, ``CallTooLargeError``,
+``CallNotFoundError``, ``TranscriptionFailedError``, ``TranscriptionTimeoutError``).
 Rules: ES-8 (each error maps to one fixed envelope code), BR-14 (no error carries content).
 """
 
@@ -15,6 +16,8 @@ from typing import ClassVar
 from claimcoach.api.models import ErrorCode
 
 __all__ = [
+    "CallNotFoundError",
+    "CallTooLargeError",
     "CaseError",
     "DiagnosisFailedError",
     "DocumentTooLargeError",
@@ -28,6 +31,9 @@ __all__ = [
     "NotDiagnosedError",
     "NotDraftedError",
     "NotExtractedError",
+    "TranscriptionFailedError",
+    "TranscriptionTimeoutError",
+    "UnsupportedAudioError",
     "UnsupportedDocumentError",
 ]
 
@@ -122,3 +128,38 @@ class NotDraftedError(CaseError):
 
     code: ClassVar[ErrorCode] = "not_drafted"
     status_code: ClassVar[int] = 409
+
+
+class UnsupportedAudioError(CaseError):
+    """The recording is not WAV, MP3, FLAC, or M4A audio (US-11.1)."""
+
+    code: ClassVar[ErrorCode] = "unsupported_audio"
+    status_code: ClassVar[int] = 415
+
+
+class CallTooLargeError(CaseError):
+    """The recording is over ``MAX_CALL_BYTES`` (US-11.1)."""
+
+    code: ClassVar[ErrorCode] = "call_too_large"
+    status_code: ClassVar[int] = 413
+
+
+class CallNotFoundError(CaseError):
+    """No call with that ID in the case (US-11.1)."""
+
+    code: ClassVar[ErrorCode] = "call_not_found"
+    status_code: ClassVar[int] = 404
+
+
+class TranscriptionFailedError(CaseError):
+    """The transcription model's reply held no transcript (US-11.1)."""
+
+    code: ClassVar[ErrorCode] = "transcription_failed"
+    status_code: ClassVar[int] = 502
+
+
+class TranscriptionTimeoutError(CaseError):
+    """The transcription did not finish before its deadline: the window's end (US-11.1)."""
+
+    code: ClassVar[ErrorCode] = "processing_timeout"
+    status_code: ClassVar[int] = 504

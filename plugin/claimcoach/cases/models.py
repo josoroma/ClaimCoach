@@ -5,7 +5,8 @@ Implements: US-5.1 (``CaseCreate``, ``PastedText``, ``SourceDocument``, ``Case``
 that need confirmation), US-6.1 (``Case`` carries the diagnosis and whether it is stale), US-6.3
 (``Case`` carries the appeal deadline), US-7.1 (``Case`` carries the appeal draft, labeled "draft
 for human review", and whether it is stale), US-8.1 (``OutcomeRequest``; ``Case`` carries the
-recorded outcome). Rules:
+recorded outcome), US-11.1 (``Case`` carries its payer calls), US-10.1 (``CaseList``, the pane's
+case list: no case content). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-2 (these bodies travel pane →
 ``plugin_api.py`` → worker only), BR-14 (they carry case content, so they are never logged and
 never reach an agent tool or an event).
@@ -19,18 +20,21 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from claimcoach.calls.types import PayerCall
 from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.extraction import CaseExtraction
-from claimcoach.corpus.types import CaseId, CaseOutcome, OutcomeRecord, Timestamp
+from claimcoach.corpus.types import CaseId, CaseListEntry, CaseOutcome, OutcomeRecord, Timestamp
 from claimcoach.letters.types import AppealDraft
 
 __all__ = [
     "MAX_FILE_BYTES",
+    "MAX_LISTED_CASES",
     "MAX_PASTE_BODY",
     "MAX_PASTE_BYTES",
     "MAX_UPLOAD_BODY",
     "Case",
     "CaseCreate",
+    "CaseList",
     "DocumentAdded",
     "OutcomeRequest",
     "PastedText",
@@ -38,6 +42,8 @@ __all__ = [
     "SourceKind",
 ]
 
+MAX_LISTED_CASES: Final = 200
+"""Most cases the pane's list shows, newest first; older ones are still opened by ID."""
 MAX_FILE_BYTES: Final = 16 * 1024 * 1024
 """Largest accepted file: a 20-page scanned EOB at 150 dpi is about 10 MiB."""
 MAX_PASTE_BYTES: Final = 4 * 1024 * 1024
@@ -110,6 +116,8 @@ class Case(_Strict):
         draft_stale: The fields or the diagnosis changed after the draft was made, so the pane
             asks the biller to check it or draft again.
         outcome: How the case ended, once the biller recorded it (US-8.1); the case is closed.
+        calls: Its payer-call recordings, each with its transcription job and transcript, oldest
+            first (US-11.1).
     """
 
     ok: Literal[True] = True
@@ -125,6 +133,19 @@ class Case(_Strict):
     draft: AppealDraft | None = None
     draft_stale: bool = False
     outcome: OutcomeRecord | None = None
+    calls: list[PayerCall] = Field(default_factory=list)
+
+
+class CaseList(_Strict):
+    """``GET /cases``: the profile's newest cases, without case content (US-10.1).
+
+    Attributes:
+        ok: Always ``True``.
+        cases: At most ``MAX_LISTED_CASES``, newest first.
+    """
+
+    ok: Literal[True] = True
+    cases: list[CaseListEntry] = Field(max_length=MAX_LISTED_CASES)
 
 
 class OutcomeRequest(_Strict):

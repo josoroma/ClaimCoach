@@ -2,9 +2,10 @@
 
 Implements: US-4.1 (``GET /corpus/status``, ``POST /corpus/reindex``), US-4.3 (``POST
 /corpus/import``, ``GET /corpus/global``), US-4.5 (``POST /corpus/purge``), US-4.6 (``GET
-/corpus/audit``). Rules: ES-8 (typed bodies; a ``CorpusError`` becomes its fixed envelope in
-``create_app``), BR-14 (responses carry IDs, counts, dates, and global reference material only;
-never case content).
+/corpus/audit``), US-10.3 (``GET /corpus/status?profile=`` reports only that profile's user
+scope, so the settings page reads no other profile's key). Rules: ES-8 (typed bodies; a
+``CorpusError`` becomes its fixed envelope in ``create_app``), BR-14 (responses carry IDs, counts,
+dates, and global reference material only; never case content).
 
 Routes that open stores or delete are plain ``def``: FastAPI runs them in its thread pool, so a
 Keychain prompt or a long secure-delete never stalls the event loop.
@@ -44,9 +45,14 @@ Corpus = Annotated[CorpusService, Depends(get_corpus)]
 
 
 @router.get("/status", response_model=CorpusStatusResponse)
-def status(corpus: Corpus) -> CorpusStatusResponse:
-    """Report both scopes: paths, counts, encryption, and the index's embedding model."""
-    return corpus.status()
+def status(
+    corpus: Corpus, profile: Annotated[ProfileName | None, Query()] = None
+) -> CorpusStatusResponse:
+    """Report both scopes: paths, counts, encryption, and the index's embedding model.
+
+    With ``profile``, only that profile's user scope is reported (US-10.3).
+    """
+    return corpus.status(profile)
 
 
 @router.post("/import", response_model=ImportResult)

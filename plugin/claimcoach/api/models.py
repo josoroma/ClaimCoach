@@ -8,7 +8,10 @@ Implements: US-1.2 (worker 401 envelope), US-1.3 (``ApiError``, ``ErrorEnvelope`
 (``no_documents``, ``job_not_found``, ``extraction_failed``, ``processing_timeout``), US-6.1
 (``not_extracted``, ``diagnosis_failed``), US-7.1 (``not_diagnosed``, ``no_letter_template``,
 ``drafting_failed``), US-7.2 (``not_drafted``, ``draft_edited``), US-8.3 (``export_not_approved``),
-US-9.1 (``code_not_found``, ``payer_not_found``).
+US-9.1 (``code_not_found``, ``payer_not_found``), US-11.1 (``unsupported_audio``,
+``call_too_large``, ``call_not_found``, ``transcription_failed``), US-10.3 (``SettingsResponse``
+carries ``retention_days``; ``RetentionUpdate``; ``settings_unavailable``, ``settings_managed``),
+US-10.4 (``invalid_bundle``, ``import_not_confirmed``).
 Rules: ES-1
 (Pydantic v2 for every REST body), ES-8 (typed success model or the envelope ``{"ok": false,
 "error": {"code", "message"}}``), BR-14 (messages are fixed strings and never carry document text).
@@ -26,6 +29,7 @@ __all__ = [
     "ErrorCode",
     "ErrorEnvelope",
     "HealthResponse",
+    "RetentionUpdate",
     "SettingsResponse",
     "envelope",
 ]
@@ -64,6 +68,14 @@ ErrorCode = Literal[
     "export_not_approved",
     "code_not_found",
     "payer_not_found",
+    "unsupported_audio",
+    "call_too_large",
+    "call_not_found",
+    "transcription_failed",
+    "settings_unavailable",
+    "settings_managed",
+    "invalid_bundle",
+    "import_not_confirmed",
 ]
 """Closed set of error codes the desktop half can switch on."""
 
@@ -106,6 +118,14 @@ ERROR_MESSAGES: Final[dict[ErrorCode, str]] = {
     "exported.",
     "code_not_found": "That code is not in the ClaimCoach global corpus.",
     "payer_not_found": "The ClaimCoach global corpus has no rule cards for that payer.",
+    "unsupported_audio": "ClaimCoach accepts WAV, MP3, FLAC, and M4A call recordings only.",
+    "call_too_large": "The call recording is larger than ClaimCoach accepts (128 MiB).",
+    "call_not_found": "No such call recording in this case.",
+    "transcription_failed": "The call could not be transcribed; queue it for transcription again.",
+    "settings_unavailable": "ClaimCoach settings are saved only inside Hermes; nothing was saved.",
+    "settings_managed": "This setting is managed by an administrator; nothing was saved.",
+    "invalid_bundle": "The file is not a valid ClaimCoach corpus bundle; nothing was imported.",
+    "import_not_confirmed": "Confirm the import first; nothing was imported.",
 }
 """One fixed, PHI-free message per code; no caller text is ever echoed (BR-14)."""
 
@@ -148,15 +168,31 @@ class HealthResponse(_Strict):
 
 
 class SettingsResponse(_Strict):
-    """The settings the desktop half shows (US-3.5: the statusbar's richer-access flag).
+    """The settings the desktop half shows.
+
+    US-3.5: the statusbar's richer-access flag; US-10.3: the settings page's retention period.
 
     Attributes:
         ok: Always ``True``.
         richer_agent_access: Whether the user turned richer agent access on.
+        retention_days: Days after a case closes before its content is purged, as the worker's
+            purge reads it; ``None`` when the stored value is invalid (the purge skips the
+            profile until a valid period is saved).
     """
 
     ok: Literal[True] = True
     richer_agent_access: bool
+    retention_days: int | None = Field(ge=1, le=3650)
+
+
+class RetentionUpdate(_Strict):
+    """``POST /settings/retention``: the retention period the biller saves (US-10.3).
+
+    Attributes:
+        retention_days: Days after a case closes before its content is purged (1-3650).
+    """
+
+    retention_days: int = Field(strict=True, ge=1, le=3650)
 
 
 def envelope(code: ErrorCode) -> ErrorEnvelope:

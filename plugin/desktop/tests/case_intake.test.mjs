@@ -19,7 +19,7 @@ import plugin, {
   REFUSALS,
   refusalOf,
 } from '../plugin.js';
-import { byArea, createFakeCtx } from './fake_ctx.mjs';
+import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hostAccesses } from './fakes/plugin-sdk.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
@@ -73,7 +73,7 @@ function caseBackend() {
 
 /** Render the registered pane (the one `register` contributes). */
 function renderPane(ctx) {
-  const element = byArea(ctx.recorded).panes[0].render();
+  const element = casePaneOf(byArea(ctx.recorded).panes[0].render());
   return { element, pane: element.type(element.props) };
 }
 

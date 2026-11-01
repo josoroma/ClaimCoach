@@ -1,3 +1,5 @@
+import { hooks } from './fakes/react.mjs';
+
 /**
  * Fake Hermes `PluginContext` that records contributions instead of mounting them. US-1.4; US-3.3
  * records each REST request with its method and options; US-5.2 adds `onEvent` (with `events`),
@@ -62,4 +64,17 @@ export function createFakeCtx({
 /** @param {{ contributions: Array<{ area: string }> }} recorded */
 export function byArea(recorded) {
   return Object.groupBy(recorded.contributions, (c) => c.area);
+}
+
+/**
+ * The case detail view inside the registered pane (US-10.1: the pane is the case list above the
+ * detail view). The wrapper's own hook slot is dropped, so tests index the detail view's hooks.
+ *
+ * @param {{ type: (props: object) => { props: { children: unknown[] } }, props: object }} element
+ */
+export function casePaneOf(element) {
+  const before = hooks.states.length;
+  const pane = element.type(element.props);
+  hooks.states.splice(before);
+  return pane.props.children[1];
 }

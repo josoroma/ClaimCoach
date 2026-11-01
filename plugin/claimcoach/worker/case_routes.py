@@ -1,6 +1,7 @@
 """Worker routes for cases and their source documents.
 
-Implements: US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST /cases/{case_id}/documents``
+Implements: US-10.1 (``GET /cases``: the profile's case list, no case content), US-5.1
+(``POST /cases``, ``GET /cases/{case_id}``, ``POST /cases/{case_id}/documents``
 with the raw single-file multipart body, ``POST /cases/{case_id}/paste``), US-5.2 (``POST
 /cases/{case_id}/extract`` starts a job, ``POST /cases/{case_id}/fields`` confirms a value, ``GET
 /jobs/{job_id}/events`` long-polls a job's progress), US-6.1 (``POST /cases/{case_id}/diagnose``
@@ -28,6 +29,7 @@ from claimcoach.cases.intake import parse_upload, read_limited
 from claimcoach.cases.models import (
     MAX_UPLOAD_BODY,
     Case,
+    CaseList,
     DocumentAdded,
     OutcomeRequest,
     PastedText,
@@ -94,6 +96,12 @@ CasePath = Annotated[CaseId, Path()]
 def create_case(cases: Cases, profile: Profile = DEFAULT_PROFILE) -> Case:
     """Create an open, empty case in ``profile``'s user scope."""
     return cases.create(profile)
+
+
+@router.get("", response_model=CaseList)
+def list_cases(cases: Cases, profile: Profile = DEFAULT_PROFILE) -> CaseList:
+    """Return ``profile``'s newest cases: IDs, dates, outcome, counts, and steps only."""
+    return cases.list_cases(profile)
 
 
 @router.get("/{case_id}", response_model=Case)

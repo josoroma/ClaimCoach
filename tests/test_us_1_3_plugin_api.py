@@ -57,11 +57,19 @@ GATEWAY_ROUTES = {
     "/cases/{case_id}/outcome",
     "/outcomes/summary",
     "/outcomes/export",
+    "/cases/{case_id}/calls",
+    "/cases/{case_id}/calls/{call_id}/transcribe",
+    "/settings/retention",
+    "/corpus/status",
+    "/corpus/import/preview",
+    "/corpus/import",
 }
 """US-1.3 health, the EPIC-2 model routes (US-2.2 status, US-2.4 download/convert), US-3.5
 settings, the US-5.1 case intake routes, the US-5.2 process and confirm routes, the US-6.1
 diagnose route, the US-7.1 draft and US-7.2 edit and export routes, the US-8.1 outcome route,
-the US-8.2 weekly summary route, and the US-8.3 fine-tune export route."""
+the US-8.2 weekly summary route, the US-8.3 fine-tune export route, the US-11.1 payer-call
+routes, the US-10.3 retention and corpus-status routes, and the US-10.4 corpus import routes
+(``/cases`` also answers the US-10.1 case list)."""
 
 
 def gateway_app(client: WorkerClient) -> FastAPI:
@@ -319,7 +327,7 @@ def test_us_1_3_plugin_api_loads_in_gateway_python(hermes_python: Path) -> None:
         [str(hermes_python), "-c", script], capture_output=True, text=True, check=True, timeout=60
     )
     payload = json.loads(result.stdout)
-    assert payload["routes"] == sorted(GATEWAY_ROUTES)
+    assert sorted(set(payload["routes"])) == sorted(GATEWAY_ROUTES)  # /cases has GET and POST
     # Tripwire: if Hermes moves its gateway to a newer Python, revisit the 3.11 floor
     # (pyproject target-version / python_version, ADR-0001 Consequences).
     assert payload["python"] == [3, 11]

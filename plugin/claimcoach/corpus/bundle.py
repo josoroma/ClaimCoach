@@ -4,7 +4,10 @@ Implements: US-4.3 (typed ``RuleCard``, ``CodeEntry``, ``LetterTemplate`` with r
 and ``verified_on``; ``CorpusBundle``; ``parse_bundle`` for a local YAML or JSON file; the corpus
 view with its ``stale`` flag), US-6.2 (``RuleCard.required_documents`` on ``required_docs`` cards,
 the source of the diagnosis checklist), US-6.3 (``RuleCard.appeal_limit_days`` on ``appeal_levels``
-cards, the appeal deadline's limit). Rules: ES-1, BR-1 (a local file only; nothing is fetched),
+cards, the appeal deadline's limit), US-10.4 (``parse_bundle_bytes`` for a file the settings page
+uploads; ``BundlePreview`` and ``preview_of``: what a bundle holds and replaces, before it is
+imported; a problem's location never echoes text from the file). Rules: ES-1, BR-1 (a local file
+only; nothing is fetched),
 PRD §11 (rule cards carry source and verified-on dates; stale cards are flagged).
 
 A bundle file::
@@ -43,9 +46,10 @@ from __future__ import annotations
 import os
 import re
 import stat
+from collections.abc import Collection, Mapping, Sequence
 from datetime import date, timedelta
-from pathlib import Path
-from typing import Annotated, Final, Literal
+from pathlib import Path, PurePath
+from typing import Annotated, Any, Final, Literal
 
 import yaml
 from pydantic import (
@@ -61,9 +65,12 @@ from pydantic import (
 
 __all__ = [
     "MAX_BUNDLE_BYTES",
+    "MAX_PREVIEW_PAYERS",
+    "MAX_PREVIEW_REPLACED",
     "STALE_AFTER_DAYS",
     "STRUCTURED_CARD_FIELDS",
     "BundleError",
+    "BundlePreview",
     "CodeEntry",
     "CorpusBundle",
     "CorpusItem",
@@ -74,7 +81,9 @@ __all__ = [
     "RuleCard",
     "is_stale",
     "parse_bundle",
+    "parse_bundle_bytes",
     "payer_words",
+    "preview_of",
 ]
 
 STALE_AFTER_DAYS: Final = 180
@@ -232,6 +241,77 @@ def _text_size(item: RuleCard | CodeEntry | LetterTemplate) -> int:
     return len(item.body) + len(item.title) + sum(len(document) for document in documents)
 
 
+_KNOWN_PARTS: Final = frozenset(
+    {"items", *RuleCard.model_fields, *CodeEntry.model_fields, *LetterTemplate.model_fields}
+    | {"rule_card", "code", "letter_template"}
+)
+"""Location parts a problem may name: ClaimCoach's own field and kind names. Any other part is a
+key the file invented, which is shown as ``…`` (US-10.4: a location never echoes file text)."""
+
+
+_LISTS: Final = frozenset({"items", "required_documents"})
+"""Fields whose next location part is a position in a list, which may be shown."""
+_LOADER: Final = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+"""libyaml's safe loader when it is built in (seconds instead of half a minute on 5 MiB)."""
+
+
+def _location(loc: Sequence[int | str]) -> str:
+    """A problem's location with every part the file invented shown as ``…`` (US-10.4)."""
+    parts = []
+    for index, part in enumerate(loc):
+        after_list = index > 0 and loc[index - 1] in _LISTS
+        known = part in _KNOWN_PARTS if isinstance(part, str) else after_list
+        parts.append(str(part) if known else "…")
+    return ".".join(parts) or "bundle"
+
+
+def _problem(error: Mapping[str, Any]) -> str:
+    """The first validation problem; a ``value_error`` adds ClaimCoach's own fixed reason."""
+    where = _location(error["loc"])
+    if error["type"] == "value_error":
+        reason = str(error["msg"]).removeprefix("Value error, ")
+        return f"invalid bundle at {where}: {reason}"
+    return f"invalid bundle at {where}: {error['type']}"
+
+
+def _load(text: str) -> object:
+    """Parse YAML or JSON; aliases are refused, so a small file cannot expand to gigabytes."""
+    for event in yaml.parse(text, Loader=_LOADER):
+        if isinstance(event, yaml.AliasEvent):
+            raise BundleError("bundle uses YAML aliases, which ClaimCoach does not accept")
+    return yaml.load(text, Loader=_LOADER)  # noqa: S506 - a safe loader
+
+
+def parse_bundle_bytes(data: bytes, filename: str | None) -> CorpusBundle:
+    """Validate a bundle file's bytes (an upload from the settings page, US-10.4).
+
+    Args:
+        data: The file's bytes.
+        filename: Its name; the suffix must be ``.yaml``, ``.yml``, or ``.json``.
+
+    Returns:
+        The validated bundle.
+
+    Raises:
+        BundleError: Wrong suffix, too large, not UTF-8, not YAML/JSON, or not a valid bundle.
+            The message names the field that failed, never the file's content.
+    """
+    if filename is None or PurePath(filename).suffix.lower() not in _SUFFIXES:
+        raise BundleError("a bundle is a .yaml, .yml, or .json file")
+    if len(data) > MAX_BUNDLE_BYTES:
+        raise BundleError("bundle is larger than 5 MiB")
+    try:
+        loaded = _load(data.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise BundleError("bundle file cannot be read") from exc
+    except yaml.YAMLError as exc:
+        raise BundleError("bundle is not valid YAML or JSON") from exc
+    try:
+        return CorpusBundle.model_validate(loaded)
+    except ValidationError as exc:
+        raise BundleError(_problem(exc.errors()[0])) from exc
+
+
 def parse_bundle(path: Path) -> CorpusBundle:
     """Read and validate a local YAML or JSON bundle.
 
@@ -255,19 +335,67 @@ def parse_bundle(path: Path) -> CorpusBundle:
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
                 raise BundleError("a bundle is a regular file")
             raw = handle.read(MAX_BUNDLE_BYTES + 1)  # bounded, even if the file grows
-        if len(raw) > MAX_BUNDLE_BYTES:
-            raise BundleError("bundle is larger than 5 MiB")
-        data = yaml.safe_load(raw.decode("utf-8"))
-    except (OSError, UnicodeDecodeError) as exc:
+    except OSError as exc:
         raise BundleError("bundle file cannot be read") from exc
-    except yaml.YAMLError as exc:
-        raise BundleError("bundle is not valid YAML or JSON") from exc
-    try:
-        return CorpusBundle.model_validate(data)
-    except ValidationError as exc:
-        first = exc.errors()[0]
-        where = ".".join(str(part) for part in first["loc"]) or "bundle"
-        raise BundleError(f"invalid bundle at {where}: {first['type']}") from exc
+    return parse_bundle_bytes(raw, path.name)
+
+
+MAX_PREVIEW_PAYERS: Final = 50
+MAX_PREVIEW_REPLACED: Final = 50
+
+
+class BundlePreview(BaseModel):
+    """What a picked file would import (US-10.4: ``POST /corpus/import/preview``; writes nothing).
+
+    Attributes:
+        ok: Always ``True``.
+        valid: The file is a valid bundle.
+        problem: Why it is not (its first problem; never text from the file).
+        items: Items it holds.
+        by_kind: Items per kind.
+        payers: Payers its rule cards name, sorted (at most ``MAX_PREVIEW_PAYERS``).
+        more_payers: Payers beyond those listed.
+        stale: Items verified more than ``STALE_AFTER_DAYS`` ago.
+        replaces: Items whose key is already in the global corpus (they are replaced).
+        replaced: Those items as ``<kind> <key>`` (``rule_card Aetna/appeal_levels``), in bundle
+            order (at most ``MAX_PREVIEW_REPLACED``).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    ok: Literal[True] = True
+    valid: bool
+    problem: str | None = None
+    items: int = Field(default=0, ge=0)
+    by_kind: dict[str, int] = Field(default_factory=dict)
+    payers: list[str] = Field(default_factory=list, max_length=MAX_PREVIEW_PAYERS)
+    more_payers: int = Field(default=0, ge=0)
+    stale: int = Field(default=0, ge=0)
+    replaces: int = Field(default=0, ge=0)
+    replaced: list[str] = Field(default_factory=list, max_length=MAX_PREVIEW_REPLACED)
+
+
+def preview_of(
+    bundle: CorpusBundle, existing: Collection[tuple[str, str]], today: date
+) -> BundlePreview:
+    """Describe what ``bundle`` would import next to the ``(kind, key)`` pairs already stored."""
+    by_kind: dict[str, int] = {}
+    for item in bundle.items:
+        by_kind[item.kind] = by_kind.get(item.kind, 0) + 1
+    payers = sorted({item.payer for item in bundle.items if isinstance(item, RuleCard)})
+    replaced = [
+        f"{item.kind} {item.key}" for item in bundle.items if (item.kind, item.key) in existing
+    ]
+    return BundlePreview(
+        valid=True,
+        items=len(bundle.items),
+        by_kind=by_kind,
+        payers=payers[:MAX_PREVIEW_PAYERS],
+        more_payers=max(len(payers) - MAX_PREVIEW_PAYERS, 0),
+        stale=sum(is_stale(item.verified_on, today) for item in bundle.items),
+        replaces=len(replaced),
+        replaced=replaced[:MAX_PREVIEW_REPLACED],
+    )
 
 
 def is_stale(verified_on: date, today: date) -> bool:

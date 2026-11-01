@@ -10,8 +10,9 @@ derived items, sealed per row, refused once the case is closed, deleted by the p
 ``case_items`` CHECK lists every ``CaseItemKind``, and an older table is rebuilt once to match;
 ``documents`` filters by kind), US-8.1 (``record_outcome`` closes the case in the same transaction),
 US-8.2 (an outcome's de-identified ``features``, added once to an older table; ``read_outcomes``
-opens the database read-only and can read the ``outcomes`` table and nothing else). Rules: BR-5,
-BR-6, BR-7, BR-13, BR-14.
+opens the database read-only and can read the ``outcomes`` table and nothing else), US-10.1
+(``case_index``: the case list from row metadata and item kinds, no sealed value opened). Rules:
+BR-5, BR-6, BR-7, BR-13, BR-14.
 
 Both files use ``secure_delete`` so deleted PHI pages are zeroed, and a purge truncates the WAL.
 Vectors are float32, normalized to unit length, so cosine similarity is a dot product.
@@ -48,6 +49,7 @@ from claimcoach.corpus.types import (
     AuditEntry,
     CaseItem,
     CaseItemKind,
+    CaseListEntry,
     CaseOutcome,
     CaseRecord,
     Chunk,
@@ -692,6 +694,43 @@ class CorpusStore:
             purged_at=None if row[3] is None else datetime.fromisoformat(row[3]),
         )
 
+    def case_index(self, limit: int) -> list[CaseListEntry]:
+        """Return the newest ``limit`` cases with their dates, outcome, and item counts (US-10.1).
+
+        Row metadata and item kinds only: no sealed value is opened, so this is not a case access
+        and is not audited.
+        """
+        if self.scope is not CorpusScope.USER:
+            raise CorpusError("cases live in the user scope")
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT c.case_id, c.opened_at, c.closed_at, c.purged_at, o.outcome, "
+                "count(i.item_id) FILTER (WHERE i.kind = 'source'), "
+                "count(i.item_id) FILTER (WHERE i.kind = 'call'), "
+                "count(i.item_id) FILTER (WHERE i.kind = 'extraction'), "
+                "count(i.item_id) FILTER (WHERE i.kind = 'diagnosis'), "
+                "count(i.item_id) FILTER (WHERE i.kind = 'draft') "
+                "FROM main.cases c LEFT JOIN main.outcomes o ON o.case_id = c.case_id "
+                "LEFT JOIN main.case_items i ON i.case_id = c.case_id "
+                "GROUP BY c.case_id ORDER BY c.opened_at DESC, c.case_id LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [
+            CaseListEntry(
+                case_id=row[0],
+                opened_at=datetime.fromisoformat(row[1]),
+                closed_at=None if row[2] is None else datetime.fromisoformat(row[2]),
+                purged_at=None if row[3] is None else datetime.fromisoformat(row[3]),
+                outcome=None if row[4] is None else CaseOutcome(row[4]),
+                documents=row[5],
+                calls=row[6],
+                extracted=row[7] > 0,
+                diagnosed=row[8] > 0,
+                drafted=row[9] > 0,
+            )
+            for row in rows
+        ]
+
     def create_case(self, case_id: str, *, at: datetime | None = None) -> CaseRecord:
         """Create an open case (audited ``case_created``)."""
         record = CaseRecord(case_id=case_id, opened_at=at or utc_now())
@@ -918,7 +957,8 @@ class CorpusStore:
                 (``case_purged_on_request``).
 
         Returns:
-            ``(documents, chunks, vectors)`` deleted; attached source files count as documents.
+            ``(documents, chunks, vectors)`` deleted; attached files and call recordings count as
+            documents (US-11.1).
 
         Raises:
             CaseNotFoundError: No such case.
@@ -928,7 +968,8 @@ class CorpusStore:
             doc_ids = db.execute("SELECT doc_id FROM main.documents WHERE case_id = ?", (case_id,))
             documents, chunks, vectors = self._delete_documents(db, [row[0] for row in doc_ids])
             (sources,) = db.execute(
-                "SELECT count(*) FROM main.case_items WHERE case_id = ? AND kind = 'source'",
+                "SELECT count(*) FROM main.case_items "
+                "WHERE case_id = ? AND kind IN ('source', 'call')",
                 (case_id,),
             ).fetchone()
             db.execute("DELETE FROM main.case_items WHERE case_id = ?", (case_id,))

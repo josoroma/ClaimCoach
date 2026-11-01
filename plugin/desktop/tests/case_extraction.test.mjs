@@ -21,7 +21,7 @@ import plugin, {
   progressOf,
   REFUSALS,
 } from '../plugin.js';
-import { byArea, createFakeCtx } from './fake_ctx.mjs';
+import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hostAccesses } from './fakes/plugin-sdk.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 
@@ -268,7 +268,7 @@ describe('US-5.2 extraction progress is pushed as events', () => {
     const { rest } = backend();
     const ctx = createFakeCtx({ rest, events: true });
     plugin.register(ctx);
-    const element = byArea(ctx.recorded).panes[0].render();
+    const element = casePaneOf(byArea(ctx.recorded).panes[0].render());
     const ready = await openCase(createCaseApi(rest), CASE);
     const pane = rerender(element, ready, life());
     assert.deepEqual(
@@ -320,7 +320,7 @@ describe('US-5.2 extraction progress is pushed as events', () => {
     const { rest } = backend();
     const ctx = createFakeCtx({ rest, events: true });
     plugin.register(ctx);
-    const element = byArea(ctx.recorded).panes[0].render();
+    const element = casePaneOf(byArea(ctx.recorded).panes[0].render());
     for (const [code, notice] of [
       ['model_unavailable', 'model_unavailable'],
       [null, 'extraction_failed'],
@@ -350,7 +350,7 @@ describe('US-5.2 extraction progress is pushed as events', () => {
     const { rest } = backend();
     const ctx = createFakeCtx({ rest, events: true });
     plugin.register(ctx);
-    const element = byArea(ctx.recorded).panes[0].render();
+    const element = casePaneOf(byArea(ctx.recorded).panes[0].render());
     const pane = rerender(
       element,
       { state: 'ready', caseId: CASE, documents: [], fields: [] },
@@ -366,11 +366,11 @@ describe('US-5.2 extraction progress is pushed as events', () => {
 
     const bare = createFakeCtx({ rest });
     plugin.register(bare);
-    const plain = byArea(bare.recorded).panes[0].render();
+    const plain = casePaneOf(byArea(bare.recorded).panes[0].render());
     const unsubscribe = plain.props.subscribe(() => {});
     assert.equal(typeof unsubscribe, 'function');
     unsubscribe();
-    assert.equal(CasePane({ rest }).props.children.length, 17, 'subscribe defaults to no events');
+    assert.equal(CasePane({ rest }).props.children.length, 18, 'subscribe defaults to no events');
   });
 
   test('Refresh while processing stops listening for that job and reopens the case', async () => {
@@ -444,7 +444,7 @@ describe('US-5.2 review regressions', () => {
     const { rest } = backend();
     const ctx = createFakeCtx({ rest, events: true });
     plugin.register(ctx);
-    const element = byArea(ctx.recorded).panes[0].render();
+    const element = casePaneOf(byArea(ctx.recorded).panes[0].render());
     const ready = { state: 'ready', caseId: CASE, documents: [], fields: [] };
     const pane = rerender(element, ready, life(), '', { claim_id: 'OLD' });
     pane.props.children[at.process].props.onClick();

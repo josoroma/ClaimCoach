@@ -143,13 +143,18 @@ class CorpusService:
                 encrypted=True,
             )
 
-    def status(self) -> CorpusStatusResponse:
-        """Return both scopes' status; a user scope that does not open is ``available: false``."""
+    def status(self, profile: str | None = None) -> CorpusStatusResponse:
+        """Return both scopes' status; a user scope that does not open is ``available: false``.
+
+        Args:
+            profile: Only this profile's user scope (US-10.3), so no other profile's key is read.
+        """
         return CorpusStatusResponse(
             global_scope=self.global_store().status(),
             user_scopes=[
-                self._user_status(profile, directory)
-                for profile, directory in user_scopes(self.root).items()
+                self._user_status(name, directory)
+                for name, directory in user_scopes(self.root).items()
+                if profile is None or name == profile
             ],
         )
 

@@ -3,8 +3,10 @@
 Implements: US-2.1 (``ModelSpec``, ``ModelRegistry``, default file written on first run), US-2.3
 (the size-tier table: ``tier_b``, ``runs_alone``, ``ResidencyPolicy``), US-2.4 (``repo_id``,
 ``ConversionSpec``, ``AcquireCommands``, weights presence), US-7.1 (an unedited pre-US-7.1 copy's
-``drafting`` command gains ``--reasoning off``, once). Rules: BR-11 (weights read in place
-under ``MODELS_HOME``, never copied; ports 18200-18219), BR-12, ES-1.
+``drafting`` command gains ``--reasoning off``, once), US-11.1 (the ``{logs}`` placeholder; an
+unedited pre-US-11.1 copy's ``transcription`` command drops the ``--model`` flag
+``mlx_audio.server`` does not have and gains ``--log-dir {logs}``, once). Rules: BR-11 (weights
+read in place under ``MODELS_HOME``, never copied; ports 18200-18219), BR-12, ES-1.
 
 Paths are validated lexically and never resolved: a model symlinked into ``MODELS_HOME`` stays
 usable, and nothing here touches a weight file.
@@ -49,7 +51,7 @@ DEFAULT_REGISTRY: Final = Path(__file__).with_name("models.default.yaml")
 WORKER_PORT: Final = PORT_RANGE.start
 """18200 belongs to the worker; model servers use the rest of the range."""
 
-SERVER_PLACEHOLDERS: Final = frozenset({"venv", "model", "host", "port"})
+SERVER_PLACEHOLDERS: Final = frozenset({"venv", "model", "host", "port", "logs"})
 _DOWNLOAD_PLACEHOLDERS: Final = frozenset({"models_home", "repo_id", "target"})
 _CONVERT_PLACEHOLDERS: Final = frozenset({"models_home", "source", "target", "q_bits"})
 _RANGE_TEXT: Final = f"{PORT_RANGE.start}-{PORT_RANGE.stop - 1}"
@@ -138,7 +140,7 @@ class ModelSpec(_Strict):
         convert: Local conversion recipe; ``None`` when downloaded ready-made.
         model_dir: Model directory, relative to ``MODELS_HOME``.
         venv: Venv name under ``MODELS_HOME/.venvs``.
-        command: Server argv; placeholders ``{venv} {model} {host} {port}``.
+        command: Server argv; placeholders ``{venv} {model} {host} {port} {logs}``.
         port: Loopback port inside 18201-18219.
         tier_b: Size tier in billions of parameters (memory guard, BR-12).
         runs_alone: Start only when no other ClaimCoach server is resident (Voxtral).
@@ -189,13 +191,21 @@ class ModelSpec(_Strict):
         """Return the venv directory under ``home/.venvs``."""
         return home / ".venvs" / self.venv
 
-    def argv(self, home: Path, host: str) -> list[str]:
-        """Return the server argv with every placeholder filled in."""
+    def argv(self, home: Path, host: str, logs: Path | None = None) -> list[str]:
+        """Return the server argv with every placeholder filled in.
+
+        Args:
+            home: ``MODELS_HOME``.
+            host: The loopback host.
+            logs: The folder ``{logs}`` names (the manager's, in the data dir); ``home/.logs``
+                when not given, for display only.
+        """
         values = {
             "venv": str(self.venv_path(home)),
             "model": str(self.model_path(home)),
             "host": host,
             "port": str(self.port),
+            "logs": str(logs or home / ".logs"),
         }
         return [part.format_map(values) for part in self.command]
 
@@ -336,18 +346,38 @@ _DRAFTING_COMMAND: Final = (
 )
 
 
-def _migrate_drafting_command(path: Path) -> None:
-    """Add ``--reasoning off`` to an unedited pre-US-7.1 ``drafting`` command, once.
+_OLD_TRANSCRIPTION_COMMAND: Final = (
+    '    command: ["{venv}/bin/python", "-m", "mlx_audio.server", "--model", "{model}", '
+    '"--host", "{host}", "--port", "{port}"]\n'
+)
+"""The ``transcription`` command shipped before US-11.1: ``mlx_audio.server`` has no ``--model``."""
+_TRANSCRIPTION_COMMAND: Final = (
+    '    command: ["{venv}/bin/python", "-m", "mlx_audio.server", "--host", "{host}", '
+    '"--port", "{port}", "--log-dir", "{logs}"]\n'
+)
+_COMMAND_MIGRATIONS: Final = (
+    (_OLD_DRAFTING_COMMAND, _DRAFTING_COMMAND),
+    (_OLD_TRANSCRIPTION_COMMAND, _TRANSCRIPTION_COMMAND),
+)
 
-    Only the exact line the old default shipped is replaced (written to a temporary file and
-    renamed into place, keeping the file's mode); an edited command is left as the user wrote it
-    (the upgrade runbook says how to add the flag by hand).
+
+def _migrate_commands(path: Path) -> None:
+    """Bring unedited old default commands up to date, once.
+
+    The ``drafting`` command gains ``--reasoning off`` (US-7.1); the ``transcription`` command
+    drops ``--model`` and gains ``--log-dir {logs}`` (US-11.1). Only the exact lines an old default
+    shipped are replaced (written to a temporary file and renamed into place, keeping the file's
+    mode); an edited command is left as the user wrote it (the upgrade runbook says how to change
+    it by hand).
     """
-    text = path.read_text()
-    if text.count(_OLD_DRAFTING_COMMAND) != 1:
+    text = original = path.read_text()
+    for old, new in _COMMAND_MIGRATIONS:
+        if text.count(old) == 1:
+            text = text.replace(old, new)
+    if text == original:
         return
     tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(text.replace(_OLD_DRAFTING_COMMAND, _DRAFTING_COMMAND))
+    tmp.write_text(text)
     tmp.chmod(path.stat().st_mode & 0o777)
     tmp.replace(path)
 
@@ -357,7 +387,7 @@ def ensure_registry_file(data_dir: Path) -> Path:
 
     The default is written to a temporary file and hard-linked into place, so a concurrent
     start never sees a partial file and an existing (possibly edited) file is never replaced;
-    only an unedited pre-US-7.1 ``drafting`` command is migrated (``_migrate_drafting_command``).
+    only unedited old default commands are migrated (``_migrate_commands``).
 
     Args:
         data_dir: The ClaimCoach data dir.
@@ -367,7 +397,7 @@ def ensure_registry_file(data_dir: Path) -> Path:
     """
     path = data_dir / REGISTRY_FILE
     if path.exists():
-        _migrate_drafting_command(path)
+        _migrate_commands(path)
         return path
     data_dir.mkdir(parents=True, exist_ok=True)
     tmp = data_dir / f".{REGISTRY_FILE}.{os.getpid()}.tmp"

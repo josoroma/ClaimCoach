@@ -38,8 +38,11 @@ Every command below also runs as `hermes claimcoach corpus <command>` once the p
    `appeal_limit_days` (1–3650 calendar days from the denial date), the appeal deadline's limit
    (US-6.3); codes add
    `code_set` (`CARC`, `RARC`, `GROUP`) and `code`; templates add `template_id`. Then:
-   `make corpus-import FILE=rules.yaml`. The import is all or nothing; re-importing an item with
-   the same key replaces it. A bundle's text is at most 5 MiB.
+   `make corpus-import FILE=rules.yaml`, or in Hermes Desktop Settings → **ClaimCoach** →
+   **Global corpus import** (US-10.4): pick the file, read what it holds and replaces, then press
+   **Import into the global corpus** (see [desktop-pane-and-settings](desktop-pane-and-settings.md)).
+   The import is all or nothing; re-importing an item with the same key replaces it. A bundle's
+   text is at most 5 MiB.
 2. **Reindex after an embedding-model change (US-4.1).** The worker reads `models.yaml` when it
    starts, so restart it after editing the `embedding` role (`make stop && make start`). Then
    `make corpus-status` shows

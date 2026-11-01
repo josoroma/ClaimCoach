@@ -2,7 +2,8 @@
 
 Implements: US-4.1 (global scope under the Hermes root, user scope under the active profile's
 plugin data dir), US-7.2 (each profile's short-lived ``exports`` folder, next to its user scope),
-US-8.3 (the app-wide ``fine-tune`` folder). Rules: BR-13, PC-6, PRD §9.
+US-8.3 (the app-wide ``fine-tune`` folder), US-11.1 (the app-wide ``transcription`` folder).
+Rules: BR-13, PC-6, PRD §9.
 
 * ``global``: ``<hermes root>/plugin-data/claimcoach/global/``, shared by every profile.
 * ``user``: ``plugin_data_dir("claimcoach")/user/``, i.e. ``<profile home>/plugin-data/claimcoach/
@@ -12,6 +13,8 @@ US-8.3 (the app-wide ``fine-tune`` folder). Rules: BR-13, PC-6, PRD §9.
   each deleted 15 minutes after it is written (US-7.2).
 * ``fine-tune``: ``<hermes root>/plugin-data/claimcoach/fine-tune/``, manager-approved,
   de-identified fine-tune exports and their approval log (US-8.3).
+* ``transcription``: ``<hermes root>/plugin-data/claimcoach/transcription/``, the PHI-free queue of
+  payer-call transcription jobs (US-11.1).
 
 The gateway and the Hermes CLI resolve the *active* profile; the app-wide worker addresses a user
 scope by a validated profile name instead, so a request can never point it at another directory.
@@ -36,6 +39,7 @@ __all__ = [
     "FINE_TUNE_DIR",
     "GLOBAL_DIR",
     "INDEX",
+    "TRANSCRIPTION_DIR",
     "USER_DIR",
     "InvalidProfileError",
     "active_profile",
@@ -46,6 +50,7 @@ __all__ = [
     "profile_exports_dir",
     "profile_home",
     "profile_user_scope_dir",
+    "transcription_dir",
     "user_scope_dir",
     "user_scopes",
 ]
@@ -55,6 +60,8 @@ USER_DIR: Final = "user"
 EXPORTS_DIR: Final = "exports"
 FINE_TUNE_DIR: Final = "fine-tune"
 """Where manager-approved fine-tune exports go, app-wide (US-8.3)."""
+TRANSCRIPTION_DIR: Final = "transcription"
+"""Where the transcription queue lives, app-wide (US-11.1)."""
 DATABASE: Final = "corpus.sqlite3"
 """A directory is an initialized scope once it holds this file."""
 INDEX: Final = "index.sqlite3"
@@ -145,6 +152,12 @@ def fine_tune_dir(root: Path | None = None) -> Path:
     """Return (and create, mode 0700) the app-wide fine-tune exports folder (US-8.3)."""
     data = app_data_dir() if root is None else root / "plugin-data" / PLUGIN_NAME
     return _secure(data / FINE_TUNE_DIR)
+
+
+def transcription_dir(root: Path | None = None) -> Path:
+    """Return (and create, mode 0700) the app-wide transcription queue folder (US-11.1)."""
+    data = app_data_dir() if root is None else root / "plugin-data" / PLUGIN_NAME
+    return _secure(data / TRANSCRIPTION_DIR)
 
 
 def profile_exports_dir(profile: str, root: Path | None = None) -> Path:
