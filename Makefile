@@ -89,7 +89,7 @@ WORKER_CURL = set -o pipefail; token_file="$(HERMES_HOME)/plugin-data/claimcoach
 	curl -sS --fail-with-body --noproxy '*' \
 	  -H @<(printf 'Authorization: Bearer %s\n' "$$(cat "$$token_file")")
 # ModelRole values. ROLE is checked by make itself, before any shell sees it.
-MODEL_ROLES := extraction phi_detection classification embedding rerank explanation drafting \
+MODEL_ROLES := extraction phi_detection classification embedding explanation drafting \
 	transcription
 REQUIRE_ROLE = $(if $(and $(filter 1,$(words $(ROLE))),$(filter $(ROLE),$(MODEL_ROLES))),:,\
 	$(error usage: make $@ ROLE=<one of: $(MODEL_ROLES)>))
@@ -166,7 +166,7 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         plugin-link plugin-unlink plugin-enable plugin-disable plugin-install gateway-restart \
         start stop worker-venv worker-start worker-stop worker-status worker-health \
         models-init models-check models-status models-load models-unload models-download \
-        models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
+        redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
         case-new case-list case-add case-paste case-show case-process case-confirm case-diagnose \
         case-draft case-edit case-export case-correct case-correction-export case-outcome \
@@ -349,13 +349,6 @@ models-download: ## Download a role's model into MODELS_HOME: make models-downlo
 	@$(REQUIRE_CONFIRM)
 	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' \
 	  -d '{"role": "$(ROLE)", "confirm": true}' "$(WORKER_URL)/models/download" | python3 -m json.tool
-
-models-convert: override ROLE := $(or $(ROLE),rerank)
-models-convert: ## Convert the reranker to local MLX 4-bit: make models-convert CONFIRM=yes
-	@$(REQUIRE_ROLE)
-	@$(REQUIRE_CONFIRM)
-	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' \
-	  -d '{"role": "$(ROLE)", "confirm": true}' "$(WORKER_URL)/models/convert" | python3 -m json.tool
 
 # --- PHI redaction (docs/runbooks/phi-redaction.md) ----------------------------------------------
 

@@ -16,18 +16,9 @@ queue_timeout_s: 900
 residency:
   large_tier_b: 14
 
-# Confirmed downloads and local conversion (US-2.4). Run only after the user confirms.
+# Confirmed downloads (US-2.4). Run only after the user confirms.
 acquire:
   download: ["{models_home}/.venvs/mlx-lm/bin/hf", "download", "{repo_id}", "--local-dir", "{target}"]
-  convert:
-    - "{models_home}/.venvs/mlx-lm/bin/mlx_lm.convert"
-    - "--hf-path"
-    - "{source}"
-    - "--mlx-path"
-    - "{target}"
-    - "-q"
-    - "--q-bits"
-    - "{q_bits}"
 
 roles:
   extraction:
@@ -55,24 +46,14 @@ roles:
     port: 18202
     tier_b: 8
 
-  # Embedding and rerank serving commands are provisional until EPIC-4 (retrieval).
+  # Embeds the corpus at import and reindex (US-4.1). US-14.1 removed the reranker: no case
+  # flow used retrieval.
   embedding:
     repo_id: mlx-community/Qwen3-Embedding-8B-4bit-DWQ
     model_dir: Qwen3-Embedding-8B-4bit-DWQ
     venv: mlx-lm
     command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
     port: 18203
-    tier_b: 8
-
-  rerank:
-    convert:
-      source_repo_id: Qwen/Qwen3-Reranker-8B
-      source_dir: Qwen3-Reranker-8B
-      q_bits: 4
-    model_dir: Qwen3-Reranker-8B-MLX-4bit
-    venv: mlx-lm
-    command: ["{venv}/bin/mlx_lm.server", "--model", "{model}", "--host", "{host}", "--port", "{port}"]
-    port: 18204
     tier_b: 8
 
   explanation:

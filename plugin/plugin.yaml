@@ -21,10 +21,6 @@ provides_tools:
 provides_hooks:
   - transform_tool_result
 config_schema:
-  models_home:
-    type: str
-    default: ~/Models
-    description: Directory that holds local model weights (MODELS_HOME). Weights are never copied.
   retention_days:
     type: int
     default: 90

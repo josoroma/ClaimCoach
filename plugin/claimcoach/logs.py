@@ -49,7 +49,7 @@ request_id_var: ContextVar[str | None] = ContextVar("claimcoach_request_id", def
 """ID of the HTTP request being served; set by the worker middleware."""
 
 job_id_var: ContextVar[str | None] = ContextVar("claimcoach_job_id", default=None)
-"""ID of the background job being run (idle sweep, download, conversion)."""
+"""ID of the background job being run (idle sweep, download)."""
 
 _process_job_id = f"process-{os.getpid()}"
 """Job ID of log lines outside any request or job: the process itself (startup, shutdown)."""

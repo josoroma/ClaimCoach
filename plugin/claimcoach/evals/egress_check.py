@@ -6,7 +6,7 @@ this process (the ``plugin_api`` half), the worker's own hook writes ``worker/eg
 ``lsof`` samples the process groups of the worker and of every running model server; any
 non-loopback connection or attempt fails the check, and the report says which observers covered
 each process). Rules: BR-1 and NFR-5 (no outbound call carries case content; the check runs
-only when no confirmed download or conversion is in progress, the one case where the worker may
+only when no confirmed download is in progress, the one case where the worker may
 reach out), BR-11 (the model servers are the worker's own, found through ``/models/status``),
 BR-14 (a finding is a process, an address, and a port).
 
@@ -168,7 +168,7 @@ def preconditions(status: ModelsStatusResponse) -> list[str]:
     """
     problems: list[str] = []
     for model in status.models:
-        if model.acquire in {"downloading", "converting"}:
+        if model.acquire == "downloading":
             problems.append(f"{model.role}: {model.acquire}")
         if model.role in CASE_ROLES and model.weights != "present":
             problems.append(f"{model.role}: weights {model.weights}")

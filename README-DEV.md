@@ -60,14 +60,14 @@ when nothing else is loaded. Roles on the same port share one server.
 | `extraction` | `Qwen3-VL-8B-Instruct-4bit` | `mlx-community/Qwen3-VL-8B-Instruct-4bit` | `mlx-vlm` | 18201 | 8B | Reads EOB/ERA PDF pages, images, and letters into structured case fields (US-5.2) |
 | `phi_detection` | `Qwen3-8B-4bit` | `mlx-community/Qwen3-8B-4bit` | `mlx-lm` | 18202 | 8B | Finds PHI spans (with regex validators) to redact logs and agent tool results; the fine-tune export is checked with the regex validators (US-3.1) |
 | `classification` | `Qwen3-8B-4bit` | `mlx-community/Qwen3-8B-4bit` | `mlx-lm` | 18202 | 8B | Classifies the denial reason and the appeal likelihood (US-6.1) |
-| `embedding` | `Qwen3-Embedding-8B-4bit-DWQ` | `mlx-community/Qwen3-Embedding-8B-4bit-DWQ` | `mlx-lm` | 18203 | 8B | Embeds the global corpus at import and reindex (US-4.1, US-4.3); the retrieval query too, once a step uses retrieval (US-4.4) |
-| `rerank` | `Qwen3-Reranker-8B-MLX-4bit` | converted locally from `Qwen/Qwen3-Reranker-8B` | `mlx-lm` | 18204 | 8B | Reranks retrieval candidates (US-4.4). Built and tested, but no pipeline step calls retrieval yet, so it does not start in a case flow |
+| `embedding` | `Qwen3-Embedding-8B-4bit-DWQ` | `mlx-community/Qwen3-Embedding-8B-4bit-DWQ` | `mlx-lm` | 18203 | 8B | Embeds the corpus into each scope's vector index at import and reindex (US-4.1, US-4.3) |
 | `explanation` | `Qwen3-14B-4bit` | `mlx-community/Qwen3-14B-4bit` | `mlx-lm` | 18205 | 14B | Writes the plain-language explanation and the missing-documentation checklist (US-6.2) |
 | `drafting` | `Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed` | `Youssofal/Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed` | `mtplx` | 18206 | 27B | Drafts the appeal letter (US-7.1) and the corrected claim (US-7.4) |
 | `transcription` | `Voxtral-Small-24B-2507-4bit` | `mlx-community/Voxtral-Small-24B-2507-4bit` | `mlx-vlm` | 18207 | 24B | Transcribes recorded payer calls in the after-hours window (US-11.1) |
 
-- The reranker's source folder, `Qwen3-Reranker-8B`, is read once by `make models-convert` to build
-  `Qwen3-Reranker-8B-MLX-4bit`. After that, ClaimCoach never reads it.
+- There is no reranker. US-14.1 removed it and its local conversion: the diagnosis and the drafts
+  read rule cards, codes, and templates by exact key, which similarity search could get wrong.
+  An old `models.yaml` that still lists `rerank` loads without it.
 - These folders are the only ones ClaimCoach needs. Other folders in `~/Models` belong to other
   apps and are never read.
 - Venvs live in `MODELS_HOME/.venvs/`. ClaimCoach does not create `mlx-lm`, `mlx-vlm`, or `mtplx`;
@@ -80,7 +80,7 @@ when nothing else is loaded. Roles on the same port share one server.
 Prerequisites: an Apple-silicon Mac, Hermes Desktop with Hermes Agent 0.22.5 or later (`hermes` on
 the `PATH`), `uv`, Node.js 22.15 or later with `npm`, `openspec` (for delivery), and `curl` and
 `lsof`. The model venvs must exist in `MODELS_HOME/.venvs/` with what each role runs: `mlx-lm` with
-`mlx-lm` and `huggingface_hub` (it also runs the downloads and the conversion), `mlx-vlm` with
+`mlx-lm` and `huggingface_hub` (it also runs the downloads), `mlx-vlm` with
 `mlx-vlm` and `mlx-audio`, and `mtplx`. `make models-check` only sees whether a venv's Python
 exists; see [model-download-convert](docs/runbooks/model-download-convert.md) for the packages.
 
@@ -127,20 +127,6 @@ exists; see [model-download-convert](docs/runbooks/model-download-convert.md) fo
 
    ```bash
    make models-download ROLE=extraction CONFIRM=yes
-   ```
-
-   The reranker is downloaded from its official source, then converted on this Mac with no
-   network. It is optional for now: no pipeline step calls retrieval yet.
-
-   ```bash
-   make models-download ROLE=rerank CONFIRM=yes
-   ```
-
-   Wait until `make models-status` shows `rerank` with `source_present: true` and no `acquire`;
-   before that, the conversion only answers `in_progress`. Then convert:
-
-   ```bash
-   make models-convert CONFIRM=yes
    ```
 
 7. Link the package into Hermes, enable the Python half, and restart the gateway:
@@ -207,11 +193,12 @@ worker, and **Rescan** in Hermes Desktop, which runs its own copy of `plugin.js`
 
 Set in Hermes Desktop's settings form for ClaimCoach (`plugins.entries.claimcoach.settings`).
 `plugin/plugin.yaml`'s `config_schema` mirrors `ClaimCoachSettings` (`plugin/claimcoach/settings.py`),
-and a test fails when they drift.
+and a test fails when they drift. The weights folder is not a setting: settings belong to one
+profile, and the worker every profile shares reads `MODELS_HOME` (US-14.2). A `models_home` value
+saved by an older version is ignored and leaves the other settings as they are.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `models_home` | `~/Models` | Declared, but not read yet: the worker takes the weights folder from `MODELS_HOME` in its environment (`make start MODELS_HOME=/Volumes/Models`). |
 | `retention_days` | `90` | Days after a case closes before its source documents are purged. Also on the settings page. |
 | `richer_agent_access` | `false` | Reserved for a local Hermes model; shown in the statusbar. Agent tool results stay redacted. |
 | `share_outcome_stats` | `false` | Shares this profile's de-identified outcomes with the manager's weekly summary and fine-tune export. |
@@ -222,7 +209,7 @@ and a test fails when they drift.
 
 `make models-init` copies the defaults to `<hermes root>/plugin-data/claimcoach/models.yaml` on the
 first run and never overwrites an edited copy. Edit that copy, not the defaults. Each role sets
-`model_dir`, `repo_id` (or `convert`), `venv`, `command`, `port`, and `tier_b`. The file also sets
+`model_dir`, `repo_id`, `venv`, `command`, `port`, and `tier_b`. The file also sets
 `idle_timeout_s` (600), `queue_timeout_s` (900), and the memory guard's
 `large_tier_b` (14), under `residency`.
 Command placeholders: `{venv}`, `{model}`, `{host}` (always `127.0.0.1`), `{port}`, and
@@ -266,7 +253,6 @@ JSON unless it says `multipart`; jobs answer at once and report progress as
 | GET | `/corpus/status` | — | `CorpusStatusResponse`: `global_scope`, `user_scopes` (paths, counts, encryption, index model) |
 | GET | `/models/status` | — | `ModelsStatusResponse`: `idle_timeout_s`, per role `state`, `port`, `weights`, `venv_present`, `acquire` |
 | POST | `/models/download` | `{"role": "explanation", "confirm": true}` | `AcquireResult`: `role`, `outcome` (`started`, `in_progress`, `present`, or `declined` without `confirm: true`) |
-| POST | `/models/convert` | `{"role": "rerank", "confirm": true}` | `AcquireResult` |
 | POST | `/cases` | `{}` | `Case` (new, open, empty) |
 | GET | `/cases` | — | `CaseList`: newest cases with dates, outcome, counts, and steps; no case content |
 | GET | `/cases/{case_id}` | — | `Case`: documents, extraction, fields to confirm, diagnosis, deadline, draft, remedy, correction, outcome, calls |
@@ -320,12 +306,12 @@ Older tables are migrated by checking their shape, not a version number.
 | `main.meta` | `key`, `value` | `CorpusStore` on first open: `scope` (`global` or `user`), and in the user scope `key_check`, sealed with the Keychain key | `CorpusStore` on every open: another scope's files, or a key check that fails to decrypt, are refused | No |
 | `main.cases` | `case_id`, `opened_at`, `closed_at`, `purged_at` | `POST /cases` (`create_case`); `POST /cases/{id}/outcome` sets `closed_at`; the retention purge sets `purged_at` | `GET /cases` (`case_index`), `GET /cases/{id}` (`open_case`), the retention purge (`expired_cases`) | No |
 | `main.case_items` | `case_id`, `item_id`, `kind` (`source`, `extraction`, `diagnosis`, `draft`, `call`, `transcript`, `correction`), `created_at`, `payload`, `data` | Uploads, paste, extraction, field confirmation, diagnosis, draft and its edits, correction, call and transcript (`put_case_item`); deleted by the purge | `GET /cases/{id}`, `GET /cases` (`case_index`: item kinds only, nothing opened), every job that reads the case, exports, `claimcoach_case_summary` (redacted), the retention purge (`expired_cases`) | Yes, sealed |
-| `main.documents` | `doc_id`, `case_id`, `kind`, `created_at`, `body` | Global scope: corpus import (`rule_card`, `code`, `letter_template`). User scope: `put_document` exists for case retrieval, but no pipeline step writes it yet | The exact lookups in `corpus/lookup.py` (`code_entries`, `payer_rule_cards`, `letter_template`), used by the diagnosis, the deadline and remedy, the appeal and corrected-claim drafts, and the agent tools; `GET /corpus/global` and the import preview; the purge | User scope: Yes, sealed |
-| `main.chunks` | `chunk_id`, `doc_id`, `case_id`, `kind`, `ordinal`, `body` | With its document, cut into 1200-character chunks | Reindex; retrieval (`search`, `chunks`), which no pipeline step calls yet | User scope: Yes, sealed |
+| `main.documents` | `doc_id`, `case_id`, `kind`, `created_at`, `body` | Global scope: corpus import (`rule_card`, `code`, `letter_template`). User scope: `put_document` exists, but no pipeline step writes it yet | The exact lookups in `corpus/lookup.py` (`code_entries`, `payer_rule_cards`, `letter_template`), used by the diagnosis, the deadline and remedy, the appeal and corrected-claim drafts, and the agent tools; `GET /corpus/global` and the import preview; the purge | User scope: Yes, sealed |
+| `main.chunks` | `chunk_id`, `doc_id`, `case_id`, `kind`, `ordinal`, `body` | With its document, cut into 1200-character chunks | Reindex; `chunks` (by ID, filtered by case in the user scope) | User scope: Yes, sealed |
 | `main.outcomes` | `case_id`, `outcome`, `recorded_at`, `features` (de-identified) | `POST /cases/{id}/outcome` (`record_outcome`), in the same transaction that closes the case | The weekly summary and the fine-tune export (`read_outcomes`, read-only, this table only), `GET /cases/{id}`, `GET /cases` (`case_index`) | No (de-identified) |
 | `main.audit_log` | `seq`, `at`, `action`, `case_id`, `profile` | Every case access and change (`case_opened`, `case_extracted`, `draft_exported`, …). Triggers refuse updates and deletes | `make corpus-audit` (`GET /corpus/audit`) | No |
 | `idx.meta` | `key`, `value` | `embedding_model_id` on first open and on reindex; `dimension` on the first insert, cleared by reindex | Every search and insert, and corpus status (`index_info`); a changed model or dimension refuses them until `make corpus-reindex` | No |
-| `idx.vectors` | `chunk_id`, `case_id`, `vector` (float32, unit length) | Corpus import and reindex (`replace_index`), with each chunk | `search`: cosine similarity, filtered in SQL to the global scope plus the current case; no pipeline step calls it yet | User scope: Yes, sealed |
+| `idx.vectors` | `chunk_id`, `case_id`, `vector` (float32, unit length) | Corpus import and reindex (`replace_index`), with each chunk | `search`: cosine similarity, filtered by case in SQL (BR-5); kept for a later story, no pipeline step calls it (US-14.1) | User scope: Yes, sealed |
 
 Files outside SQLite: the transcription queue (`queue.json`: IDs, states, dates, error codes) and
 the fine-tune approval log (`approvals.jsonl`). Neither holds PHI.
@@ -336,8 +322,9 @@ The **global** scope is shared by every Hermes profile on the Mac: CARC/RARC/gro
 payer rule cards (timely filing, appeal levels, required documents, submission, corrected claims),
 and letter templates. Each rule card carries its `source` and `verified_on` date, and stale cards
 are flagged. The **user** scope belongs to one profile (one biller) and holds that biller's cases.
-Retrieval for a case would read the global scope plus that case only (BR-5); today the pipeline
-reads the global scope by exact key (codes, payer rule cards, template IDs) instead.
+The pipeline reads the global scope by exact key: codes, the payer's rule cards, and template
+IDs. Each scope keeps its vector index, and a user-scope search must name one case (BR-5), but no
+pipeline step searches by similarity (US-14.1 removed the unused retriever and reranker).
 
 | What | Path | Holds | PHI | Protection |
 | --- | --- | --- | --- | --- |

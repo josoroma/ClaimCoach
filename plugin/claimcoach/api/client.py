@@ -1,8 +1,8 @@
 """The single httpx client the gateway uses to reach the worker.
 
 Implements: US-1.3 (one ``WorkerClient`` with typed methods; ``httpx.HTTPError`` and
-``ValidationError`` caught explicitly, no bare ``except``), US-2.2 and US-2.4 (model status,
-download, and conversion calls; the worker's own model error codes reach the desktop half), US-3.2
+``ValidationError`` caught explicitly, no bare ``except``), US-2.2 and US-2.4 (model status
+and download calls; the worker's own model error codes reach the desktop half), US-3.2
 (``redact`` for the agent-tool guard), US-4.1 to US-4.6 (corpus status, import, view,
 reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command), US-5.1 (case
 creation, open, upload, and paste calls; an upload is forwarded as the raw multipart body), US-5.2
@@ -51,7 +51,6 @@ from claimcoach.egress import EgressStatus
 from claimcoach.letters.types import DraftEdit, DraftRequest, ExportedFile, ExportRequest
 from claimcoach.models.types import (
     AcquireResult,
-    ConversionRequest,
     DownloadRequest,
     ModelsStatusResponse,
 )
@@ -78,7 +77,6 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "invalid_request": 422,
     "model_unavailable": 503,
     "model_busy": 409,
-    "conversion_unavailable": 409,
     "corpus_unavailable": 503,
     "index_stale": 409,
     "case_not_found": 404,
@@ -220,14 +218,6 @@ class WorkerClient:
             WorkerError: The call failed; the subclass names why.
         """
         return await self._request("POST", "/models/download", AcquireResult, request)
-
-    async def convert_model(self, request: ConversionRequest) -> AcquireResult:
-        """Ask the worker to convert a role's model locally (only when ``confirm`` is true).
-
-        Raises:
-            WorkerError: The call failed; the subclass names why.
-        """
-        return await self._request("POST", "/models/convert", AcquireResult, request)
 
     async def redact(self, request: RedactRequest) -> RedactResponse:
         """Ask the worker to redact a text with its local PHI model and validators.

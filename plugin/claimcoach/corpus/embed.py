@@ -1,12 +1,11 @@
-"""Corpus embeddings (Qwen3-Embedding-8B) and reranking (Qwen3-Reranker-8B) on local servers.
+"""Corpus embeddings (Qwen3-Embedding-8B) on a local server.
 
-Implements: US-4.1 (``Embedder``; ``embedding_model_id`` is what each index records), US-4.4
-(``Reranker``). Rules: BR-1 (loopback only: endpoints come from ``ModelManager.use``; proxies are
-never honored), BR-11, BR-14 (errors carry no text or model output).
+Implements: US-4.1 (``Embedder``; ``embedding_model_id`` is what each index records), US-14.1 (no
+reranker and no query embedding: no case flow used retrieval). Rules: BR-1 (loopback only: endpoints
+come from ``ModelManager.use``; proxies are never honored), BR-11, BR-14 (errors carry no text or
+model output).
 
-Embeddings use the OpenAI ``POST /v1/embeddings`` shape; reranking uses the Jina/Cohere
-``POST /v1/rerank`` shape (``{query, documents}`` → ``results[{index, relevance_score}]``).
-Queries get the Qwen3-Embedding instruction prefix; documents are embedded as they are.
+Embeddings use the OpenAI ``POST /v1/embeddings`` shape; documents are embedded as they are.
 """
 
 from __future__ import annotations
@@ -24,12 +23,8 @@ from claimcoach.models.manager import EndpointProvider, ModelUnavailableError
 from claimcoach.models.registry import ModelRegistry
 from claimcoach.models.types import ModelRole
 
-__all__ = ["QUERY_INSTRUCTION", "Embedder", "Reranker", "embedding_model_id"]
+__all__ = ["Embedder", "embedding_model_id"]
 
-QUERY_INSTRUCTION: Final = (
-    "Instruct: Given a medical billing question, retrieve the reference passages and case "
-    "documents that answer it\nQuery: "
-)
 BATCH: Final = 16
 """Texts per embeddings request."""
 
@@ -50,15 +45,6 @@ class _Embedding(_Loose):
 
 class _Embeddings(_Loose):
     data: list[_Embedding]
-
-
-class _Ranked(_Loose):
-    index: int = Field(ge=0)
-    relevance_score: float
-
-
-class _Ranking(_Loose):
-    results: list[_Ranked]
 
 
 ReplyT = TypeVar("ReplyT", bound=_Loose)
@@ -131,56 +117,3 @@ class Embedder:
         if len({len(row) for row in rows}) != 1:
             raise ModelUnavailableError
         return np.asarray(rows, dtype=np.float32)
-
-    async def embed_query(self, text: str) -> Vectors:
-        """Return the query's embedding, with the retrieval instruction prefix."""
-        vectors = await self.embed_documents([QUERY_INSTRUCTION + text])
-        return vectors.reshape(-1)
-
-
-class Reranker:
-    """Score passages against a query with the ``rerank`` role.
-
-    Args:
-        models: ``ModelManager.use`` (or a test double with the same shape).
-        timeout: Seconds per request.
-        transport: Optional httpx transport for tests.
-    """
-
-    def __init__(
-        self,
-        models: EndpointProvider,
-        *,
-        timeout: float = 120.0,
-        transport: httpx.AsyncBaseTransport | None = None,
-    ) -> None:
-        """Store the model provider; no model is started until a call."""
-        self._models = models
-        self._timeout = timeout
-        self._transport = transport
-
-    async def scores(self, query: str, documents: Sequence[str]) -> list[float]:
-        """Return one relevance score per document, in the documents' order.
-
-        Raises:
-            ModelUnavailableError: The server is missing, failed, or did not score every document.
-        """
-        if not documents:
-            return []
-        async with self._models(ModelRole.RERANK) as endpoint:
-            reply = await _post(
-                f"{endpoint.base_url}/rerank",
-                {
-                    "model": DEFAULT_MODEL_ID,
-                    "query": query,
-                    "documents": list(documents),
-                    "top_n": len(documents),
-                },
-                _Ranking,
-                timeout=self._timeout,
-                transport=self._transport,
-            )
-        scores = {item.index: item.relevance_score for item in reply.results}
-        if sorted(scores) != list(range(len(documents))):
-            raise ModelUnavailableError
-        return [scores[i] for i in range(len(documents))]

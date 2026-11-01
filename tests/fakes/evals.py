@@ -131,7 +131,7 @@ def eval_worker(
 
     Args:
         root: The Hermes root of the corpus.
-        corpus_server: The fake embedding and rerank server.
+        corpus_server: The fake embedding server.
         phi_reply: What the PHI model answers (``/redact``).
         models: A model manager for ``/models`` (the egress preconditions); none by default.
         egress: What ``GET /egress`` answers; by default a recording audit with nothing dropped,

@@ -42,7 +42,6 @@ GATEWAY_ROUTES = {
     "/health",
     "/models/status",
     "/models/download",
-    "/models/convert",
     "/settings",
     "/cases",
     "/cases/{case_id}",

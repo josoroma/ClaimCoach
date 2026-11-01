@@ -73,10 +73,9 @@ Rules: PC-1, PC-2, PC-7, BR-11, BR-12. US-2.2 adds model-server failures; US-2.3
    ```
 
    Stop other apps' model servers you do not need, unload idle ClaimCoach roles with
-   `make models-unload ROLE=<role>`, or lower `idle_timeout_s` in `models.yaml`. While the
-   reranker conversion runs (`acquire: converting`), every load queues behind it. A load queued
+   `make models-unload ROLE=<role>`, or lower `idle_timeout_s` in `models.yaml`. A load queued
    longer than `queue_timeout_s` (default 900 s) fails with `model_busy`; retry when the current
-   draft, transcription, or conversion finishes.
+   draft or transcription finishes.
 
 ## Verification
 

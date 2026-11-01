@@ -8,9 +8,11 @@ opt-in for the manager's weekly summary), US-11.1 (``transcription_start_hour`` 
 ``transcription_end_hour``; ``load_transcription_window(home)`` reads one profile's after-hours
 window for the transcription scheduler), US-10.3 (``save_retention_days`` saves the active
 profile's retention period with Hermes' own plugin-settings writer; ``stored_retention_days`` reads
-it for the settings page the way the worker's purge reads it). Rules:
-ES-1 (one source of truth for config), BR-3, BR-7 (retention default), BR-11 (``MODELS_HOME`` and
-the 18200-18219 port range).
+it for the settings page the way the worker's purge reads it), US-14.2 (no ``models_home``
+setting: settings belong to one profile, and the worker that reads the weights is shared by every
+profile, so it reads ``MODELS_HOME``; a value a profile saved earlier is ignored, never a reason
+to reset the others). Rules: ES-1 (one source of truth for config), BR-3, BR-7 (retention
+default), BR-11 (the 18200-18219 port range).
 
 Hermes stores the values under ``plugins.entries.claimcoach.settings`` and renders
 ``config_schema`` as the Settings → Plugins form, so the schema is generated from this model and a
@@ -34,6 +36,7 @@ from claimcoach.logs import get_logger
 __all__ = [
     "PLUGIN_DIR",
     "PORT_RANGE",
+    "RETIRED_SETTINGS",
     "ClaimCoachSettings",
     "SettingsError",
     "SettingsManagedError",
@@ -56,13 +59,15 @@ PORT_RANGE: Final = range(18200, 18220)
 
 # Hermes config_schema type names for the JSON-schema types this model uses.
 _HERMES_TYPES: Final = {"string": "str", "integer": "int", "boolean": "bool"}
+RETIRED_SETTINGS: Final = frozenset({"models_home"})
+"""Settings ClaimCoach no longer has (US-14.2). A profile may still store them; they are dropped
+before validation, so they never reset the profile's other settings."""
 
 
 class ClaimCoachSettings(BaseModel):
     """User-editable ClaimCoach settings.
 
     Attributes:
-        models_home: Directory that holds model weights; read in place, never copied.
         retention_days: Days after case close before source documents are purged.
         richer_agent_access: Opt-in for richer agent access when the Hermes chat model is local
             (PRD §7.2). Off by default and shown in the statusbar. Its scope is an open question
@@ -78,13 +83,6 @@ class ClaimCoachSettings(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    models_home: str = Field(
-        default="~/Models",
-        min_length=1,
-        description=(
-            "Directory that holds local model weights (MODELS_HOME). Weights are never copied."
-        ),
-    )
     retention_days: int = Field(
         default=90,
         ge=1,
@@ -153,10 +151,11 @@ def load_settings() -> ClaimCoachSettings:
     """Return the settings Hermes stores under ``plugins.entries.claimcoach.settings``.
 
     Outside the gateway, or when the stored values do not validate, the defaults are returned, so
-    an unreadable or tampered config can only switch richer agent access *off*. Validation is all
-    or nothing: one unknown or invalid key resets every setting to its default, and a fixed
-    warning is logged. ``richer_agent_access`` must be a real boolean (``"yes"`` or ``1`` is
-    invalid). Hermes' legacy ``plugins.entries.claimcoach.config`` subtree is not read.
+    an unreadable or tampered config can only switch richer agent access *off*. Keys in
+    ``RETIRED_SETTINGS`` are dropped first (US-14.2); then validation is all or nothing: one unknown
+    or invalid key resets every setting to its default, and a fixed warning is logged.
+    ``richer_agent_access`` must be a real boolean (``"yes"`` or ``1`` is invalid). Hermes' legacy
+    ``plugins.entries.claimcoach.config`` subtree is not read.
 
     Returns:
         The validated settings.
@@ -167,7 +166,10 @@ def load_settings() -> ClaimCoachSettings:
         return ClaimCoachSettings()
     entry = _mapping(_mapping(_mapping(load_config_readonly(), "plugins"), "entries"), PLUGIN_NAME)
     try:
-        return ClaimCoachSettings.model_validate(dict(_mapping(entry, "settings")))
+        stored = _mapping(entry, "settings")
+        return ClaimCoachSettings.model_validate(
+            {key: value for key, value in stored.items() if key not in RETIRED_SETTINGS}
+        )
     except ValidationError:
         _log.warning("stored ClaimCoach settings are invalid; using the defaults")
         return ClaimCoachSettings()

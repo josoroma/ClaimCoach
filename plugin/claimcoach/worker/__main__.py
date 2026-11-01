@@ -20,7 +20,7 @@ import uvicorn
 
 from claimcoach import PLUGIN_NAME
 from claimcoach.corpus.crypto import KeychainKeyProvider
-from claimcoach.corpus.embed import Embedder, Reranker, embedding_model_id
+from claimcoach.corpus.embed import Embedder, embedding_model_id
 from claimcoach.corpus.service import CorpusService
 from claimcoach.egress import EGRESS_AUDIT, EGRESS_LOG, file_sink
 from claimcoach.logs import configure_logging, get_logger
@@ -75,7 +75,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             data.parents[1],  # <hermes root>/plugin-data/claimcoach -> <hermes root>
             KeychainKeyProvider(),
             Embedder(models.use),
-            Reranker(models.use),
             embedding_model_id=embedding_model_id(registry),
         )
     else:

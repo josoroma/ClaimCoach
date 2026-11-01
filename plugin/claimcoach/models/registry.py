@@ -2,7 +2,9 @@
 
 Implements: US-2.1 (``ModelSpec``, ``ModelRegistry``, default file written on first run), US-2.3
 (the size-tier table: ``tier_b``, ``runs_alone``, ``ResidencyPolicy``), US-2.4 (``repo_id``,
-``ConversionSpec``, ``AcquireCommands``, weights presence), US-7.1 (an unedited pre-US-7.1 copy's
+``AcquireCommands``, weights presence), US-14.1 (no ``rerank`` role and no conversion recipe; an
+older file's ``roles.rerank`` and ``acquire.convert`` are dropped when it is loaded, and the file
+is left as it is), US-7.1 (an unedited pre-US-7.1 copy's
 ``drafting`` command gains ``--reasoning off``, once), US-11.1 (the ``{logs}`` placeholder; an
 unedited pre-US-11.1 copy's ``transcription`` command drops the ``--model`` flag
 ``mlx_audio.server`` does not have and gains ``--log-dir {logs}``, once). Rules: BR-11 (weights
@@ -23,7 +25,6 @@ from typing import Annotated, Final, Literal
 
 import yaml
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, field_validator
-from pydantic import model_validator as _model_validator
 
 from claimcoach.models.types import ModelRole, WeightsState
 from claimcoach.settings import PORT_RANGE
@@ -34,7 +35,6 @@ __all__ = [
     "SERVER_PLACEHOLDERS",
     "WORKER_PORT",
     "AcquireCommands",
-    "ConversionSpec",
     "ModelRegistry",
     "ModelSpec",
     "RegistryError",
@@ -53,7 +53,6 @@ WORKER_PORT: Final = PORT_RANGE.start
 
 SERVER_PLACEHOLDERS: Final = frozenset({"venv", "model", "host", "port", "logs"})
 _DOWNLOAD_PLACEHOLDERS: Final = frozenset({"models_home", "repo_id", "target"})
-_CONVERT_PLACEHOLDERS: Final = frozenset({"models_home", "source", "target", "q_bits"})
 _RANGE_TEXT: Final = f"{PORT_RANGE.start}-{PORT_RANGE.stop - 1}"
 
 
@@ -118,26 +117,11 @@ def _weights(path: Path) -> WeightsState:
     return "missing"
 
 
-class ConversionSpec(_Strict):
-    """A role whose model is converted locally instead of downloaded ready-made (the reranker).
-
-    Attributes:
-        source_repo_id: Hugging Face repository of the source model.
-        source_dir: Where the source is downloaded, relative to ``MODELS_HOME``.
-        q_bits: Quantization bits of the converted model.
-    """
-
-    source_repo_id: RepoId
-    source_dir: RelativeDir
-    q_bits: int = Field(default=4, ge=2, le=8)
-
-
 class ModelSpec(_Strict):
     """How to run the server for one role.
 
     Attributes:
-        repo_id: Hugging Face repository downloaded into ``model_dir``; ``None`` when converted.
-        convert: Local conversion recipe; ``None`` when downloaded ready-made.
+        repo_id: Hugging Face repository downloaded into ``model_dir``.
         model_dir: Model directory, relative to ``MODELS_HOME``.
         venv: Venv name under ``MODELS_HOME/.venvs``.
         command: Server argv; placeholders ``{venv} {model} {host} {port} {logs}``.
@@ -147,8 +131,7 @@ class ModelSpec(_Strict):
         startup_timeout_s: Seconds to wait for ``/v1/models`` after starting.
     """
 
-    repo_id: RepoId | None = None
-    convert: ConversionSpec | None = None
+    repo_id: RepoId
     model_dir: RelativeDir
     venv: VenvName
     command: Argv
@@ -171,12 +154,6 @@ class ModelSpec(_Strict):
     def _command_binds_loopback(cls, command: list[str]) -> list[str]:
         # A server that is not told {host} may bind its default, e.g. 0.0.0.0 for mlx_vlm.server.
         return _check_template(command, SERVER_PLACEHOLDERS, {"host", "port"})
-
-    @_model_validator(mode="after")
-    def _one_source(self) -> ModelSpec:
-        if (self.repo_id is None) == (self.convert is None):
-            raise ValueError("set exactly one of repo_id or convert")
-        return self
 
     @property
     def server_identity(self) -> tuple[str, str, tuple[str, ...]]:
@@ -213,12 +190,6 @@ class ModelSpec(_Strict):
         """Return whether ``model_dir`` holds a model."""
         return _weights(self.model_path(home))
 
-    def source_present(self, home: Path) -> bool | None:
-        """For converted roles, whether the source model is present; ``None`` otherwise."""
-        if self.convert is None:
-            return None
-        return _weights(home / self.convert.source_dir) == "present"
-
     def venv_present(self, home: Path) -> bool:
         """Return whether the venv has an interpreter."""
         return (self.venv_path(home) / "bin" / "python").exists()
@@ -235,25 +206,18 @@ class ResidencyPolicy(_Strict):
 
 
 class AcquireCommands(_Strict):
-    """Command templates for confirmed downloads and local conversion (US-2.4).
+    """The command template for confirmed downloads (US-2.4).
 
     Attributes:
         download: Placeholders ``{models_home} {repo_id} {target}``.
-        convert: Placeholders ``{models_home} {source} {target} {q_bits}``.
     """
 
     download: Argv
-    convert: Argv
 
     @field_validator("download")
     @classmethod
     def _download_template(cls, argv: list[str]) -> list[str]:
         return _check_template(argv, _DOWNLOAD_PLACEHOLDERS, {"repo_id", "target"})
-
-    @field_validator("convert")
-    @classmethod
-    def _convert_template(cls, argv: list[str]) -> list[str]:
-        return _check_template(argv, _CONVERT_PLACEHOLDERS, {"source", "target"})
 
 
 class ModelRegistry(_Strict):
@@ -264,7 +228,7 @@ class ModelRegistry(_Strict):
         idle_timeout_s: Seconds a server may sit unused before the idle sweep stops it.
         queue_timeout_s: Longest a load may wait on the memory guard.
         residency: Memory-guard thresholds.
-        acquire: Download and conversion command templates.
+        acquire: The download command template.
         roles: One spec per ``ModelRole``.
     """
 
@@ -314,9 +278,24 @@ class ModelRegistry(_Strict):
         except yaml.YAMLError as exc:
             raise RegistryError(f"{path.name}: not valid YAML") from exc
         try:
-            return cls.model_validate(data)
+            return cls.model_validate(_without_retired(data))
         except ValidationError as exc:
             raise RegistryError(_describe(path.name, exc)) from exc
+
+
+def _without_retired(data: object) -> object:
+    """``data`` without what US-14.1 retired: ``roles.rerank`` and ``acquire.convert``.
+
+    Every ``models.yaml`` written before US-14.1 has both, so they are dropped rather than refused;
+    the file itself is left as it is. Anything else unknown is still refused.
+    """
+    if not isinstance(data, dict):
+        return data
+    cleaned = dict(data)
+    for section, retired in (("roles", "rerank"), ("acquire", "convert")):
+        if isinstance(cleaned.get(section), dict):
+            cleaned[section] = {k: v for k, v in cleaned[section].items() if k != retired}
+    return cleaned
 
 
 def _group_by_port(roles: Mapping[ModelRole, ModelSpec]) -> dict[int, list[ModelRole]]:

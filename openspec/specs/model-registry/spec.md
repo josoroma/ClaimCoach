@@ -8,12 +8,12 @@ directory under `MODELS_HOME`, its venv, its server command, and its port.
 
 ### Requirement: Every PRD role is registered
 The default `models.yaml` SHALL load into the typed `ModelRegistry` and SHALL contain the roles
-extraction, phi_detection, classification, embedding, rerank, explanation, drafting, and
-transcription. A file missing any role SHALL fail validation.
+extraction, phi_detection, classification, embedding, explanation, drafting, and transcription,
+and no conversion recipe. A file missing any role SHALL fail validation.
 
 #### Scenario: Every PRD role is registered
 - **WHEN** the default models.yaml is loaded into the typed ModelRegistry model
-- **THEN** it contains all eight roles
+- **THEN** it contains all seven roles and no rerank role
 
 #### Scenario: Missing role rejected
 - **WHEN** a models.yaml omits the drafting role
@@ -64,3 +64,13 @@ and SHALL NOT overwrite an existing file.
 #### Scenario: Edited file kept
 - **WHEN** the data dir already has a models.yaml
 - **THEN** it is left unchanged
+
+### Requirement: An older registry still loads
+Loading a `models.yaml` SHALL drop a `rerank` role and an `acquire.convert` command, written by a
+version before US-14.1, without rewriting the file; any other unknown role or command SHALL still
+fail validation.
+
+#### Scenario: An existing models.yaml still loads
+- **WHEN** the worker loads a models.yaml written before this change, with a rerank role and a conversion command
+- **THEN** it loads without them and every other role is unchanged
+- **AND** the file is not rewritten

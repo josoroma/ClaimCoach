@@ -20,9 +20,8 @@ US-12.2 adds ``responders``: a model ID mapped to a function of the request, for
 each prompt on its own (a classifier that reads the case's codes).
 
 US-4.1 and US-4.4 add ``/v1/embeddings`` (a deterministic hashed bag of words, ``EMBED_DIM``
-long, so texts that share words are near each other) and ``/v1/rerank`` (the share of query words a
-document contains). ``embed_overrides`` pins the vector of an exact input text, so a test can make
-one chunk the nearest neighbour of a query.
+long, so texts that share words are near each other). ``embed_overrides`` pins the vector of an
+exact input text, so a test can make one chunk the nearest neighbour of a query.
 """
 
 from __future__ import annotations
@@ -50,7 +49,6 @@ __all__ = [
     "EmbeddingsRequest",
     "FakeModelServer",
     "Health",
-    "RerankRequest",
     "fake_embedding",
     "main",
 ]
@@ -73,12 +71,6 @@ def fake_embedding(text: str) -> list[float]:
     for word in _words(text):
         vector[int(hashlib.sha256(word.encode()).hexdigest(), 16) % EMBED_DIM] += 1.0
     return vector
-
-
-def fake_rerank_score(query: str, document: str) -> float:
-    """The share of the query's distinct words that occur in ``document``."""
-    wanted = set(_words(query))
-    return len(wanted & set(_words(document))) / max(len(wanted), 1)
 
 
 class ChatMessage(BaseModel):
@@ -109,16 +101,6 @@ class EmbeddingsRequest(BaseModel):
     input: list[str]
 
 
-class RerankRequest(BaseModel):
-    """The subset of the Jina/Cohere-style rerank request the fake reads."""
-
-    model_config = ConfigDict(extra="allow")
-
-    model: str
-    query: str
-    documents: list[str]
-
-
 class FakeModelServer:
     """Loopback server answering like an OpenAI-compatible endpoint.
 
@@ -136,7 +118,6 @@ class FakeModelServer:
         self.responders: dict[str, Callable[[ChatRequest], str]] = {}
         self.requests: list[ChatRequest] = []
         self.embedding_requests: list[EmbeddingsRequest] = []
-        self.rerank_requests: list[RerankRequest] = []
         self.embed_overrides: dict[str, list[float]] = {}
         self.health = health
         self.app = self._build_app()
@@ -205,16 +186,6 @@ class FakeModelServer:
                     }
                     for index, text in enumerate(request.input)
                 ],
-            }
-
-        @app.post("/v1/rerank")
-        def rerank(request: RerankRequest) -> dict[str, Any]:
-            self.rerank_requests.append(request)
-            scores = [fake_rerank_score(request.query, doc) for doc in request.documents]
-            order = sorted(range(len(scores)), key=lambda i: -scores[i])
-            return {
-                "model": request.model,
-                "results": [{"index": i, "relevance_score": scores[i]} for i in order],
             }
 
         return app

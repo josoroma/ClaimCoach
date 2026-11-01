@@ -1,8 +1,7 @@
 """Typed corpus records and the REST bodies of the worker's corpus routes.
 
 Implements: US-4.1 (``CorpusScope``, ``Document``, ``Chunk``, ``CaseRecord``, ``IndexInfo``,
-``ScopeStatus``, ``ReindexRequest``), US-4.4 (``RetrievalQuery`` with a required ``case_id``,
-``RetrievedChunk``), US-4.5 (``CaseOutcome``, ``OutcomeRecord``, ``PurgeRequest``,
+``ScopeStatus``, ``ReindexRequest``), US-4.5 (``CaseOutcome``, ``OutcomeRecord``, ``PurgeRequest``,
 ``PurgeReport``), US-4.6 (``AuditAction``, ``AuditEntry``), US-5.1 (``CaseItem``,
 ``CaseItemKind``), US-5.2 (``case_extracted`` and ``field_confirmed`` audit actions), US-6.1 (the
 ``diagnosis`` case item and the ``case_diagnosed`` audit action), US-7.1 (the ``draft`` case item
@@ -15,7 +14,7 @@ pane's case list shows it, without case content), US-7.4 (the ``correction`` cas
 rule-card topic). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
 IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
-``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
+and ``CaseItem``, which never leave the worker).
 
 This module imports neither SQLite nor numpy, so the gateway and the Hermes CLI can use it.
 """
@@ -64,8 +63,6 @@ __all__ = [
     "PurgeResponse",
     "ReindexRequest",
     "ReindexResult",
-    "RetrievalQuery",
-    "RetrievedChunk",
     "RuleCardTopic",
     "ScopeStatus",
     "utc_now",
@@ -381,34 +378,6 @@ class ReindexResult(_Strict):
     ok: Literal[True] = True
     chunks: int = Field(ge=0)
     embedding_model_id: str
-
-
-class RetrievalQuery(_Strict):
-    """A retrieval request; ``case_id`` is required so no query can span cases (BR-5).
-
-    Attributes:
-        text: What to look for (stays in the worker).
-        case_id: The current case; only its user-scope chunks are candidates.
-        k: Chunks to return.
-        candidates: Nearest chunks per scope passed to the reranker.
-    """
-
-    text: str = Field(min_length=1, max_length=8000)
-    case_id: CaseId
-    k: int = Field(default=8, ge=1, le=50)
-    candidates: int = Field(default=32, ge=1, le=200)
-
-
-class RetrievedChunk(_Strict):
-    """A chunk retrieval returned.
-
-    Attributes:
-        chunk: The chunk.
-        score: Reranker relevance; higher is better.
-    """
-
-    chunk: Chunk
-    score: float
 
 
 class AuditAction(StrEnum):

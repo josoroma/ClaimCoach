@@ -1,32 +1,32 @@
 """Routes mounted by Hermes at ``/api/plugins/claimcoach/``.
 
 Implements: US-1.3 (``router``; every route returns a typed model or the error envelope), US-2.2 and
-US-2.3 (``GET /models/status``, polled by the settings page), US-2.4 (``POST /models/download`` and
-``POST /models/convert``, which run only with ``confirm: true``), US-3.5 (``GET /settings`` for the
-statusbar), US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST /cases/{case_id}/documents``
-forwarding the raw upload body, ``POST /cases/{case_id}/paste``; the active profile is passed to the
-worker), US-5.2 (``POST /cases/{case_id}/process`` starts extraction and relays its progress events;
-``POST /cases/{case_id}/fields`` confirms a value), US-6.1 (``POST /cases/{case_id}/diagnose``
-starts a diagnosis and relays its events), US-7.1 (``POST /cases/{case_id}/draft`` starts a draft
-and relays its events), US-7.2 (``POST /cases/{case_id}/draft/text`` saves the biller's edits;
-``POST /cases/{case_id}/export`` answers where the exported file is, for the host's save dialog),
-US-7.4 (``POST /cases/{case_id}/correction`` starts a corrected-claim draft and relays its events;
-``POST /cases/{case_id}/correction/export`` answers where its exported file is), US-8.1 (``POST
-/cases/{case_id}/outcome`` records how the case ended, which closes it), US-8.2
-(``GET /outcomes/summary`` is the manager's weekly summary of opted-in profiles' de-identified
-outcomes), US-8.3 (``POST /outcomes/export`` writes the manager-approved fine-tune export),
-US-11.1 (``POST /cases/{case_id}/calls`` forwards a payer-call recording's raw upload body;
-``POST /cases/{case_id}/calls/{call_id}/transcribe`` queues it for the after-hours window),
-US-10.1 (``GET /cases`` lists the active profile's cases for the pane, without case content),
-US-10.3 (``GET /settings`` also answers ``retention_days``; ``POST /settings/retention`` saves it
-with Hermes' plugin-settings writer; ``GET /corpus/status`` answers the global scope and the
-active profile's user scope only), US-10.4 (``POST /corpus/import/preview`` validates a picked
-bundle file and says what it would import and replace, writing nothing; ``POST
-/corpus/import?confirm=true`` imports it through the worker, only with that confirmation). Rules:
-ES-8, PC-2, PC-4 (runs inside the gateway; proxies to the worker), BR-1, BR-2 (PHI flows go desktop
-pane → ``plugin_api.py`` → worker), BR-4 (no route sends, submits, or transmits a draft or case
-content; every route here proxies to the loopback worker, and ``test_us_7_3_no_transmitting_route``
-pins the route set), BR-14.
+US-2.3 (``GET /models/status``, polled by the settings page), US-2.4 (``POST /models/download``,
+which runs only with ``confirm: true``; US-14.1 removed ``/models/convert``), US-3.5 (``GET
+/settings`` for the statusbar), US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST
+/cases/{case_id}/documents`` forwarding the raw upload body, ``POST /cases/{case_id}/paste``; the
+active profile is passed to the worker), US-5.2 (``POST /cases/{case_id}/process`` starts extraction
+and relays its progress events; ``POST /cases/{case_id}/fields`` confirms a value), US-6.1 (``POST
+/cases/{case_id}/diagnose`` starts a diagnosis and relays its events), US-7.1 (``POST
+/cases/{case_id}/draft`` starts a draft and relays its events), US-7.2 (``POST
+/cases/{case_id}/draft/text`` saves the biller's edits; ``POST /cases/{case_id}/export`` answers
+where the exported file is, for the host's save dialog), US-7.4 (``POST
+/cases/{case_id}/correction`` starts a corrected-claim draft and relays its events; ``POST
+/cases/{case_id}/correction/export`` answers where its exported file is), US-8.1 (``POST
+/cases/{case_id}/outcome`` records how the case ended, which closes it), US-8.2 (``GET
+/outcomes/summary`` is the manager's weekly summary of opted-in profiles' de-identified outcomes),
+US-8.3 (``POST /outcomes/export`` writes the manager-approved fine-tune export), US-11.1 (``POST
+/cases/{case_id}/calls`` forwards a payer-call recording's raw upload body; ``POST
+/cases/{case_id}/calls/{call_id}/transcribe`` queues it for the after-hours window), US-10.1 (``GET
+/cases`` lists the active profile's cases for the pane, without case content), US-10.3 (``GET
+/settings`` also answers ``retention_days``; ``POST /settings/retention`` saves it with Hermes'
+plugin-settings writer; ``GET /corpus/status`` answers the global scope and the active profile's
+user scope only), US-10.4 (``POST /corpus/import/preview`` validates a picked bundle file and says
+what it would import and replace, writing nothing; ``POST /corpus/import?confirm=true`` imports it
+through the worker, only with that confirmation). Rules: ES-8, PC-2, PC-4 (runs inside the gateway;
+proxies to the worker), BR-1, BR-2 (PHI flows go desktop pane → ``plugin_api.py`` → worker), BR-4
+(no route sends, submits, or transmits a draft or case content; every route here proxies to the
+loopback worker, and ``test_us_7_3_no_transmitting_route`` pins the route set), BR-14.
 
 Hermes owns the FastAPI app, so its default 422 body (which echoes the rejected input) cannot be
 replaced here; routes with a body read it raw and answer bad input with the envelope.
@@ -90,7 +90,6 @@ from claimcoach.letters.types import (
 )
 from claimcoach.models.types import (
     AcquireResult,
-    ConversionRequest,
     DownloadRequest,
     ModelsStatusResponse,
 )
@@ -245,21 +244,6 @@ async def download_model(
         return JSONResponse(envelope("invalid_request").model_dump(), status_code=422)
     try:
         return await client.download_model(body)
-    except WorkerError as exc:
-        return _error_response(exc)
-
-
-@router.post("/models/convert", response_model=AcquireResult, responses=_ERRORS)
-async def convert_model(
-    request: Request,
-    client: Annotated[WorkerClient, Depends(get_worker_client)],
-) -> AcquireResult | JSONResponse:
-    """Convert a role's source model to local MLX 4-bit after the user answered."""
-    body = await _body(request, ConversionRequest)
-    if body is None:
-        return JSONResponse(envelope("invalid_request").model_dump(), status_code=422)
-    try:
-        return await client.convert_model(body)
     except WorkerError as exc:
         return _error_response(exc)
 

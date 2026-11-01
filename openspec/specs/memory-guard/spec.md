@@ -6,27 +6,6 @@ break those rules waits.
 
 ## Requirements
 
-### Requirement: Never two large models resident
-A server whose size tier is at least the policy's large tier (14B) SHALL NOT start while another
-large ClaimCoach server is starting, ready, or stopping. The blocked load SHALL wait, and an idle
-large server that blocks it SHALL be unloaded.
-
-#### Scenario: Two large models are never resident together
-- **WHEN** the Qwen3-14B explanation server is resident and a drafting request needs Bonsai 27B
-- **THEN** the drafting load waits until the 14B server is unloaded and the two are never resident at the same time
-
-#### Scenario: Busy large server finishes first
-- **WHEN** the explanation server is serving a request and a drafting request arrives
-- **THEN** the explanation request completes before the explanation server is unloaded and drafting starts
-
-#### Scenario: Queued load is not starved
-- **WHEN** a drafting load is queued behind the explanation server and new explanation requests keep arriving
-- **THEN** the new requests wait and drafting starts as soon as the current explanation request ends
-
-#### Scenario: Conversion holds back loads
-- **WHEN** the reranker conversion is running and a request needs any model
-- **THEN** the load is queued until the conversion ends
-
 ### Requirement: Voxtral loads only alone
 A server marked `runs_alone` SHALL start only when no other ClaimCoach model server is resident,
 and no other server SHALL start while it is resident.
@@ -47,3 +26,20 @@ error envelope.
 #### Scenario: Queue timeout
 - **WHEN** a blocked load waits longer than the queue timeout
 - **THEN** the request fails with the model_busy envelope and the role no longer reports queued
+
+### Requirement: Two large models are never resident
+A server whose size tier is at least the policy's large tier (14B) SHALL NOT start while another
+large ClaimCoach server is starting, ready, or stopping. The blocked load SHALL wait, and an idle
+large server that blocks it SHALL be unloaded.
+
+#### Scenario: Two large models are never resident together
+- **WHEN** the Qwen3-14B explanation server is resident and a drafting request needs Bonsai 27B
+- **THEN** the drafting load waits until the 14B server is unloaded and the two are never resident at the same time
+
+#### Scenario: Busy large server finishes first
+- **WHEN** the explanation server is serving a request and a drafting request arrives
+- **THEN** the explanation request completes before the explanation server is unloaded and drafting starts
+
+#### Scenario: Queued load is not starved
+- **WHEN** a drafting load is queued behind the explanation server and new explanation requests keep arriving
+- **THEN** the new requests wait and drafting starts as soon as the current explanation request ends

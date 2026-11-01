@@ -47,7 +47,7 @@ from claimcoach.corpus.types import CaseItemKind, CorpusScope
 from claimcoach.egress import EGRESS_LOG
 from claimcoach.letters.types import DraftEdit, DraftRequest, ExportRequest
 from claimcoach.models.registry import REGISTRY_FILE
-from claimcoach.models.types import ConversionRequest, DownloadRequest
+from claimcoach.models.types import DownloadRequest
 from claimcoach.outcomes.export import APPROVALS_FILE
 from claimcoach.outcomes.types import FineTuneExportRequest
 from claimcoach.worker.config import WorkerConfig
@@ -66,7 +66,6 @@ _MULTIPART = {
 _REQUESTS: dict[str, type[BaseModel]] = {
     "/settings/retention": RetentionUpdate,
     "/models/download": DownloadRequest,
-    "/models/convert": ConversionRequest,
     "/cases": CaseCreate,
     "/cases/{case_id}/paste": PastedText,
     "/cases/{case_id}/calls/{call_id}/transcribe": CaseCreate,

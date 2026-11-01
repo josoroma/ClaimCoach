@@ -1,7 +1,7 @@
 """Helpers for corpus tests: a corpus service over the fake model server and a temp Hermes root.
 
 Implements: US-4.1 to US-4.6 test harness (ES-4: offline; the fake OpenAI-compatible server stands
-in for Qwen3-Embedding-8B and Qwen3-Reranker-8B, ``InMemoryKeyProvider`` for the Keychain).
+in for Qwen3-Embedding-8B, ``InMemoryKeyProvider`` for the Keychain).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from fastapi import FastAPI
 
 from claimcoach.api.client import WorkerClient
 from claimcoach.corpus.crypto import InMemoryKeyProvider, KeyProvider
-from claimcoach.corpus.embed import Embedder, Reranker, embedding_model_id
+from claimcoach.corpus.embed import Embedder, embedding_model_id
 from claimcoach.corpus.service import CorpusService
 from claimcoach.corpus.store import CorpusStore, Vectors, split_text
 from claimcoach.corpus.types import CorpusScope, Document, utc_now
@@ -59,7 +59,6 @@ def make_service(
         root,
         keys or InMemoryKeyProvider(),
         Embedder(models),
-        Reranker(models),
         embedding_model_id=model_id,
     )
 

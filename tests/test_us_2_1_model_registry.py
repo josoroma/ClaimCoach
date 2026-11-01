@@ -35,7 +35,6 @@ PRD_ROLES = {
     "phi_detection",
     "classification",
     "embedding",
-    "rerank",
     "explanation",
     "drafting",
     "transcription",
@@ -116,7 +115,6 @@ def test_us_2_1_paths_resolve_under_models_home(
         if "{model}" in spec.command:  # mlx_audio.server takes it per request (US-11.1)
             assert str(path) in spec.argv(resolved, "127.0.0.1")
         spec.weights(resolved)
-        spec.source_present(resolved)
         spec.venv_present(resolved)
 
     assert snapshot(home) == before  # nothing copied, moved, or created under MODELS_HOME
@@ -142,16 +140,14 @@ def test_us_2_1_argv_fills_placeholders() -> None:
 
 
 def test_us_2_1_presence_needs_config_and_weights(tmp_path: Path) -> None:
-    registry = ModelRegistry.load(DEFAULT_REGISTRY)
-    rerank = registry.roles[ModelRole.RERANK]
-    assert rerank.source_present(tmp_path) is False
-    source = tmp_path / "Qwen3-Reranker-8B"
-    source.mkdir()
-    (source / "config.json").write_text("{}")
-    assert rerank.source_present(tmp_path) is False  # an interrupted download has no weights
-    (source / "model-00001-of-00002.safetensors").write_bytes(b"w")
-    assert rerank.source_present(tmp_path) is True
-    assert registry.roles[ModelRole.EXPLANATION].source_present(tmp_path) is None
+    explanation = ModelRegistry.load(DEFAULT_REGISTRY).roles[ModelRole.EXPLANATION]
+    assert explanation.weights(tmp_path) == "missing"
+    model = tmp_path / explanation.model_dir
+    model.mkdir()
+    (model / "config.json").write_text("{}")
+    assert explanation.weights(tmp_path) == "missing"  # an interrupted download has no weights
+    (model / "model-00001-of-00002.safetensors").write_bytes(b"w")
+    assert explanation.weights(tmp_path) == "present"
 
 
 @pytest.mark.parametrize(
@@ -198,14 +194,6 @@ def test_us_2_1_escaping_paths_rejected(tmp_path: Path, model_dir: str) -> None:
         ModelRegistry.load(path)
 
 
-def test_us_2_1_escaping_source_dir_rejected(tmp_path: Path) -> None:
-    path = write_registry(
-        tmp_path, lambda d: d["roles"]["rerank"]["convert"].update(source_dir="../src")
-    )
-    with pytest.raises(RegistryError, match=r"roles\.rerank\.convert\.source_dir"):
-        ModelRegistry.load(path)
-
-
 # --- Scenario: Ports outside the app range are rejected ----------------------------------------
 
 
@@ -245,11 +233,7 @@ def _set_command(command: list[str]) -> Mutation:
         (_set_command(["{venv}/bin/mtplx", "--port", "{port}"]), r"placeholder\(s\) \['host'\]"),
         (_set_command(["x", "{host}", "{port}", "{home}"]), r"unknown placeholder\(s\) \['home'\]"),
         (_set_command([]), r"roles\.drafting\.command"),
-        (lambda d: d["roles"]["drafting"].pop("repo_id"), "set exactly one of repo_id or convert"),
-        (
-            lambda d: d["roles"]["rerank"].update(repo_id="Qwen/Qwen3-Reranker-8B"),
-            "set exactly one of repo_id or convert",
-        ),
+        (lambda d: d["roles"]["drafting"].pop("repo_id"), r"roles\.drafting\.repo_id"),
         (lambda d: d["roles"]["drafting"].update(venv="../x"), r"roles\.drafting\.venv"),
         (lambda d: d["roles"]["drafting"].update(gpu=True), r"roles\.drafting\.gpu"),
         (lambda d: d["roles"].update(chat=d["roles"]["drafting"]), r"roles\.chat"),
@@ -257,23 +241,19 @@ def _set_command(command: list[str]) -> Mutation:
             lambda d: d["acquire"].update(download=["hf", "download", "{repo_id}"]),
             r"acquire\.download: must contain the placeholder\(s\) \['target'\]",
         ),
-        (
-            lambda d: d["acquire"].update(convert=["convert", "{target}", "{url}"]),
-            r"acquire\.convert: unknown placeholder",
-        ),
+        (lambda d: d["acquire"].update(upload=["x"]), r"acquire\.upload"),
         (lambda d: d.update(version=2), r"models\.yaml: version"),
     ],
     ids=[
         "command-without-host",
         "unknown-placeholder",
         "empty-command",
-        "neither-repo-nor-convert",
-        "both-repo-and-convert",
+        "no-repo-id",
         "venv-escapes",
         "unknown-field",
         "unknown-role",
         "download-without-target",
-        "convert-unknown-placeholder",
+        "unknown-acquire-command",
         "unknown-version",
     ],
 )

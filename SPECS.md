@@ -70,6 +70,9 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
   - [US-13.3: Data, API, Storage, and Upload Reference](#us-133-data-api-storage-and-upload-reference)
   - [US-13.4: App Flow Diagrams for Stakeholders and Users](#us-134-app-flow-diagrams-for-stakeholders-and-users)
   - [US-13.5: Product README for Y Combinator](#us-135-product-readme-for-y-combinator)
+- [EPIC-14: Remove Unused Model Paths](#epic-14-remove-unused-model-paths)
+  - [US-14.1: Remove Unused Retrieval and the Reranker](#us-141-remove-unused-retrieval-and-the-reranker)
+  - [US-14.2: Remove the Unread models_home Setting](#us-142-remove-the-unread-models_home-setting)
 
 ## Work Item Status
 
@@ -306,6 +309,19 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-13.5#1 | Rewrite README.md as the product page (problem, personas, what it does, targets, privacy,… | DONE | US-13.5 |
 | US-13.5#2 | Add tests test_us_13_5_readme_is_product_page, test_us_13_5_targets_match_prd, test_us_13… | DONE | US-13.5 |
 | US-13.5#3 | Record evidence/US-13.5/test-report.md | DONE | US-13.5 |
+| EPIC-14 | Remove Unused Model Paths | DONE | — |
+| US-14.1 | Remove Unused Retrieval and the Reranker | DONE | EPIC-14 |
+| US-14.1#1 | Remove the rerank role, ConversionSpec, the convert command, ConversionRequest, source_pr… | DONE | US-14.1 |
+| US-14.1#2 | Drop a retired rerank role and acquire.convert when loading an older models.yaml, without… | DONE | US-14.1 |
+| US-14.1#3 | Remove corpus/retrieve.py, Reranker, embed_query, RetrievalQuery, RetrievedChunk, and Cor… | DONE | US-14.1 |
+| US-14.1#4 | Update README-DEV.md and the runbooks | DONE | US-14.1 |
+| US-14.1#5 | Add tests test_us_14_1_no_rerank_role, test_us_14_1_old_registry_still_loads, test_us_14_… | DONE | US-14.1 |
+| US-14.1#6 | Record evidence/US-14.1/test-report.md | DONE | US-14.1 |
+| US-14.2 | Remove the Unread models_home Setting | DONE | EPIC-14 |
+| US-14.2#1 | Remove models_home from ClaimCoachSettings and plugin.yaml; ignore a stored models_home w… | DONE | US-14.2 |
+| US-14.2#2 | Update README-DEV.md Configuration | DONE | US-14.2 |
+| US-14.2#3 | Add tests test_us_14_2_setting_removed, test_us_14_2_saved_models_home_ignored | DONE | US-14.2 |
+| US-14.2#4 | Record evidence/US-14.2/test-report.md | DONE | US-14.2 |
 
 ## Dependency Diagram
 
@@ -390,6 +406,10 @@ flowchart TD
     US-13_4["US-13.4: App Flow Diagrams for Stakeholders and Users"]
     US-13_5["US-13.5: Product README for Y Combinator"]
   end
+  subgraph EPIC_14["EPIC-14: Remove Unused Model Paths"]
+    US-14_1["US-14.1: Remove Unused Retrieval and the Reranker"]
+    US-14_2["US-14.2: Remove the Unread models_home Setting"]
+  end
   US-1_1 -.-> US-1_2
   US-1_2 -.-> US-1_3
   US-1_1 -.-> US-1_4
@@ -462,6 +482,11 @@ flowchart TD
   US-13_1 -.-> US-13_5
   US-13_2 -.-> US-13_5
   US-13_4 -.-> US-13_5
+  US-2_4 -.-> US-14_1
+  US-4_4 -.-> US-14_1
+  US-13_3 -.-> US-14_1
+  US-1_1 -.-> US-14_2
+  US-13_2 -.-> US-14_2
 ```
 
 ### EPIC-1 detail
@@ -927,6 +952,34 @@ flowchart TD
   US-13_5 --> US-13_5_T3
 ```
 
+### EPIC-14 detail
+
+```mermaid
+flowchart TD
+  US-14_1["US-14.1: Remove Unused Retrieval and the Reranker"]
+  US-14_1_T1["#1 Remove the rerank role, ConversionSpec, the con…"]
+  US-14_1 --> US-14_1_T1
+  US-14_1_T2["#2 Drop a retired rerank role and acquire.convert …"]
+  US-14_1 --> US-14_1_T2
+  US-14_1_T3["#3 Remove corpus/retrieve.py, Reranker, embed_quer…"]
+  US-14_1 --> US-14_1_T3
+  US-14_1_T4["#4 Update README-DEV.md and the runbooks"]
+  US-14_1 --> US-14_1_T4
+  US-14_1_T5["#5 Add tests test_us_14_1_no_rerank_role, test_us_…"]
+  US-14_1 --> US-14_1_T5
+  US-14_1_T6["#6 Record evidence/US-14.1/test-report.md"]
+  US-14_1 --> US-14_1_T6
+  US-14_2["US-14.2: Remove the Unread models_home Setting"]
+  US-14_2_T1["#1 Remove models_home from ClaimCoachSettings and …"]
+  US-14_2 --> US-14_2_T1
+  US-14_2_T2["#2 Update README-DEV.md Configuration"]
+  US-14_2 --> US-14_2_T2
+  US-14_2_T3["#3 Add tests test_us_14_2_setting_removed, test_us…"]
+  US-14_2 --> US-14_2_T3
+  US-14_2_T4["#4 Record evidence/US-14.2/test-report.md"]
+  US-14_2 --> US-14_2_T4
+```
+
 ## Product Context
 
 ClaimCoach is a standalone Hermes Desktop plugin package (`claimcoach`) that turns an entry-level medical biller into a denial-management specialist. The biller drops a denied claim (EOB/ERA, CARC/RARC codes, payer letter) into a Hermes Desktop pane. ClaimCoach extracts the claim, redacts PHI for logging, explains the denial in plain language, estimates appeal likelihood, lists missing documentation, and drafts an appeal for human review. Everything runs on local models read from `~/Models` on an Apple M3 Pro (36 GiB). **PHI never leaves the Mac.** ClaimCoach shares no code, corpus, processes, or data with PermitPilot or ModelForge.
@@ -1300,6 +1353,8 @@ Tasks:
 
 Open Questions:
 - None
+- Superseded in part by US-14.1 (2026-11-01): the `rerank` role was removed, so the registry
+  holds seven roles; an older file's `rerank` role is dropped when it is loaded.
 
 ### US-2.2: Lazy Start, Health Check, and Idle Unload
 
@@ -1434,6 +1489,8 @@ Tasks:
 
 Open Questions:
 - None
+- Superseded in part by US-14.1 (2026-11-01): the reranker and its local conversion were removed,
+  so the "Reranker is converted locally" scenario no longer applies.
 
 # EPIC-3: PHI Boundary and Redaction
 
@@ -1817,6 +1874,8 @@ Tasks:
 
 Open Questions:
 - None
+- Superseded in part by US-14.1 (2026-11-01): the reranking retriever was removed; the case filter
+  lives in the vector index search (`CorpusStore.search`, `chunks`), which its tests now exercise.
 
 ### US-4.5: Retention Auto-Purge of Source Documents
 
@@ -3234,6 +3293,106 @@ Tasks:
 - [x] Rewrite README.md as the product page (problem, personas, what it does, targets, privacy, status) linking README-DEV.md
 - [x] Add tests test_us_13_5_readme_is_product_page, test_us_13_5_targets_match_prd, test_us_13_5_readmes_share_logo_and_links_resolve
 - [x] Record evidence/US-13.5/test-report.md
+
+Open Questions:
+- None
+
+# EPIC-14: Remove Unused Model Paths
+
+### US-14.1: Remove Unused Retrieval and the Reranker
+
+Status: DONE
+
+As a practice owner setting up ClaimCoach
+I want the reranker, its local conversion, and the retriever nothing calls removed
+So that setup fetches only the models a case uses, and the code holds no path that never runs.
+
+Source:
+- PRD.md §8 (model budget), §9 (retrieval rule)
+- US-6.1 design decision 4 and US-6.2 design decision 4 (exact lookups chosen over similarity: similarity can pick a near-miss code or another payer's card)
+- Product decision 2026-11-01: remove retrieval and the reranker; the vector index stays
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: The reranker is not a model role
+  Given the default models.yaml
+  When the registry is loaded
+  Then it has no rerank role and no conversion recipe
+  And the models status lists no rerank role
+
+Scenario: An existing models.yaml still loads
+  Given a models.yaml written before this change, with a rerank role and a conversion command
+  When the worker loads it
+  Then it loads without them and every other role is unchanged
+  And the file is not rewritten
+
+Scenario: No conversion route or command remains
+  Given the gateway, the worker, and the Makefile
+  When their routes and targets are listed
+  Then there is no models/convert route and no models-convert target
+
+Scenario: The corpus index is kept
+  Given a corpus bundle
+  When it is imported
+  Then its chunks are embedded and stored in the global vector index
+  And a search of a user scope still requires a case ID and returns that case's chunks only
+```
+
+Dependencies:
+- US-2.4
+- US-4.4
+- US-13.3
+
+Tasks:
+- [x] Remove the rerank role, ConversionSpec, the convert command, ConversionRequest, source_present, conversion in Acquirer, the exclusive job mode, POST /models/convert, conversion_unavailable, and make models-convert
+- [x] Drop a retired rerank role and acquire.convert when loading an older models.yaml, without rewriting it
+- [x] Remove corpus/retrieve.py, Reranker, embed_query, RetrievalQuery, RetrievedChunk, and CorpusService.retriever; keep CorpusStore.search with its case filter
+- [x] Update README-DEV.md and the runbooks
+- [x] Add tests test_us_14_1_no_rerank_role, test_us_14_1_old_registry_still_loads, test_us_14_1_no_conversion_route_or_target, test_us_14_1_index_kept
+- [x] Record evidence/US-14.1/test-report.md
+
+Open Questions:
+- Should the vector index go too?
+  Default: no (product decision): corpus import keeps embedding chunks into each scope's index,
+  and `CorpusStore.search` keeps its case filter, for a later story that needs similarity.
+
+### US-14.2: Remove the Unread models_home Setting
+
+Status: DONE
+
+As a billing manager
+I want the settings form to show only settings ClaimCoach reads
+So that changing a setting always changes what ClaimCoach does.
+
+Source:
+- PRD.md §7.9 PC-5 (config_schema drives the Desktop settings form)
+- US-13.2 review finding: `models_home` is declared, but the worker reads `MODELS_HOME` only; settings are per profile, and the worker is shared by every profile
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: The setting is removed
+  Given plugin.yaml and ClaimCoachSettings
+  When the settings schema is read
+  Then it has no models_home setting
+  And the worker still takes the weights folder from MODELS_HOME
+
+Scenario: A saved models_home does not reset the other settings
+  Given a profile that saved models_home with its other settings
+  When ClaimCoach loads the profile's settings
+  Then models_home is ignored and every other saved setting keeps its value
+```
+
+Dependencies:
+- US-1.1
+- US-13.2
+
+Tasks:
+- [x] Remove models_home from ClaimCoachSettings and plugin.yaml; ignore a stored models_home when loading settings
+- [x] Update README-DEV.md Configuration
+- [x] Add tests test_us_14_2_setting_removed, test_us_14_2_saved_models_home_ignored
+- [x] Record evidence/US-14.2/test-report.md
 
 Open Questions:
 - None

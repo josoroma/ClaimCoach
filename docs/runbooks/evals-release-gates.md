@@ -43,7 +43,7 @@ Eval sets:
   installed (`make stop`, then `make start`: an older worker has no egress audit, and
   `make eval-egress` refuses it). `make start`, then `make models-check` lists every
   role except `transcription` with `weights present`. `make models-status` shows no role
-  `downloading` or `converting`; do not run a corpus import meanwhile (the egress check refuses to
+  `downloading`; do not run a corpus import meanwhile (the egress check refuses to
   run during a download, and an import is the other sanctioned way out, BR-1).
 - The global corpus holds the code notes, rule cards, and letter templates the pipeline uses
   (`make corpus-list`); without a template every draft fails `no_letter_template`.

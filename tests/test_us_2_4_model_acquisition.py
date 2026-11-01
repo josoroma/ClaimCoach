@@ -1,9 +1,9 @@
-"""US-2.4 Missing-Model Detection, Confirmed Download, and Reranker Conversion.
+"""US-2.4 Missing-Model Detection and Confirmed Download.
 
 Scenarios: missing models are reported; download requires confirmation; declined download makes
-no network call; reranker is converted locally. Requests go desktop → gateway routes →
-``WorkerClient`` → worker app → ``Acquirer``; the download and conversion tools are the offline
-fake in ``tests/fakes/fake_hf.py``. Rules: BR-1, BR-11, BR-14, ES-8.
+no network call. US-14.1 removed the reranker and its local conversion, and their tests with them.
+Requests go desktop → gateway routes → ``WorkerClient`` → worker app → ``Acquirer``; the download
+tool is the offline fake in ``tests/fakes/fake_hf.py``. Rules: BR-1, BR-11, BR-14, ES-8.
 """
 
 from __future__ import annotations
@@ -35,7 +35,6 @@ from claimcoach.models.manager import ModelManager, ModelUnavailableError
 from claimcoach.models.registry import DEFAULT_REGISTRY, ModelRegistry
 from claimcoach.models.types import (
     AcquireResult,
-    ConversionRequest,
     DownloadRequest,
     ModelRole,
     ModelsStatusResponse,
@@ -48,27 +47,13 @@ from tests.fakes.model_env import ModelEnv, build_model_env
 TOKEN = "acquire-test-token"
 PREFIX = "/api/plugins/claimcoach"
 EXPLANATION = ModelRole.EXPLANATION
-RERANK = ModelRole.RERANK
 PHI = "Jane Doe MRN 0042"
 FAKE_HF = [sys.executable, "-m", "tests.fakes.fake_hf"]
 JSON = {"Content-Type": "application/json"}
 
 
 def use_fake_hf(data: dict[str, Any]) -> None:
-    data["acquire"] = {
-        "download": [*FAKE_HF, "download", "{repo_id}", "--local-dir", "{target}"],
-        "convert": [
-            *FAKE_HF,
-            "convert",
-            "--hf-path",
-            "{source}",
-            "--mlx-path",
-            "{target}",
-            "-q",
-            "--q-bits",
-            "{q_bits}",
-        ],
-    }
+    data["acquire"] = {"download": [*FAKE_HF, "download", "{repo_id}", "--local-dir", "{target}"]}
 
 
 @pytest.fixture
@@ -89,7 +74,6 @@ def calls(log: Path) -> list[dict[str, Any]]:
 def env(tmp_path: Path) -> ModelEnv:
     env = build_model_env(tmp_path, mutate=use_fake_hf)
     shutil.rmtree(env.registry.roles[EXPLANATION].model_path(env.home))
-    shutil.rmtree(env.registry.roles[RERANK].model_path(env.home))
     return env
 
 
@@ -126,7 +110,7 @@ class Stack:
     async def wait_idle(self, role: ModelRole) -> ModelStatus:
         for _ in range(400):
             status = (await self.status())[role]
-            if status.acquire not in ("downloading", "converting"):
+            if status.acquire != "downloading":
                 return status
             await asyncio.sleep(0.025)
         pytest.fail(f"{role} job did not finish")
@@ -170,11 +154,8 @@ async def test_us_2_4_missing_models_reported(env: ModelEnv) -> None:
     async with stack(env) as s:
         status = await s.status()
     assert status[EXPLANATION].weights == "missing"
-    assert status[RERANK].weights == "missing"
-    assert status[RERANK].source_present is False
-    assert status[EXPLANATION].source_present is None
     present = {role for role, m in status.items() if m.weights == "present"}
-    assert present == set(ModelRole) - {EXPLANATION, RERANK}
+    assert present == set(ModelRole) - {EXPLANATION}
     assert all(m.acquire is None for m in status.values())
 
 
@@ -221,7 +202,6 @@ async def test_us_2_4_missing_confirmation_flag(
     spy = SpawnSpy(monkeypatch)
     async with stack(env) as s:
         gateway = await s.post("/models/download", body)
-        convert = await s.post("/models/convert", body)
         transport = httpx.ASGITransport(app=s.worker)
         async with httpx.AsyncClient(
             transport=transport,
@@ -233,27 +213,11 @@ async def test_us_2_4_missing_confirmation_flag(
                 content=body if isinstance(body, str) else json.dumps(body),
                 headers={"Content-Type": "application/json"},
             )
-    for response in (gateway, convert, direct):
+    for response in (gateway, direct):
         assert_envelope(response, 422, "invalid_request")
         assert PHI not in response.text
     assert spy.argv == []
     assert calls(hf_log) == []
-
-
-async def test_us_2_4_download_of_converted_role_fetches_source(
-    env: ModelEnv, hf_log: Path
-) -> None:
-    async with stack(env) as s:
-        await s.post("/models/download", {"role": "rerank", "confirm": True})
-        status = await s.wait_idle(RERANK)
-    assert status.source_present is True
-    assert status.weights == "missing"  # conversion is its own confirmed step
-    assert calls(hf_log)[0]["argv"] == [
-        "download",
-        "Qwen/Qwen3-Reranker-8B",
-        "--local-dir",
-        str(env.home / "Qwen3-Reranker-8B"),
-    ]
 
 
 @pytest.mark.usefixtures("hf_log")
@@ -313,7 +277,7 @@ async def test_us_2_4_failed_download_reported_then_retried(
 async def test_us_2_4_default_commands_use_the_model_venv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The shipped templates run ``hf`` / ``mlx_lm.convert`` from ``$MODELS_HOME/.venvs/mlx-lm``."""
+    """The shipped template runs ``hf`` from ``$MODELS_HOME/.venvs/mlx-lm``."""
     spawned: list[tuple[str, ...]] = []
 
     async def refuse(*argv: str, **_kwargs: Any) -> asyncio.subprocess.Process:
@@ -322,16 +286,11 @@ async def test_us_2_4_default_commands_use_the_model_venv(
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", refuse)
     home = tmp_path / "Models"
-    source = home / "Qwen3-Reranker-8B"
-    source.mkdir(parents=True)
-    (source / "config.json").write_text("{}")
-    (source / "model.safetensors").write_bytes(b"w")
     manager = ModelManager(
         ModelRegistry.load(DEFAULT_REGISTRY), models_home=home, state_dir=tmp_path / "state"
     )
     jobs = Acquirer(manager)
     await jobs.download(DownloadRequest(role=EXPLANATION, confirm=True))
-    await jobs.convert(ConversionRequest(role=RERANK, confirm=True))
     await jobs.shutdown()
     venv = home / ".venvs" / "mlx-lm" / "bin"
     assert spawned == [
@@ -342,18 +301,8 @@ async def test_us_2_4_default_commands_use_the_model_venv(
             "--local-dir",
             str(home / "Qwen3-14B-4bit"),
         ),
-        (
-            str(venv / "mlx_lm.convert"),
-            "--hf-path",
-            str(source),
-            "--mlx-path",
-            str(home / "Qwen3-Reranker-8B-MLX-4bit"),
-            "-q",
-            "--q-bits",
-            "4",
-        ),
     ]
-    assert jobs.states() == {EXPLANATION: "failed", RERANK: "failed"}
+    assert jobs.states() == {EXPLANATION: "failed"}
 
 
 # --- Scenario: Declined download makes no network call -----------------------------------------
@@ -367,105 +316,12 @@ async def test_us_2_4_declined_download_no_network(
     spy = SpawnSpy(monkeypatch)
     async with stack(env) as s:
         download = await s.post("/models/download", {"role": "explanation", "confirm": False})
-        convert = await s.post("/models/convert", {"role": "rerank", "confirm": False})
         status = await s.status()
     assert AcquireResult.model_validate_json(download.content).outcome == "declined"
-    assert AcquireResult.model_validate_json(convert.content).outcome == "declined"
     assert spy.argv == []
     assert calls(hf_log) == []
     assert status[EXPLANATION].weights == "missing"
     assert status[EXPLANATION].acquire is None
-
-
-# --- Scenario: Reranker is converted locally ---------------------------------------------------
-
-
-def add_rerank_source(env: ModelEnv) -> Path:
-    convert = env.registry.roles[RERANK].convert
-    assert convert is not None
-    source = env.home / convert.source_dir
-    source.mkdir(parents=True)
-    (source / "config.json").write_text("{}")
-    (source / "model.safetensors").write_bytes(b"official weights")
-    return source
-
-
-async def test_us_2_4_reranker_converted_locally(env: ModelEnv, hf_log: Path) -> None:
-    source = add_rerank_source(env)
-    async with stack(env) as s:
-        before = (await s.status())[RERANK]
-        response = await s.post("/models/convert", {"role": "rerank", "confirm": True})
-        status = await s.wait_idle(RERANK)
-        again = await s.post("/models/convert", {"role": "rerank", "confirm": True})
-    target = env.registry.roles[RERANK].model_path(env.home)
-    assert before.weights == "missing"
-    assert before.source_present is True
-    assert AcquireResult.model_validate_json(response.content).outcome == "started"
-    assert status.weights == "present"
-    assert status.acquire is None
-    assert target.is_relative_to(env.home)
-    assert json.loads((target / "config.json").read_text()) == {"quantization": {"bits": 4}}
-    assert calls(hf_log) == [
-        {
-            "argv": [
-                "convert",
-                "--hf-path",
-                str(source),
-                "--mlx-path",
-                str(target),
-                "-q",
-                "--q-bits",
-                "4",
-            ],
-            "offline": True,
-        }
-    ]
-    assert AcquireResult.model_validate_json(again.content).outcome == "present"
-
-
-@pytest.mark.usefixtures("hf_log")
-@pytest.mark.parametrize("role", ["rerank", "explanation"])
-async def test_us_2_4_source_missing(
-    env: ModelEnv, monkeypatch: pytest.MonkeyPatch, role: str
-) -> None:
-    spy = SpawnSpy(monkeypatch)
-    async with stack(env) as s:
-        response = await s.post("/models/convert", {"role": role, "confirm": True})
-    assert_envelope(response, 409, "conversion_unavailable")
-    assert spy.argv == []
-
-
-@pytest.mark.usefixtures("hf_log")
-async def test_us_2_4_conversion_waits_for_resident_models(
-    env: ModelEnv, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    add_rerank_source(env)
-    monkeypatch.setenv("PYTHONPATH", str(REPO_ROOT))
-    async with stack(env) as s:
-        async with s.manager.use(ModelRole.CLASSIFICATION):
-            busy = await s.post("/models/convert", {"role": "rerank", "confirm": True})
-        monkeypatch.setenv("FAKE_HF_SLEEP", "1")
-        await s.manager.unload(ModelRole.CLASSIFICATION)
-        started = await s.post("/models/convert", {"role": "rerank", "confirm": True})
-        running = await s.post("/models/convert", {"role": "rerank", "confirm": True})
-        assert (await s.status())[RERANK].acquire == "converting"
-        await s.wait_idle(RERANK)
-    assert_envelope(busy, 409, "model_busy")
-    assert AcquireResult.model_validate_json(started.content).outcome == "started"
-    assert AcquireResult.model_validate_json(running.content).outcome == "in_progress"
-
-
-@pytest.mark.usefixtures("hf_log")
-async def test_us_2_4_failed_conversion_reported(
-    env: ModelEnv, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    add_rerank_source(env)
-    monkeypatch.setenv("FAKE_HF_EMPTY", "1")
-    async with stack(env) as s:
-        await s.post("/models/convert", {"role": "rerank", "confirm": True})
-        status = await s.wait_idle(RERANK)
-    assert status.acquire == "failed"
-    assert status.weights == "missing"
 
 
 # --- Gateway client: relayed worker codes ------------------------------------------------------
@@ -507,12 +363,11 @@ async def test_us_2_4_gateway_routes_answer_worker_unavailable() -> None:
     app.include_router(routes.router, prefix=PREFIX)
     app.dependency_overrides[routes.get_worker_client] = lambda: client
     transport = httpx.ASGITransport(app=app)
-    body = json.dumps({"role": "rerank", "confirm": True})
+    body = json.dumps({"role": "explanation", "confirm": True})
     async with httpx.AsyncClient(transport=transport, base_url="http://gateway") as desktop:
         responses = [
             await desktop.get(f"{PREFIX}/models/status"),
             await desktop.post(f"{PREFIX}/models/download", content=body, headers=JSON),
-            await desktop.post(f"{PREFIX}/models/convert", content=body, headers=JSON),
         ]
     for response in responses:
         assert_envelope(response, 503, "worker_unavailable")
@@ -530,11 +385,9 @@ async def test_us_2_4_gateway_accepts_only_json_bodies(
     body = {"role": "explanation", "confirm": True}
     async with stack(env) as s:
         download = await s.post("/models/download", body, content_type)
-        convert = await s.post("/models/convert", body, content_type)
         charset = await s.post("/models/download", body, "application/json; charset=utf-8")
         await s.wait_idle(EXPLANATION)
     assert_envelope(download, 422, "invalid_request")
-    assert_envelope(convert, 422, "invalid_request")
     assert AcquireResult.model_validate_json(charset.content).outcome == "started"
     assert len(spy.argv) == 1
     assert len(calls(hf_log)) == 1
@@ -563,39 +416,14 @@ async def test_us_2_4_interrupted_multi_shard_download_is_resumed(
     assert len(calls(hf_log)) == 1
 
 
-@pytest.mark.usefixtures("hf_log")
-async def test_us_2_4_conversion_holds_back_model_loads(
-    env: ModelEnv, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Review finding: no server starts while the ~16 GB conversion runs."""
-    add_rerank_source(env)
-    monkeypatch.setenv("FAKE_HF_SLEEP", "1")
-    async with stack(env) as s:
-        await s.post("/models/convert", {"role": "rerank", "confirm": True})
-
-        async def classify() -> None:
-            async with s.manager.use(ModelRole.CLASSIFICATION):
-                pass
-
-        load = asyncio.create_task(classify())
-        await asyncio.sleep(0.3)
-        assert (await s.status())[ModelRole.CLASSIFICATION].state.value == "queued"
-        assert (await s.status())[RERANK].acquire == "converting"
-        await load  # starts once the conversion has ended
-        status = await s.status()
-    assert status[RERANK].acquire is None
-    assert status[RERANK].weights == "present"
-    assert status[ModelRole.CLASSIFICATION].state.value == "ready"
-
-
 async def test_us_2_4_no_server_starts_from_a_directory_being_written(env: ModelEnv) -> None:
     async with stack(env) as s:
         target = env.registry.roles[ModelRole.DRAFTING].model_path(env.home)
-        s.manager.begin_job(target, exclusive=False)
+        s.manager.begin_job(target)
         with pytest.raises(ModelUnavailableError):
             async with s.manager.use(ModelRole.DRAFTING):
                 pytest.fail("must not serve a model a job is writing")
-        await s.manager.end_job(target, exclusive=False)
+        await s.manager.end_job(target)
 
 
 @pytest.mark.usefixtures("hf_log")

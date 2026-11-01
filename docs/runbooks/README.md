@@ -7,7 +7,7 @@ ES-6: every runbook has **Preconditions, Steps (copy-paste commands), Verificati
 | --- | --- | --- |
 | [install-enable](install-enable.md) | US-1.1 | complete |
 | [worker-start-stop-health](worker-start-stop-health.md) | US-1.2, US-2.2 | worker complete; model servers pending |
-| [model-download-convert](model-download-convert.md) | US-2.4 | skeleton |
+| [model-download-convert](model-download-convert.md) | US-2.4, US-14.1 | complete (downloads only) |
 | [corpus-import-reindex-backup-restore](corpus-import-reindex-backup-restore.md) | US-4.1, US-4.3 | skeleton |
 | [upgrade](upgrade.md) | US-1.5, later migrations | complete for EPIC-1 |
 | [troubleshooting](troubleshooting.md) | US-1.5, US-2.3 | complete for EPIC-1 |

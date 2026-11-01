@@ -27,7 +27,7 @@ from claimcoach.api.models import ERROR_MESSAGES
 from claimcoach.corpus import paths
 from claimcoach.corpus.backup import BackupError, backup, restore
 from claimcoach.corpus.crypto import Cipher
-from claimcoach.corpus.embed import QUERY_INSTRUCTION, Embedder, Reranker
+from claimcoach.corpus.embed import Embedder
 from claimcoach.corpus.errors import CaseNotFoundError, CorpusError, IndexStaleError
 from claimcoach.corpus.paths import (
     DATABASE,
@@ -454,10 +454,10 @@ def test_us_4_1_split_text() -> None:
     assert big == ["p" * 15, "q" * 20, "q" * 5]
 
 
-# --- Embedder and reranker ----------------------------------------------------------------------
+# --- Embedder ----------------------------------------------------------------------------------
 
 
-async def test_us_4_1_embedder_batches_and_prefixes_queries(corpus_server: FakeModelServer) -> None:
+async def test_us_4_1_embedder_batches(corpus_server: FakeModelServer) -> None:
     corpus_server.embedding_requests.clear()
     embedder = Embedder(static_models(corpus_server.base_url))
     assert embedder.__class__ is Embedder
@@ -467,9 +467,6 @@ async def test_us_4_1_embedder_batches_and_prefixes_queries(corpus_server: FakeM
     assert vectors.shape == (20, EMBED_DIM)
     assert vectors.dtype == np.float32
     assert [len(r.input) for r in corpus_server.embedding_requests] == [16, 4]
-    query = await embedder.embed_query("timely filing")
-    assert query.shape == (EMBED_DIM,)
-    assert corpus_server.embedding_requests[-1].input == [QUERY_INSTRUCTION + "timely filing"]
 
 
 def mock(body: object, status: int = 200) -> httpx.MockTransport:
@@ -490,16 +487,6 @@ async def test_us_4_1_embedder_failures(transport: httpx.MockTransport) -> None:
     embedder = Embedder(static_models("http://127.0.0.1:9/v1"), transport=transport)
     with pytest.raises(ModelUnavailableError):
         await embedder.embed_documents(["a", "b"])
-
-
-async def test_us_4_1_reranker_failures() -> None:
-    reranker = Reranker(
-        static_models("http://127.0.0.1:9/v1"),
-        transport=mock({"results": [{"index": 0, "relevance_score": 1.0}]}),
-    )
-    assert await reranker.scores("q", []) == []
-    with pytest.raises(ModelUnavailableError):
-        await reranker.scores("q", ["a", "b"])
 
 
 # --- Backup and restore (runbook) ---------------------------------------------------------------
@@ -591,7 +578,6 @@ def test_us_4_1_reads_never_create_a_profile(
     for read in (
         lambda: service.user_store("typo"),
         lambda: service.audit("typo"),
-        lambda: service.retriever("typo"),
     ):
         with pytest.raises(ProfileNotFoundError):
             read()

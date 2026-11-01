@@ -87,7 +87,7 @@ def test_us_1_1_config_schema_matches_settings() -> None:
 
 @pytest.mark.parametrize(
     "override",
-    [{"retention_days": 0}, {"retention_days": 3651}, {"models_home": ""}],
+    [{"retention_days": 0}, {"retention_days": 3651}, {"richer_agent_access": "yes"}],
 )
 def test_us_1_1_settings_reject_invalid_values(override: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):

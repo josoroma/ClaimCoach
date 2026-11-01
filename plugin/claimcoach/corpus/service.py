@@ -1,7 +1,7 @@
 """The worker's corpus: both scopes' stores, opened once and shared by every request.
 
 Implements: US-4.1 (status and reindex), US-4.2 (user stores open with the profile's Keychain
-key), US-4.3 (import and the global view), US-4.4 (a ``Retriever`` per profile), US-4.5 (purge,
+key), US-4.3 (import and the global view), US-4.5 (purge,
 scheduled over every profile), US-4.6 (audit). Rules: BR-5, BR-6, BR-7, BR-13, PC-4 (all of this
 runs in the worker), BR-14 (a failing profile is logged by error type only).
 
@@ -23,7 +23,7 @@ from pydantic import ValidationError
 
 from claimcoach.corpus.bundle import CorpusBundle, CorpusViewResponse, ImportResult
 from claimcoach.corpus.crypto import Cipher, KeyProvider, key_account
-from claimcoach.corpus.embed import Embedder, Reranker
+from claimcoach.corpus.embed import Embedder
 from claimcoach.corpus.errors import CorpusError, ProfileNotFoundError
 from claimcoach.corpus.importer import corpus_view, import_bundle
 from claimcoach.corpus.paths import (
@@ -34,7 +34,6 @@ from claimcoach.corpus.paths import (
     user_scopes,
 )
 from claimcoach.corpus.retention import RetentionPolicy, purge_case, purge_expired
-from claimcoach.corpus.retrieve import Retriever
 from claimcoach.corpus.store import CorpusStore
 from claimcoach.corpus.types import (
     AuditResponse,
@@ -60,8 +59,7 @@ class CorpusService:
     Args:
         root: The Hermes root.
         keys: Supplies each profile's user-store key (the Keychain in the worker).
-        embedder: Embeds documents and queries (the ``embedding`` role).
-        reranker: Scores retrieval candidates (the ``rerank`` role).
+        embedder: Embeds documents at import and reindex (the ``embedding`` role).
         embedding_model_id: The embedding model ``models.yaml`` configures now.
     """
 
@@ -70,7 +68,6 @@ class CorpusService:
         root: Path,
         keys: KeyProvider,
         embedder: Embedder,
-        reranker: Reranker,
         *,
         embedding_model_id: str,
     ) -> None:
@@ -78,7 +75,6 @@ class CorpusService:
         self.root = root
         self.embedding_model_id = embedding_model_id
         self.embedder = embedder
-        self.reranker = reranker
         self._keys = keys
         self._global: CorpusStore | None = None
         self._users: dict[str, CorpusStore] = {}
@@ -179,11 +175,6 @@ class CorpusService:
             vectors = await self.embedder.embed_documents([text for _, text in items])
             store.replace_index([chunk_id for chunk_id, _ in items], vectors)
         return ReindexResult(chunks=len(items), embedding_model_id=self.embedding_model_id)
-
-    def retriever(self, profile: str) -> Retriever:
-        """Return a retriever over the global scope and ``profile``'s user scope."""
-        user = self.user_store(profile)
-        return Retriever(self.global_store(), user, self.embedder, self.reranker)
 
     def purge(self, request: PurgeRequest, now: datetime | None = None) -> PurgeResponse:
         """Purge one case on request, one profile's expired cases, or every profile's.

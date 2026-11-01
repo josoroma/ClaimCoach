@@ -26,7 +26,6 @@ _INSTALL_ONLY = {
     "worker-venv",
     "models-init",
     "models-download",
-    "models-convert",
     "plugin-install",
     "plugin-link",
     "plugin-enable",
@@ -118,10 +117,8 @@ def test_us_13_2_model_roles_match_registry() -> None:
         assert code(venv) == spec["venv"], role
         assert port == str(spec["port"]), role
         assert tier == f"{spec['tier_b']}B", role
-        repo = spec["repo_id"] if "repo_id" in spec else spec["convert"]["source_repo_id"]
-        assert code(source) == repo, role
+        assert code(source) == spec["repo_id"], role
         assert len(use) > 20, f"{role}: say what ClaimCoach uses it for"
-    assert f"`{roles['rerank']['convert']['source_dir']}`" in models, "name the source folder"
     assert f"`idle_timeout_s` ({_registry()['idle_timeout_s']} s)" in models
 
 

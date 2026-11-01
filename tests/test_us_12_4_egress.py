@@ -429,11 +429,10 @@ def test_us_12_4_preconditions() -> None:
     assert preconditions(
         status(
             drafting={"weights": "missing"},
-            rerank={"acquire": "converting"},
             transcription={"acquire": "downloading", "weights": "missing"},
             embedding={"acquire": "failed"},
         )
-    ) == ["rerank: converting", "drafting: weights missing", "transcription: downloading"]
+    ) == ["drafting: weights missing", "transcription: downloading"]
 
 
 def test_us_12_4_processes_are_the_worker_and_its_model_servers(

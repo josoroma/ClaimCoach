@@ -40,15 +40,10 @@ outbound network connection.
 - **WHEN** a model is missing and the user declines the download
 - **THEN** no outbound network connection is opened
 
-### Requirement: Reranker is converted locally
-For a role declared with `convert`, a confirmed conversion request SHALL run `mlx_lm.convert` with
-`HF_HUB_OFFLINE=1` from the source directory to the 4-bit target directory under `MODELS_HOME`,
-only when the source is present and the target is missing.
+### Requirement: No conversion route or command remains
+The gateway, the worker, and the Makefile SHALL offer no model conversion: no `models/convert`
+route, no `models-convert` target, and no `conversion_unavailable` error code.
 
-#### Scenario: Reranker is converted locally
-- **WHEN** the official Qwen3-Reranker-8B repository is present, the MLX 4-bit directory is not, and the user confirms conversion
-- **THEN** mlx_lm.convert produces the 4-bit MLX directory under MODELS_HOME and the rerank role is reported present
-
-#### Scenario: Source missing
-- **WHEN** conversion is confirmed but the source repository is not present
-- **THEN** the response is the conversion_unavailable envelope and no process starts
+#### Scenario: No conversion route or command remains
+- **WHEN** the gateway's and the worker's routes and the Makefile's targets are listed
+- **THEN** there is no models/convert route and no models-convert target

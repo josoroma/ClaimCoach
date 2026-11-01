@@ -73,7 +73,7 @@ def fake_model_server() -> Iterator[FakeModelServer]:
 
 @pytest.fixture(scope="module")
 def corpus_server() -> Iterator[FakeModelServer]:
-    """A fake embedding and rerank server for one corpus test module (US-4.x)."""
+    """A fake embedding server for one corpus test module (US-4.x)."""
     with FakeModelServer() as server:
         yield server
 

@@ -275,9 +275,7 @@ class ModelManager:
         self._by_role = {role: s for s in self._servers.values() for role in s.roles}
         self._tasks: set[asyncio.Task[None]] = set()
         self._jobs: set[Path] = set()
-        """Directories a download or conversion is writing (US-2.4)."""
-        self._exclusive_jobs = 0
-        """Running jobs that need the memory of a large model (conversion); loads queue behind."""
+        """Directories a download is writing (US-2.4)."""
         state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     @property
@@ -362,31 +360,14 @@ class ModelManager:
             except Exception as exc:  # noqa: BLE001 - one failed sweep must not end the sweeper
                 _log.error("idle sweep failed: %s", type(exc).__name__)
 
-    def any_resident(self) -> bool:
-        """Return whether any model server is starting, running, or stopping."""
-        return any(s.resident for s in self._servers.values())
-
-    def begin_job(self, target: Path, *, exclusive: bool) -> None:
-        """Register a download or conversion writing ``target`` (US-2.4).
-
-        No server is started from ``target`` until ``end_job``. An exclusive job (conversion)
-        also makes every load queue until it ends, as if a ``runs_alone`` server were resident.
-
-        Raises:
-            ModelBusyError: ``exclusive`` and a model server or another exclusive job is resident.
-        """
-        if exclusive:
-            if self.any_resident() or self._exclusive_jobs:
-                raise ModelBusyError
-            self._exclusive_jobs += 1
+    def begin_job(self, target: Path) -> None:
+        """Register a download writing ``target`` (US-2.4); no server starts from it until done."""
         self._jobs.add(target)
 
-    async def end_job(self, target: Path, *, exclusive: bool) -> None:
+    async def end_job(self, target: Path) -> None:
         """Forget a job registered with ``begin_job`` and wake queued loads."""
         async with self._cond:
             self._jobs.discard(target)
-            if exclusive:
-                self._exclusive_jobs -= 1
             self._cond.notify_all()
 
     def role_status(
@@ -404,7 +385,6 @@ class ModelManager:
             tier_b=spec.tier_b,
             model_dir=spec.model_dir,
             weights=spec.weights(self.models_home),
-            source_present=spec.source_present(self.models_home),
             venv_present=spec.venv_present(self.models_home),
             acquire=(acquire or {}).get(role),
         )
@@ -415,7 +395,7 @@ class ModelManager:
         """Return the status of every role, in registry order.
 
         Args:
-            acquire: Running or failed download/conversion jobs by role (US-2.4).
+            acquire: Running or failed download jobs by role (US-2.4).
         """
         return ModelsStatusResponse(
             idle_timeout_s=self.registry.idle_timeout_s,
@@ -512,7 +492,7 @@ class ModelManager:
                 if state is ModelState.UNHEALTHY and waited_on == server.start_attempts:
                     raise ModelUnavailableError  # share the outcome of the start we waited on
                 blockers = self._blockers(server)
-                if not blockers and not self._exclusive_jobs:
+                if not blockers:
                     server.state = ModelState.STARTING  # reserves residency before unlocking
                     server.start_attempts += 1
                     server.refcount += 1

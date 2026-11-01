@@ -29,7 +29,7 @@ from claimcoach.corpus.service import CorpusService
 from claimcoach.models.chat import DEFAULT_MODEL_ID
 from claimcoach.models.manager import ModelManager
 from claimcoach.models.registry import DEFAULT_REGISTRY, ModelRegistry
-from claimcoach.models.types import ConversionRequest, DownloadRequest, ModelRole
+from claimcoach.models.types import DownloadRequest, ModelRole
 from claimcoach.worker.app import create_app
 from claimcoach.worker.config import LOOPBACK, WorkerConfig
 from tests.fakes.corpus import TOKEN, make_service
@@ -66,7 +66,6 @@ GATEWAY_ROUTES: Final = {
     ("POST", "/corpus/import"),
     ("GET", "/models/status"),
     ("POST", "/models/download"),
-    ("POST", "/models/convert"),
     ("POST", "/cases"),
     ("GET", "/cases"),
     ("GET", "/cases/{case_id}"),
@@ -96,7 +95,6 @@ WORKER_ROUTES: Final = {
     ("POST", "/models/{role}/load"),
     ("POST", "/models/{role}/unload"),
     ("POST", "/models/download"),
-    ("POST", "/models/convert"),
     ("POST", "/redact"),
     ("GET", "/corpus/status"),
     ("POST", "/corpus/import"),
@@ -139,7 +137,7 @@ HTTP_CLIENT_MODULES: Final = {
     "claimcoach/api/client.py": "the gateway's client of the worker (WorkerConfig: 127.0.0.1)",
     "claimcoach/models/chat.py": "chat completions to a ModelEndpoint (127.0.0.1)",
     "claimcoach/models/manager.py": "model servers' health checks (127.0.0.1)",
-    "claimcoach/corpus/embed.py": "embeddings and reranking from a ModelEndpoint (127.0.0.1)",
+    "claimcoach/corpus/embed.py": "embeddings from a ModelEndpoint (127.0.0.1)",
     "claimcoach/worker/launcher.py": "the worker's /health (WorkerConfig: 127.0.0.1)",
     "claimcoach/calls/transcribe.py": "audio transcription to a ModelEndpoint (127.0.0.1)",
     "claimcoach/evals/flow.py": "the plugin_api router mounted in-process (ASGITransport, US-12.4)",
@@ -254,9 +252,8 @@ def test_us_7_3_no_transmitting_route(service: CorpusService, tmp_path: Path) ->
     assert WorkerConfig(data_dir=tmp_path).base_url.startswith("http://127.0.0.1:")
     # The one outbound route carries no case content: a role and a yes/no answer only.
     assert worker >= OUTBOUND_ROUTES
-    for model in (DownloadRequest, ConversionRequest):
-        assert set(model.model_fields) == {"role", "confirm"}
-        assert model.model_fields["role"].annotation is ModelRole
+    assert set(DownloadRequest.model_fields) == {"role", "confirm"}
+    assert DownloadRequest.model_fields["role"].annotation is ModelRole
 
 
 def test_us_7_3_the_route_walk_sees_every_route_type() -> None:
