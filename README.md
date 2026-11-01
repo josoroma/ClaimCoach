@@ -61,3 +61,14 @@ make models-check
 ```bash
 make models-status
 ```
+
+## Release
+
+A release ships only when every EPIC-12 gate passes against the running worker and the real local
+models: PHI recall ≥ 98%, classification accuracy ≥ 85%, drafts accepted with minor edits ≥ 70%,
+median upload-to-draft ≤ 10 minutes, and zero non-loopback connections in a full case flow. See
+[docs/runbooks/evals-release-gates.md](docs/runbooks/evals-release-gates.md).
+
+```bash
+make release-gate
+```

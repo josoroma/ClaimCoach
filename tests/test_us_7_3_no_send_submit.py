@@ -88,6 +88,7 @@ GATEWAY_ROUTES: Final = {
 
 WORKER_ROUTES: Final = {
     ("GET", "/health"),
+    ("GET", "/egress"),  # US-12.4: the audit's state only, no record
     ("GET", "/models/status"),
     ("POST", "/models/{role}/load"),
     ("POST", "/models/{role}/unload"),
@@ -136,6 +137,7 @@ HTTP_CLIENT_MODULES: Final = {
     "claimcoach/corpus/embed.py": "embeddings and reranking from a ModelEndpoint (127.0.0.1)",
     "claimcoach/worker/launcher.py": "the worker's /health (WorkerConfig: 127.0.0.1)",
     "claimcoach/calls/transcribe.py": "audio transcription to a ModelEndpoint (127.0.0.1)",
+    "claimcoach/evals/flow.py": "the plugin_api router mounted in-process (ASGITransport, US-12.4)",
 }
 """The reviewed modules that create HTTP clients, and the loopback service each one talks to."""
 
@@ -144,6 +146,7 @@ PROCESS_MODULES: Final = {
     "claimcoach/models/acquire.py": "`hf download`, `mlx_lm.convert` once the user confirms (BR-1)",
     "claimcoach/models/manager.py": "the local model servers and `ps` for their command lines",
     "claimcoach/worker/launcher.py": "the worker itself and `ps` for its command line",
+    "claimcoach/evals/egress_check.py": "`lsof -nP` on the worker and model-server PIDs (US-12.4)",
 }
 """The reviewed modules that start processes; none passes case content in its argv."""
 

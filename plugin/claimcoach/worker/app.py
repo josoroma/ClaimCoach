@@ -10,7 +10,8 @@ are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its mo
 US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper),
 US-8.2 (``/outcomes`` routes over the corpus root), US-9.1 and US-9.2 (``/agent`` routes behind
 the Hermes agent tools), US-11.1 (payer-call routes, the transcription queue, and the after-hours
-transcription scheduler in the lifespan).
+transcription scheduler in the lifespan), US-12.4 (``GET /egress``: whether this process's socket
+audit records, and how many attempts it could not record).
 Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
@@ -39,6 +40,7 @@ from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.paths import transcription_dir
 from claimcoach.corpus.retention import RetentionJob
 from claimcoach.corpus.service import CorpusService
+from claimcoach.egress import EGRESS_AUDIT, EgressStatus
 from claimcoach.letters.draft import Drafter
 from claimcoach.letters.export import Exports
 from claimcoach.logs import get_logger, new_request_id, request_id_var
@@ -59,7 +61,7 @@ from claimcoach.worker import (
     redact_routes,
 )
 
-__all__ = ["create_app", "get_health", "router"]
+__all__ = ["create_app", "get_egress_status", "get_health", "router"]
 
 router = APIRouter()
 _log = get_logger("claimcoach.worker")
@@ -73,6 +75,17 @@ def get_health() -> HealthResponse:
 @router.get("/health", response_model=HealthResponse)
 def health(status: Annotated[HealthResponse, Depends(get_health)]) -> HealthResponse:
     """Report that the worker is up."""
+    return status
+
+
+def get_egress_status() -> EgressStatus:
+    """Return this process's audit state; a dependency so tests can stand in for a worker."""
+    return EGRESS_AUDIT.status()
+
+
+@router.get("/egress", response_model=EgressStatus)
+def egress(status: Annotated[EgressStatus, Depends(get_egress_status)]) -> EgressStatus:
+    """Report whether the socket audit records (US-12.4); no record is returned."""
     return status
 
 

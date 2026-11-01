@@ -21,3 +21,4 @@ ES-6: every runbook has **Preconditions, Steps (copy-paste commands), Verificati
 | [agent-tools](agent-tools.md) | US-9.1, US-9.2, US-9.3, US-9.4 | complete |
 | [desktop-pane-and-settings](desktop-pane-and-settings.md) | US-10.1, US-10.2, US-10.3 | complete |
 | [payer-call-transcription](payer-call-transcription.md) | US-11.1 | complete |
+| [evals-release-gates](evals-release-gates.md) | US-12.1, US-12.2, US-12.3, US-12.4 | complete |

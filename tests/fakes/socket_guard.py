@@ -1,16 +1,18 @@
 """Socket guard: offline tests may only talk to loopback.
 
 Implements: US-1.4 ("no test opens a network connection to a non-loopback address"). Rules: G-5,
-NFR-5 (zero outbound calls carrying case content) — enforced in tests before EPIC-12 measures it.
+NFR-5 (zero outbound calls carrying case content) — enforced in tests; US-12.4 measures it in
+the running app with the same ``is_loopback``.
 """
 
 from __future__ import annotations
 
-import ipaddress
 import socket
 from typing import Any
 
 import pytest
+
+from claimcoach.egress import is_loopback
 
 __all__ = ["NetworkBlockedError", "install", "is_loopback"]
 
@@ -21,20 +23,6 @@ class NetworkBlockedError(RuntimeError):
     Deliberately not an ``OSError``: httpx would map an ``OSError`` to ``ConnectError`` and a test
     of "worker unavailable" could pass for the wrong reason.
     """
-
-
-def is_loopback(host: object) -> bool:
-    """Return whether ``host`` names this machine (IPv4/IPv6 loopback or ``localhost``)."""
-    if isinstance(host, bytes):
-        host = host.decode()
-    if not isinstance(host, str):
-        return False
-    if host == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host.split("%", 1)[0]).is_loopback
-    except ValueError:
-        return False
 
 
 def install(monkeypatch: pytest.MonkeyPatch) -> None:

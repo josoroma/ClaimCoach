@@ -4,7 +4,9 @@ Implements: US-1.2 (new token per launch; bind ``127.0.0.1``), US-2.1 (``models.
 the data dir on first run and validated before serving), US-2.2 (model manager; orphaned model
 servers of a crashed worker are reaped), US-3.4 (every log line is JSON on stderr, i.e.
 worker.log), US-4.1 to US-4.5 (the corpus service over this Hermes root, user stores keyed from
-the macOS Keychain). Rules: PRD §7.9 worker decision, BR-11.
+the macOS Keychain), US-12.4 (the socket audit hook records every non-loopback attempt in
+``worker/egress.jsonl`` from before the registry loads). Rules: PRD §7.9 worker decision, BR-11,
+NFR-5.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from claimcoach import PLUGIN_NAME
 from claimcoach.corpus.crypto import KeychainKeyProvider
 from claimcoach.corpus.embed import Embedder, Reranker, embedding_model_id
 from claimcoach.corpus.service import CorpusService
+from claimcoach.egress import EGRESS_AUDIT, EGRESS_LOG, file_sink
 from claimcoach.logs import configure_logging, get_logger
 from claimcoach.models.manager import ModelManager
 from claimcoach.models.registry import RegistryError, load_registry, models_home
@@ -52,6 +55,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     config = WorkerConfig(data_dir=args.data_dir, port=args.port)
     configure_logging("worker")
+    config.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        EGRESS_AUDIT.start("worker", file_sink(config.state_dir / EGRESS_LOG))
+    except OSError:
+        # GET /egress then answers audit: false, and the US-12.4 check refuses this worker.
+        _log.warning("the egress audit could not open its record file; it is off")
     try:
         registry = load_registry(config.data_dir)
     except RegistryError as exc:
@@ -79,6 +88,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         access_log=False,
         log_config=None,  # keep the JSON handler from configure_logging (US-3.4)
         server_header=False,
+        loop="asyncio",  # uvloop's sockets raise no audit events (US-12.4)
         timeout_graceful_shutdown=GRACEFUL_SHUTDOWN,
     )
     return 0

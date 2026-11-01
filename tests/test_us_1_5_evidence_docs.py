@@ -35,6 +35,9 @@ RUNBOOKS = (
     "appeal-drafting",
     "outcomes-and-export",
     "agent-tools",
+    "desktop-pane-and-settings",
+    "payer-call-transcription",
+    "evals-release-gates",
 )
 SECTIONS = ("Preconditions", "Steps", "Verification", "Rollback")
 

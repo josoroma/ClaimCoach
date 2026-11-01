@@ -16,6 +16,9 @@ file, because ``models.yaml`` reads ``{...}`` in a command as a placeholder).
 
 US-5.2 accepts OpenAI content parts (text plus ``image_url``) for the vision model.
 
+US-12.2 adds ``responders``: a model ID mapped to a function of the request, for a fake that answers
+each prompt on its own (a classifier that reads the case's codes).
+
 US-4.1 and US-4.4 add ``/v1/embeddings`` (a deterministic hashed bag of words, ``EMBED_DIM``
 long, so texts that share words are near each other) and ``/v1/rerank`` (the share of query words a
 document contains). ``embed_overrides`` pins the vector of an exact input text, so a test can make
@@ -30,7 +33,7 @@ import re
 import signal
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Literal, get_args
@@ -130,6 +133,7 @@ class FakeModelServer:
     ) -> None:
         """Build the app; call ``start()`` (or use as a context manager) to serve it."""
         self.replies: dict[str, str] = dict(replies or {})
+        self.responders: dict[str, Callable[[ChatRequest], str]] = {}
         self.requests: list[ChatRequest] = []
         self.embedding_requests: list[EmbeddingsRequest] = []
         self.rerank_requests: list[RerankRequest] = []
@@ -169,7 +173,9 @@ class FakeModelServer:
         @app.post("/v1/chat/completions")
         def chat(request: ChatRequest) -> dict[str, Any]:
             self.requests.append(request)
-            reply = self.replies.get(request.model, DEFAULT_REPLY)
+            responder = self.responders.get(request.model)
+            fixed = self.replies.get(request.model, DEFAULT_REPLY)
+            reply = responder(request) if responder else fixed
             return {
                 "id": f"chatcmpl-fake-{len(self.requests)}",
                 "object": "chat.completion",

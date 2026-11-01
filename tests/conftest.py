@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from claimcoach import logs
+from claimcoach.egress import EGRESS_AUDIT
 from tests.fakes import socket_guard
 from tests.fakes.fake_model_server import FakeModelServer
 
@@ -35,6 +36,14 @@ def _socket_guard(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatc
             pytest.fail("allow_network is only valid on tests also marked models")
         return
     socket_guard.install(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def _idle_egress_audit() -> Iterator[None]:
+    """Stop the socket audit hook's records after each test (the hook itself cannot be removed;
+    the worker entry point and the US-12.4 check start it in this process)."""
+    yield
+    EGRESS_AUDIT.stop()
 
 
 @pytest.fixture(autouse=True)

@@ -59,6 +59,19 @@ export ARGS
 # make expands an exported command-line value, so `$` in a manager's name would be lost; keep it.
 override MANAGER := $(value MANAGER)
 export FIELD VALUE TEMPLATE TO WEEK MANAGER
+# Eval targets (EPIC-12): the eval sets (PHI_SET, DENIAL_SET; REVIEWS, the manager's draft reviews),
+# where reports go (EVAL_OUT/US-12.x/), LIMIT cases of the denial set, EVAL_PROFILE the profile eval
+# cases run in (default: PROFILE, else the active one), EVAL_CASE the denial-set case the egress
+# check runs (default: the first with a PDF). Like the values above, they reach the command through
+# the environment.
+PHI_SET ?= tests/fixtures/phi/phi_set.json
+DENIAL_SET ?= tests/fixtures/denials/denial_set.json
+REVIEWS ?=
+EVAL_OUT ?= evidence
+LIMIT ?=
+EVAL_PROFILE ?= $(PROFILE)
+EVAL_CASE ?=
+export PHI_SET DENIAL_SET REVIEWS EVAL_OUT LIMIT EVAL_PROFILE EVAL_CASE
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -157,7 +170,9 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         case-new case-list case-add case-paste case-show case-process case-confirm case-diagnose \
         case-draft case-edit case-export case-outcome case-call case-transcribe transcription-queue \
         outcomes-summary outcomes-export \
-        agent-tools agent-skill agent-call agent-denial agent-probe clean
+        agent-tools agent-skill agent-call agent-denial agent-probe \
+        eval-redaction eval-classification eval-drafts eval-latency eval-egress evals release-gate \
+        clean
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -166,7 +181,7 @@ help: ## List targets
 
 doctor: ## Check tools, venvs, MODELS_HOME, the plugin link, and the worker (changes nothing)
 	@ok=1; \
-	for tool in $(UV) node $(NPM) $(OPENSPEC) $(HERMES) curl; do \
+	for tool in $(UV) node $(NPM) $(OPENSPEC) $(HERMES) curl lsof; do \
 	  if command -v "$$tool" >/dev/null 2>&1; then printf '  ok       %s\n' "$$tool"; \
 	  else printf '  missing  %s\n' "$$tool"; ok=0; fi; \
 	done; \
@@ -545,6 +560,50 @@ agent-denial: ## Run the /denial slash command: make agent-denial [CASE=id]
 agent-probe: ## Load the plugin into the local Hermes Agent (throwaway home): tools, skill, /denial
 	$(UV) run pytest -m hermes -p no:cacheprovider --no-cov \
 	  tests/test_us_1_1_plugin_package.py tests/test_us_9_3_skill.py tests/test_us_9_4_denial_command.py
+
+# --- Evals and release gates (docs/runbooks/evals-release-gates.md) ------------------------------
+# Each eval drives the running worker (make start) and its real local models, then writes its JSON
+# report under $(EVAL_OUT)/US-12.x/. Exit 0: the target is met; 1: it is missed and the release is
+# blocked; 2: nothing was measured (worker down, models missing, a download running, a bad set).
+# Eval cases are purged as soon as each flow ends.
+
+EVAL_CLI := $(UV) run python -m claimcoach.evals
+EVAL_ARGS = --out "$$EVAL_OUT" --port $(WORKER_PORT)
+DENIAL_ARGS = $(EVAL_ARGS) --set "$$DENIAL_SET"
+PROFILE_ARG = $${EVAL_PROFILE:+--profile "$$EVAL_PROFILE"}
+LIMIT_ARG = $${LIMIT:+--limit "$$LIMIT"}
+# What `make evals` runs. Without REVIEWS, eval-drafts is "not measured", which blocks the release:
+# NFR-2 is never passed by default.
+EVAL_GATES = eval-redaction eval-classification eval-drafts eval-latency eval-egress
+
+eval-redaction: ## US-12.1 release gate: PHI recall >= 98% on the synthetic set, per category
+	$(EVAL_CLI) redaction --set "$$PHI_SET" $(EVAL_ARGS)
+
+eval-classification: ## US-12.2: denial classification accuracy >= 85% [LIMIT=n] [EVAL_PROFILE=p]
+	$(EVAL_CLI) classification $(DENIAL_ARGS) $(PROFILE_ARG) $(LIMIT_ARG)
+
+eval-drafts: ## US-12.2: drafts accepted with minor edits >= 70%: make eval-drafts REVIEWS=reviews.json
+	@[ -n "$$REVIEWS" ] || { echo "not measured: make $@ REVIEWS=<the manager's draft reviews (JSON)>"; exit 2; }
+	$(EVAL_CLI) drafts --reviews "$$REVIEWS" --out "$$EVAL_OUT"
+
+eval-latency: ## US-12.3: median upload-to-draft <= 10 min on this Mac [LIMIT=n] [EVAL_PROFILE=p]
+	$(EVAL_CLI) latency $(DENIAL_ARGS) $(PROFILE_ARG) $(LIMIT_ARG)
+
+# The flow goes through the plugin_api router, which works in the active profile (HERMES_HOME).
+eval-egress: ## US-12.4: one full case flow opens no non-loopback connection [EVAL_CASE=id]
+	$(EVAL_CLI) egress $(DENIAL_ARGS) $${EVAL_CASE:+--case "$$EVAL_CASE"}
+
+# Every gate runs even after one misses, so a release decision sees all of them at once.
+evals: ## Run every eval gate against the running worker; fails when any is missed or not measured
+	@failed=; for gate in $(EVAL_GATES); do \
+	  echo "== $$gate"; $(MAKE) --no-print-directory "$$gate" || failed="$$failed $$gate"; \
+	done; \
+	if [ -n "$$failed" ]; then echo "release blocked by:$$failed"; exit 1; fi; \
+	echo "every eval gate passed: $(EVAL_GATES)"
+
+release-gate: ## The release decision: make verify (offline), then make evals (worker + real models)
+	@$(MAKE) --no-print-directory verify
+	@$(MAKE) --no-print-directory evals
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

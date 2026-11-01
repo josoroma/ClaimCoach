@@ -12,7 +12,7 @@ creation, open, upload, and paste calls; an upload is forwarded as the raw multi
 fine-tune export), US-9.1 (explain a code, a payer's rule cards), US-9.2 (a case's redacted
 summary), all for the agent tools, US-11.1 (attach a payer-call recording, queue it for
 after-hours transcription), US-10.1 (the profile's case list), US-10.4 (a corpus import waits up
-to 15 minutes).
+to 15 minutes), US-12.4 (whether the worker's egress audit records).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -46,6 +46,7 @@ from claimcoach.corpus.types import (
     ReindexRequest,
     ReindexResult,
 )
+from claimcoach.egress import EgressStatus
 from claimcoach.letters.types import DraftEdit, DraftRequest, ExportedFile, ExportRequest
 from claimcoach.models.types import (
     AcquireResult,
@@ -193,6 +194,14 @@ class WorkerClient:
             WorkerError: The call failed; the subclass names why.
         """
         return await self._request("GET", "/health", HealthResponse)
+
+    async def egress_status(self) -> EgressStatus:
+        """Return whether the worker's socket audit records (US-12.4).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request("GET", "/egress", EgressStatus)
 
     async def models_status(self) -> ModelsStatusResponse:
         """Return the status of every model role.
