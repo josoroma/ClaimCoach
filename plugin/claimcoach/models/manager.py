@@ -10,7 +10,8 @@ data dir, so ``mlx_audio.server``'s files are owner-only and never land in the i
 
 All server state is guarded by one ``asyncio.Condition`` so the memory guard always sees every
 server. A server is *resident* while it is starting, ready, or stopping: a stopping process still
-holds its memory until it exits.
+holds its memory until it exits. A process group whose only members are zombies counts as gone:
+macOS answers ``killpg`` on it with ``EPERM``, and a zombie holds no memory or port.
 """
 
 from __future__ import annotations
@@ -64,6 +65,11 @@ SWEEP_INTERVAL_MAX: Final = 30.0
 SIGKILL_SETTLE: Final = 2.0
 """Seconds to wait for SIGKILLed orphans to disappear."""
 _PS: Final = "/bin/ps"
+_GROUP_GONE: Final = (ProcessLookupError, PermissionError)
+"""What ``killpg`` raises when no member of a group can take a signal: ``ESRCH`` once the group is
+gone, and on macOS ``EPERM`` while its only members are zombies (exited, not yet reaped by their
+parent or launchd). Only groups this worker started are signalled, so ``EPERM`` never means
+another user's processes."""
 _RESIDENT: Final = frozenset({ModelState.STARTING, ModelState.READY, ModelState.STOPPING})
 _SERVER_ENV: Final = {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
 """Model servers never reach the network; only confirmed downloads do (BR-1)."""
@@ -176,9 +182,10 @@ def _markers(argv: list[str], model: Path, port: int) -> list[str]:
 
 
 def _group_alive(pgid: int) -> bool:
+    """Whether a member of group ``pgid`` is still running (a zombie is not)."""
     try:
         os.killpg(pgid, 0)
-    except ProcessLookupError:
+    except _GROUP_GONE:
         return False
     return True
 
@@ -204,11 +211,11 @@ async def terminate(process: asyncio.subprocess.Process, grace: float) -> None:
     """
     if process.returncode is not None:
         return  # reaped before we got here: its PID may belong to someone else now
-    with suppress(ProcessLookupError):
+    with suppress(*_GROUP_GONE):
         os.killpg(process.pid, signal.SIGTERM)
     with suppress(TimeoutError):
         await asyncio.wait_for(process.wait(), grace)
-    with suppress(ProcessLookupError):
+    with suppress(*_GROUP_GONE):
         os.killpg(process.pid, signal.SIGKILL)
     await process.wait()
     # Wait until the whole group is gone so its port is free before anything restarts it.
@@ -442,12 +449,12 @@ class ModelManager:
         for record in records.values():
             command = _command_line(record.pid)
             if command and all(marker in command for marker in record.markers):
-                with suppress(ProcessLookupError):
+                with suppress(*_GROUP_GONE):
                     os.killpg(record.pid, signal.SIGTERM)
                 reaped.append(record.pid)
         self._wait_gone(reaped, self.term_grace)
         for pid in reaped:
-            with suppress(ProcessLookupError):
+            with suppress(*_GROUP_GONE):
                 os.killpg(pid, signal.SIGKILL)
         self._wait_gone(reaped, SIGKILL_SETTLE)  # free the ports before the worker serves
         self.records_path.unlink()

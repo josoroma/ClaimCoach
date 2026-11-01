@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import json
 import os
 import signal
@@ -20,7 +21,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -493,6 +494,73 @@ async def test_us_2_2_group_members_are_stopped_with_the_leader(tmp_path: Path) 
         ).stdout.splitlines()
         if f"--port {port} --ignore-sigterm" in line
     ]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS answers EPERM for a zombie group")
+def test_us_2_2_zombie_only_group_counts_as_gone() -> None:
+    """Regression: a group whose only member is a zombie made the stop loop raise EPERM."""
+    process = subprocess.Popen(["/usr/bin/true"], start_new_session=True)
+    try:
+        deadline = time.monotonic() + 5
+        while manager_module._group_alive(process.pid):
+            assert time.monotonic() < deadline, "the group never exited"
+            time.sleep(0.02)
+        assert process.returncode is None, "the leader is a zombie, not reaped yet"
+        with pytest.raises(PermissionError):
+            os.killpg(process.pid, 0)  # what macOS answers for such a group
+    finally:
+        process.wait()
+
+
+def _killpg_eperm(signals: list[tuple[int, int]]) -> Any:
+    """A ``killpg`` that answers as macOS does for a group of zombies, recording each call."""
+
+    def killpg(pgid: int, sig: int) -> None:
+        signals.append((pgid, sig))
+        raise PermissionError(errno.EPERM, "Operation not permitted")
+
+    return killpg
+
+
+class _ExitedLeader:
+    """A server process that has exited but is not yet reaped (``returncode`` still unset)."""
+
+    pid = 4_000_000  # above macOS's PID range, so never a real process
+    returncode: int | None = None
+
+    async def wait(self) -> int:
+        return 0
+
+
+async def test_us_2_2_stop_survives_a_group_of_zombies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: EPERM from ``killpg`` (only zombies left) no longer escapes the stop."""
+    signals: list[tuple[int, int]] = []
+    monkeypatch.setattr(os, "killpg", _killpg_eperm(signals))
+    leader = _ExitedLeader()
+    await manager_module.terminate(cast("asyncio.subprocess.Process", leader), grace=0.01)
+    assert signals == [(leader.pid, signal.SIGTERM), (leader.pid, signal.SIGKILL), (leader.pid, 0)]
+
+
+def test_us_2_2_orphan_group_of_zombies_is_reaped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: an orphan group left with only zombies no longer stops the worker starting."""
+    env = build_model_env(tmp_path)
+    model = env.registry.roles[ModelRole.DRAFTING].model_path(env.home)
+    port = env.port(ModelRole.DRAFTING)
+    pid = _ExitedLeader.pid
+    env.state_dir.mkdir(parents=True)
+    records = {port: {"pid": pid, "markers": [str(model), f"--port {port}"]}}
+    (env.state_dir / "servers.json").write_text(json.dumps(records))
+    monkeypatch.setattr(manager_module, "_command_line", lambda _: f"serve {model} --port {port}")
+    signals: list[tuple[int, int]] = []
+    monkeypatch.setattr(os, "killpg", _killpg_eperm(signals))
+    manager = ModelManager(
+        env.registry, models_home=env.home, state_dir=env.state_dir, term_grace=0.05
+    )
+    assert manager.reap_orphans() == [pid]
+    assert signals == [(pid, signal.SIGTERM), (pid, signal.SIGKILL)]
+    assert not manager.records_path.exists()
 
 
 async def test_us_2_2_sweeper_survives_a_failed_sweep(
