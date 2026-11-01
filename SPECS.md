@@ -221,21 +221,23 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-8.3#1 | Implement the export with typed ExportApproval and FineTuneRecord once the format is deci… | DONE | US-8.3 |
 | US-8.3#2 | Add tests test_us_8_3_export_requires_approval, test_us_8_3_exported_pairs_contain_no_phi | DONE | US-8.3 |
 | US-8.3#3 | Record evidence/US-8.3/test-report.md | DONE | US-8.3 |
-| EPIC-9 | Hermes Agent Integration | — | — |
-| US-9.1 | Code and Payer-Rule Tools | READY | EPIC-9 |
-| US-9.1#1 | Register both tools with ctx.register_tool; generate schemas from ExplainCodeParams/Expla… | TODO | US-9.1 |
-| US-9.1#2 | Add tests test_us_9_1_explain_code_from_global, test_us_9_1_payer_rules_returns_card | TODO | US-9.1 |
-| US-9.1#3 | Record evidence/US-9.1/test-report.md | TODO | US-9.1 |
-| US-9.2 | Redacted Case Summary Tool | READY | EPIC-9 |
-| US-9.2#1 | Register the tool with typed CaseSummaryParams and CaseSummaryResult | TODO | US-9.2 |
-| US-9.2#2 | Add tests test_us_9_2_summary_accepts_only_case_id, test_us_9_2_summary_redacted | TODO | US-9.2 |
-| US-9.2#3 | Record evidence/US-9.2/test-report.md | TODO | US-9.2 |
-| US-9.3 | Denial-Triage Skill | READY | EPIC-9 |
-| US-9.3#1 | Write skills/denial-triage/SKILL.md and register it with ctx.register_skill | TODO | US-9.3 |
-| US-9.3#2 | Add tests test_us_9_3_skill_registered, test_us_9_3_skill_contains_no_phi | TODO | US-9.3 |
-| US-9.3#3 | Record evidence/US-9.3/test-report.md | TODO | US-9.3 |
-| US-9.4 | The /denial Slash Command | NEEDS CLARIFICATION | EPIC-9 |
-| US-9.4#1 | Register the command with ctx.register_command once its behavior is decided | TODO | US-9.4 |
+| EPIC-9 | Hermes Agent Integration | DONE | — |
+| US-9.1 | Code and Payer-Rule Tools | DONE | EPIC-9 |
+| US-9.1#1 | Register both tools with ctx.register_tool; generate schemas from ExplainCodeParams/Expla… | DONE | US-9.1 |
+| US-9.1#2 | Add tests test_us_9_1_explain_code_from_global, test_us_9_1_payer_rules_returns_card | DONE | US-9.1 |
+| US-9.1#3 | Record evidence/US-9.1/test-report.md | DONE | US-9.1 |
+| US-9.2 | Redacted Case Summary Tool | DONE | EPIC-9 |
+| US-9.2#1 | Register the tool with typed CaseSummaryParams and CaseSummaryResult | DONE | US-9.2 |
+| US-9.2#2 | Add tests test_us_9_2_summary_accepts_only_case_id, test_us_9_2_summary_redacted | DONE | US-9.2 |
+| US-9.2#3 | Record evidence/US-9.2/test-report.md | DONE | US-9.2 |
+| US-9.3 | Denial-Triage Skill | DONE | EPIC-9 |
+| US-9.3#1 | Write skills/denial-triage/SKILL.md and register it with ctx.register_skill | DONE | US-9.3 |
+| US-9.3#2 | Add tests test_us_9_3_skill_registered, test_us_9_3_skill_contains_no_phi | DONE | US-9.3 |
+| US-9.3#3 | Record evidence/US-9.3/test-report.md | DONE | US-9.3 |
+| US-9.4 | The /denial Slash Command | DONE | EPIC-9 |
+| US-9.4#1 | Register the command with ctx.register_command once its behavior is decided | DONE | US-9.4 |
+| US-9.4#2 | Add tests test_us_9_4_denial_returns_text_without_phi, test_us_9_4_denial_summarizes_a_case | DONE | US-9.4 |
+| US-9.4#3 | Record evidence/US-9.4/test-report.md | DONE | US-9.4 |
 | EPIC-10 | Desktop UI | — | — |
 | US-10.1 | Case Pane and Manager Dashboard Route | READY | EPIC-10 |
 | US-10.1#1 | Implement pane and route components with jsx()/jsxs() (no JSX) and JSDoc types for every… | TODO | US-10.1 |
@@ -739,6 +741,10 @@ flowchart TD
   US-9_4["US-9.4: The /denial Slash Command"]
   US-9_4_T1["#1 Register the command with ctx.register_command…"]
   US-9_4 --> US-9_4_T1
+  US-9_4_T2["#2 Add tests test_us_9_4_denial_returns_text_with…"]
+  US-9_4 --> US-9_4_T2
+  US-9_4_T3["#3 Record evidence/US-9.4/test-report.md"]
+  US-9_4 --> US-9_4_T3
 ```
 
 ### EPIC-10 detail
@@ -2274,7 +2280,7 @@ Open Questions:
 
 ### US-9.1: Code and Payer-Rule Tools
 
-Status: READY
+Status: DONE
 
 As a biller
 I want to ask the Hermes agent what a code means and what a payer requires
@@ -2304,16 +2310,17 @@ Dependencies:
 - US-4.1
 
 Tasks:
-- [ ] Register both tools with ctx.register_tool; generate schemas from `ExplainCodeParams`/`ExplainCodeResult` and `PayerRulesParams`/`PayerRulesResult`
-- [ ] Add tests test_us_9_1_explain_code_from_global, test_us_9_1_payer_rules_returns_card
-- [ ] Record evidence/US-9.1/test-report.md
+- [x] Register both tools with ctx.register_tool; generate schemas from `ExplainCodeParams`/`ExplainCodeResult` and `PayerRulesParams`/`PayerRulesResult`
+- [x] Add tests test_us_9_1_explain_code_from_global, test_us_9_1_payer_rules_returns_card
+- [x] Record evidence/US-9.1/test-report.md
 
 Open Questions:
-- Tests use fixture corpus entries; the final import format is pending US-4.3.
+- Resolved (us-9-1-code-payer-tools design decision 2): tests import fixture entries through
+  US-4.3's import_bundle, the final format.
 
 ### US-9.2: Redacted Case Summary Tool
 
-Status: READY
+Status: DONE
 
 As a biller
 I want the agent to fetch a redacted summary of a case by ID
@@ -2342,16 +2349,16 @@ Dependencies:
 - US-6.1
 
 Tasks:
-- [ ] Register the tool with typed `CaseSummaryParams` and `CaseSummaryResult`
-- [ ] Add tests test_us_9_2_summary_accepts_only_case_id, test_us_9_2_summary_redacted
-- [ ] Record evidence/US-9.2/test-report.md
+- [x] Register the tool with typed `CaseSummaryParams` and `CaseSummaryResult`
+- [x] Add tests test_us_9_2_summary_accepts_only_case_id, test_us_9_2_summary_redacted
+- [x] Record evidence/US-9.2/test-report.md
 
 Open Questions:
 - None
 
 ### US-9.3: Denial-Triage Skill
 
-Status: READY
+Status: DONE
 
 As a biller
 I want the agent to load a denial-triage playbook skill
@@ -2378,16 +2385,16 @@ Dependencies:
 - US-1.1
 
 Tasks:
-- [ ] Write skills/denial-triage/SKILL.md and register it with ctx.register_skill
-- [ ] Add tests test_us_9_3_skill_registered, test_us_9_3_skill_contains_no_phi
-- [ ] Record evidence/US-9.3/test-report.md
+- [x] Write skills/denial-triage/SKILL.md and register it with ctx.register_skill
+- [x] Add tests test_us_9_3_skill_registered, test_us_9_3_skill_contains_no_phi
+- [x] Record evidence/US-9.3/test-report.md
 
 Open Questions:
 - None
 
 ### US-9.4: The /denial Slash Command
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a biller
 I want a /denial slash command
@@ -2409,10 +2416,15 @@ Dependencies:
 - US-9.2
 
 Tasks:
-- [ ] Register the command with ctx.register_command once its behavior is decided
+- [x] Register the command with ctx.register_command once its behavior is decided
+- [x] Add tests test_us_9_4_denial_returns_text_without_phi, test_us_9_4_denial_summarizes_a_case
+- [x] Record evidence/US-9.4/test-report.md
 
 Open Questions:
-- What does /denial do (open the pane, list open cases, summarize a case by ID)?
+- Resolved (us-9-4-denial-command design decision 1): /denial without a case ID answers a fixed,
+  PHI-free guide (pane first, never paste documents, then /denial <case ID>); /denial <case ID>
+  answers that case's redacted summary through the US-9.2 tool. Opening the pane has no Python
+  API, and listing open cases is left to the pane.
 
 # EPIC-10: Desktop UI
 

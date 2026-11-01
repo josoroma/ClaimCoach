@@ -73,7 +73,9 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 # Hermes-provided modules, present only inside the gateway venv.
-module = ["plugins.plugin_storage", "hermes_constants", "hermes_cli.*", "model_tools"]
+module = [
+  "plugins.plugin_storage", "hermes_constants", "hermes_cli.*", "model_tools", "tools.skills_tool",
+]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]

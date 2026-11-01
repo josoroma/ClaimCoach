@@ -40,7 +40,16 @@ from claimcoach.worker.token import read_token
 if TYPE_CHECKING:
     from claimcoach.corpus.crypto import KeychainKeyProvider
 
-__all__ = ["COMMAND", "CliRegistrar", "build_parser", "main", "register_cli", "run"]
+__all__ = [
+    "COMMAND",
+    "CliRegistrar",
+    "build_parser",
+    "main",
+    "port_arg",
+    "port_client",
+    "register_cli",
+    "run",
+]
 
 COMMAND: Final = "claimcoach"
 CLI_TIMEOUT: Final = 900.0
@@ -62,7 +71,8 @@ class CliRegistrar(Protocol):
     ) -> object: ...
 
 
-def _client(port: int) -> WorkerClient:
+def port_client(port: int) -> WorkerClient:
+    """A client for the worker on ``port``; the token is sent only to the recorded worker."""
     config = WorkerConfig(data_dir=app_data_dir(), port=port)
 
     def token() -> str | None:
@@ -76,7 +86,7 @@ def _client(port: int) -> WorkerClient:
     return WorkerClient(config.base_url, token, timeout=CLI_TIMEOUT)
 
 
-def _port(value: str) -> int:
+def port_arg(value: str) -> int:
     """``--port``: a port in ClaimCoach's range (BR-11), checked before anything is sent."""
     try:
         port = int(value)
@@ -106,7 +116,7 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
     worker = argparse.ArgumentParser(add_help=False)
     worker.add_argument(
         "--port",
-        type=_port,
+        type=port_arg,
         default=PORT_RANGE.start,
         help=f"the worker's port (default {PORT_RANGE.start}; make passes WORKER_PORT)",
     )
@@ -267,7 +277,7 @@ def run(
         if command in _LOCAL:
             lines = _local_call(command, args)
         else:
-            lines = runner(_worker_call(args, client or _client(args.port)))
+            lines = runner(_worker_call(args, client or port_client(args.port)))
     except ValidationError:
         out("error: invalid arguments")
         return 2

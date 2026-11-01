@@ -48,6 +48,12 @@ FORMAT ?=
 OUTCOME ?=
 WEEK ?=
 MANAGER ?=
+# Agent targets (EPIC-9): TOOL a claimcoach_* tool; ARGS its arguments as a JSON object (they go
+# through the environment, never into shell text); CASE, for agent-denial, a case ID.
+TOOL ?=
+ARGS ?= {}
+override ARGS := $(value ARGS)
+export ARGS
 # Through the environment, never spliced into shell text: a value may hold quotes.
 # make expands an exported command-line value, so `$` in a manager's name would be lost; keep it.
 override MANAGER := $(value MANAGER)
@@ -125,6 +131,13 @@ CASE_JOB = started=$$($(WORKER_CURL) -X POST $(2) "$(WORKER_URL)/cases/$(CASE)/$
 	  if [ "$$finished" = 1 ]; then [ "$$last" != failed ] && [ "$$kind" = "$(1)" ]; exit; fi; \
 	done
 
+# The agent tools (US-9.1, US-9.2). TOOL is checked by make itself, before any shell sees it.
+AGENT_TOOLS := claimcoach_explain_code claimcoach_payer_rules claimcoach_case_summary
+AGENT_CLI := $(UV) run python -m claimcoach.agent
+REQUIRE_TOOL = $(if $(and $(filter 1,$(words $(TOOL))),$(if $(findstring %,$(TOOL)),,1),\
+	$(filter $(TOOL),$(AGENT_TOOLS))),:,\
+	$(error usage: make $@ TOOL=<one of: $(AGENT_TOOLS)> ARGS='<JSON object>'))
+
 # Story slug for test filters: US-3.1 -> us_3_1.
 STORY_SLUG = $(shell echo '$(STORY)' | tr 'A-Z.-' 'a-z__')
 REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make $@ STORY=US-x.y"; exit 2; }
@@ -138,7 +151,7 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
         case-new case-add case-paste case-show case-process case-confirm case-diagnose \
         case-draft case-edit case-export case-outcome outcomes-summary outcomes-export \
-        clean
+        agent-tools agent-skill agent-call agent-denial agent-probe clean
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -480,6 +493,28 @@ outcomes-export: ## Manager-approved, de-identified fine-tune export: make outco
 	  "$(if $(and $(filter command line,$(origin CONFIRM)),$(filter yes,$(CONFIRM))),yes,no)"); \
 	$(WORKER_CURL) -X POST -H 'Content-Type: application/json' --data-binary "$$body" \
 	  "$(WORKER_URL)/outcomes/export" | python3 -m json.tool
+
+# --- Agent (docs/runbooks/agent-tools.md) ------------------------------------------------------
+
+# What the Hermes agent gets: the guarded tool results, the playbook skill, and /denial. Each call
+# runs the same guarded handler Hermes runs, against the worker on WORKER_PORT (US-9.1 to US-9.4).
+agent-tools: ## List the agent tools with their parameter schemas, the skill, and /denial (offline)
+	@$(AGENT_CLI) tools
+
+agent-skill: ## Print the claimcoach:denial-triage playbook skill (offline)
+	@$(AGENT_CLI) skill
+
+agent-call: ## Call a tool as the agent does: make agent-call TOOL=claimcoach_explain_code ARGS='{"code": "CO-197"}'
+	@$(REQUIRE_TOOL)
+	@$(AGENT_CLI) call "$(TOOL)" --args "$$ARGS" --port $(WORKER_PORT)
+
+agent-denial: ## Run the /denial slash command: make agent-denial [CASE=id]
+	@$(if $(CASE),$(REQUIRE_CASE))
+	@$(AGENT_CLI) denial $(CASE) --port $(WORKER_PORT)
+
+agent-probe: ## Load the plugin into the local Hermes Agent (throwaway home): tools, skill, /denial
+	$(UV) run pytest -m hermes -p no:cacheprovider --no-cov \
+	  tests/test_us_1_1_plugin_package.py tests/test_us_9_3_skill.py tests/test_us_9_4_denial_command.py
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

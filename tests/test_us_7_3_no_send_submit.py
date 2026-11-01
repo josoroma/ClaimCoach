@@ -104,6 +104,10 @@ WORKER_ROUTES: Final = {
     ("GET", "/jobs/{job_id}/events"),
     ("GET", "/outcomes/summary"),
     ("POST", "/outcomes/export"),
+    # US-9.1, US-9.2: the agent tools' answers; they read the global corpus and one case only.
+    ("POST", "/agent/explain-code"),
+    ("POST", "/agent/rule-cards"),
+    ("POST", "/agent/case-summary"),
 }
 """Every worker route with every optional part mounted. Review before changing."""
 

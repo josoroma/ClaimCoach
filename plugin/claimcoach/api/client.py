@@ -9,7 +9,8 @@ creation, open, upload, and paste calls; an upload is forwarded as the raw multi
 (start extraction, long-poll a job's events, confirm a field), US-6.1 (start a diagnosis), US-7.1
 (start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac), US-8.1
 (record a case's outcome), US-8.2 (the manager's weekly summary), US-8.3 (the manager-approved
-fine-tune export).
+fine-tune export), US-9.1 (explain a code, a payer's rule cards), US-9.2 (a case's redacted
+summary), all for the agent tools.
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -22,6 +23,14 @@ from typing import Final, Literal, NamedTuple, TypeVar
 import httpx
 from pydantic import BaseModel, ValidationError
 
+from claimcoach.agent.types import (
+    CaseSummaryParams,
+    CaseSummaryResult,
+    ExplainCodeParams,
+    ExplainCodeResult,
+    PayerRulesParams,
+    PayerRulesResult,
+)
 from claimcoach.api.models import ErrorCode, ErrorEnvelope, HealthResponse
 from claimcoach.cases.extraction import FieldConfirmation, JobEvents, JobStarted
 from claimcoach.cases.models import Case, DocumentAdded, OutcomeRequest, PastedText
@@ -79,6 +88,8 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "no_letter_template": 409,
     "not_drafted": 409,
     "export_not_approved": 403,
+    "code_not_found": 404,
+    "payer_not_found": 404,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
 
@@ -413,6 +424,41 @@ class WorkerClient:
         """
         return await self._request(
             "POST", "/outcomes/export", FineTuneExport, body, timeout=CASE_TIMEOUT
+        )
+
+    async def explain_code(self, body: ExplainCodeParams) -> ExplainCodeResult:
+        """Return the global corpus entries for a code (US-9.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why (``code_not_found``).
+        """
+        return await self._request(
+            "POST", "/agent/explain-code", ExplainCodeResult, body, timeout=CASE_TIMEOUT
+        )
+
+    async def payer_rules(self, body: PayerRulesParams) -> PayerRulesResult:
+        """Return the global rule cards of the payer ``body`` names (US-9.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why (``payer_not_found``).
+        """
+        return await self._request(
+            "POST", "/agent/rule-cards", PayerRulesResult, body, timeout=CASE_TIMEOUT
+        )
+
+    async def case_summary(self, profile: str, body: CaseSummaryParams) -> CaseSummaryResult:
+        """Return ``profile``'s case reduced to codes, names, and enums (US-9.2; audited).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why (``case_not_found``).
+        """
+        return await self._request(
+            "POST",
+            "/agent/case-summary",
+            CaseSummaryResult,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
         )
 
     async def job_events(self, job_id: str, after: int, wait: float) -> JobEvents:

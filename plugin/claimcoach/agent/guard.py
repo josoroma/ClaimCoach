@@ -1,10 +1,12 @@
 """PHI guard for agent tool results: each handler redacts its own result; the hook re-redacts.
 
 Implements: US-3.2 (``redact_tool_result()`` wraps every ``claimcoach_*`` handler; the
-``transform_tool_result`` hook is registered as a second guard). Rules: BR-3 (handlers redact
-before returning — the primary guard), PC-7 (``transform_tool_result`` is fail-open, so it is
-defense-in-depth only), PC-8 (handlers return a JSON string), BR-14, BR-2 (the text goes to the
-worker's ``/redact`` on loopback and its local PHI model, nowhere else).
+``transform_tool_result`` hook is registered as a second guard), US-9.1 and US-9.2
+(``worker_client`` and ``run_blocking``: the tools reach the worker the way the guard does).
+Rules: BR-3 (handlers redact before returning — the primary guard), PC-7
+(``transform_tool_result`` is fail-open, so it is defense-in-depth only), PC-8 (handlers return
+a JSON string), BR-14, BR-2 (the text goes to the worker's ``/redact`` on loopback and its local
+PHI model, nowhere else).
 
 Neither guard ever raises. When the handler's redaction fails for any reason the agent gets the
 ``redaction_failed`` envelope instead of the result; when the hook's fails, it leaves the
@@ -16,11 +18,12 @@ transcript or its logs.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import threading
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from functools import wraps
-from typing import Any, Final, Protocol
+from typing import Any, Final, Protocol, TypeVar
 
 from pydantic import ValidationError
 
@@ -44,6 +47,8 @@ __all__ = [
     "make_hook",
     "redact_tool_result",
     "register_guard_hook",
+    "run_blocking",
+    "worker_client",
     "worker_scrubber",
 ]
 
@@ -55,6 +60,8 @@ JOIN_GRACE: Final = 1.0
 """Seconds past the deadline before a stuck redaction thread is abandoned."""
 HOOK_TIMEOUT: Final = 25.0
 """Seconds the hook's redaction may take: under Hermes' 30 s ``hook_callback_timeout``."""
+
+ResultT = TypeVar("ResultT")
 
 Scrubber = Callable[[str], Awaitable[str]]
 """Returns the redacted text, or raises ``WorkerError`` when redaction could not run."""
@@ -69,50 +76,74 @@ class HookRegistrar(Protocol):
         ...
 
 
-def worker_scrubber(timeout: float = GUARD_TIMEOUT) -> Scrubber:
+def worker_client(timeout: float) -> WorkerClient:
+    """Return a client for the worker, resolving its token on every call (as the gateway does).
+
+    Args:
+        timeout: Seconds per request.
+    """
+    config = WorkerConfig(data_dir=app_data_dir())
+    return WorkerClient(config.base_url, lambda: read_token(config.token_path), timeout=timeout)
+
+
+def worker_scrubber(
+    timeout: float = GUARD_TIMEOUT, connect: Callable[[], WorkerClient] | None = None
+) -> Scrubber:
     """Return a scrubber that calls the worker's ``POST /redact``.
 
     Args:
         timeout: Seconds for the call.
+        connect: Returns the worker client; defaults to ``worker_client(timeout)``.
 
     Returns:
         The scrubber; it resolves the worker's token on every call.
     """
 
     async def scrub(text: str) -> str:
-        config = WorkerConfig(data_dir=app_data_dir())
-        client = WorkerClient(
-            config.base_url, lambda: read_token(config.token_path), timeout=timeout
-        )
+        client = connect() if connect is not None else worker_client(timeout)
         return (await client.redact(RedactRequest(text=text))).text
 
     return scrub
 
 
-def _run_blocking(scrubber: Scrubber, text: str, timeout: float) -> str:
-    """Run ``scrubber`` to completion from sync code, whether or not a loop is running here.
+def run_blocking(call: Callable[[], Awaitable[ResultT]], timeout: float) -> ResultT:
+    """Run ``call()`` to completion from sync code, whether or not a loop is running here.
 
     Hermes calls sync handlers and hooks from threads that may already run an event loop, so the
-    coroutine gets its own daemon thread and loop, bounded by ``timeout`` in total. A timed-out
-    call is abandoned (its thread is a daemon, so it never holds up gateway shutdown).
+    coroutine gets its own daemon thread and loop, bounded by ``timeout`` in total. It runs in a
+    copy of the caller's context, so context variables (the session's Hermes profile) carry over.
+    A timed-out call is abandoned (its thread is a daemon, so it never holds up gateway shutdown).
+
+    Args:
+        call: Starts the awaitable (a worker call, a redaction).
+        timeout: Seconds before giving up.
+
+    Returns:
+        What the awaitable returned.
 
     Raises:
         TimeoutError: The call did not finish within ``timeout``.
-        Exception: Whatever the scrubber raised.
+        Exception: Whatever the call raised.
     """
-    outcome: list[str] = []
+    outcome: list[ResultT] = []
     failure: list[Exception] = []
+    # A new thread starts with an empty context; the caller's carries Hermes' per-session
+    # HERMES_HOME override (``hermes_constants``), which names the biller's profile (BR-5).
+    context = contextvars.copy_context()
+
+    async def bounded() -> ResultT:
+        return await asyncio.wait_for(call(), timeout)
 
     def run() -> None:
         try:
-            outcome.append(asyncio.run(asyncio.wait_for(scrubber(text), timeout)))
+            outcome.append(context.run(asyncio.run, bounded()))
         except Exception as exc:  # noqa: BLE001 - handed to the caller below
             failure.append(exc)
 
-    thread = threading.Thread(target=run, name="claimcoach-redact", daemon=True)
+    thread = threading.Thread(target=run, name="claimcoach-agent", daemon=True)
     thread.start()
-    # The coroutine's own deadline normally ends it first; the grace covers a scrubber that
-    # blocks without awaiting, which no deadline inside the loop can interrupt.
+    # The coroutine's own deadline normally ends it first; the grace covers a call that blocks
+    # without awaiting, which no deadline inside the loop can interrupt.
     thread.join(timeout + JOIN_GRACE)
     if failure:
         raise failure[0]
@@ -210,7 +241,7 @@ def _redact_fields(fields: list[str], scrubber: Scrubber, timeout: float) -> lis
     joined = _FIELD_SEP.join(fields)
     if len(joined) > MAX_TEXT_CHARS:
         raise _FieldsChangedError  # too large for one /redact call: fail closed, never truncate
-    redacted = _run_blocking(scrubber, joined, timeout).split(_FIELD_SEP)
+    redacted = run_blocking(lambda: scrubber(joined), timeout).split(_FIELD_SEP)
     if len(redacted) != len(fields):
         raise _FieldsChangedError
     return redacted

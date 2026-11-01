@@ -7,7 +7,8 @@ Implements: US-4.1 (``CorpusScope``, ``Document``, ``Chunk``, ``CaseRecord``, ``
 ``CaseItemKind``), US-5.2 (``case_extracted`` and ``field_confirmed`` audit actions), US-6.1 (the
 ``diagnosis`` case item and the ``case_diagnosed`` audit action), US-7.1 (the ``draft`` case item
 and the ``case_drafted`` audit action), US-7.2 (the ``draft_edited`` and ``draft_exported`` audit
-actions), US-8.2 (``OutcomeRow``: an outcome as the manager's summary reads it). Rules:
+actions), US-8.2 (``OutcomeRow``: an outcome as the manager's summary reads it), US-9.2 (the
+``case_summarized`` audit action). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
 IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
 ``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
@@ -391,6 +392,8 @@ class AuditAction(StrEnum):
     """By the retention policy (US-4.5)."""
     CASE_PURGED_ON_REQUEST = "case_purged_on_request"
     """By an approved single-case purge (phi-purge runbook)."""
+    CASE_SUMMARIZED = "case_summarized"
+    """The Hermes agent read the case's redacted summary (US-9.2)."""
 
 
 class AuditEntry(_Strict):

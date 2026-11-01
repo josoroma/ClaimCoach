@@ -150,6 +150,7 @@ def probe_hermes(hermes_python: Path, tmp_path: Path, *, enabled: bool) -> dict[
 def test_us_1_1_python_half_inert_until_enabled(hermes_python: Path, tmp_path: Path) -> None:
     result = probe_hermes(hermes_python, tmp_path, enabled=False)
     assert result["tools"] == []
+    assert (result["skills"], result["commands"]) == ([], [])
     assert result["claimcoach"]["enabled"] is False
 
 
@@ -157,6 +158,8 @@ def test_us_1_1_python_half_inert_until_enabled(hermes_python: Path, tmp_path: P
 def test_us_1_1_python_half_loads_once_enabled(hermes_python: Path, tmp_path: Path) -> None:
     result = probe_hermes(hermes_python, tmp_path, enabled=True)
     assert result["tools"] == sorted(manifest()["provides_tools"])
+    # US-9.3, US-9.4: the playbook skill and the /denial command register with the tools.
+    assert (result["skills"], result["commands"]) == (["claimcoach:denial-triage"], ["denial"])
     assert result["claimcoach"]["enabled"] is True
     assert result["claimcoach"]["error"] is None
 
@@ -171,10 +174,17 @@ def test_us_1_1_agent_half_registers_provided_tools() -> None:
         assert call["schema"]["parameters"]["additionalProperties"] is False
 
 
-# --- Placeholder tools (PC-8, BR-3) ------------------------------------------------------------
+# --- Tools answer with a JSON string, never an exception (PC-8, BR-3) ------------------------
 
 
-def test_us_1_1_tools_return_not_implemented_envelope() -> None:
+def test_us_1_1_tools_answer_an_envelope_without_a_worker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no worker token (no worker ever started), every tool answers ``worker_unavailable``.
+
+    US-9.1 and US-9.2 replaced the placeholder ``not_implemented`` answer with worker calls.
+    """
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
     registrar = FakeRegistrar()
     names = register_tools(registrar)
     args = {
@@ -187,7 +197,10 @@ def test_us_1_1_tools_return_not_implemented_envelope() -> None:
         assert isinstance(raw, str), "PC-8: handlers return a JSON string"
         assert json.loads(raw) == {
             "ok": False,
-            "error": {"code": "not_implemented", "message": ERROR_MESSAGES["not_implemented"]},
+            "error": {
+                "code": "worker_unavailable",
+                "message": ERROR_MESSAGES["worker_unavailable"],
+            },
         }
 
 

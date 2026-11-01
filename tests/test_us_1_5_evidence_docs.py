@@ -34,6 +34,7 @@ RUNBOOKS = (
     "case-diagnosis",
     "appeal-drafting",
     "outcomes-and-export",
+    "agent-tools",
 )
 SECTIONS = ("Preconditions", "Steps", "Verification", "Rollback")
 

@@ -8,7 +8,8 @@ model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI mo
 routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` events; running jobs
 are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider),
 US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper),
-US-8.2 (``/outcomes`` routes over the corpus root).
+US-8.2 (``/outcomes`` routes over the corpus root), US-9.1 and US-9.2 (``/agent`` routes behind
+the Hermes agent tools).
 Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
@@ -45,6 +46,7 @@ from claimcoach.pipeline.jobs import JobRegistry
 from claimcoach.redact.detector import PhiDetector
 from claimcoach.redact.redactor import Redactor
 from claimcoach.worker import (
+    agent_routes,
     case_routes,
     corpus_routes,
     model_routes,
@@ -142,6 +144,7 @@ def _mount_corpus(
     app.include_router(corpus_routes.router)
     app.include_router(case_routes.router)
     app.include_router(outcome_routes.router)
+    app.include_router(agent_routes.router)
 
 
 def create_app(

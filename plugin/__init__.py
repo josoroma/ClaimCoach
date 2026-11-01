@@ -2,7 +2,9 @@
 
 Implements: US-1.1 (unified package; Python half inert until ``hermes plugins enable claimcoach``),
 US-3.2 (tools register behind the PHI guard, plus the ``transform_tool_result`` hook), US-4.3
-(``hermes claimcoach corpus …`` registers through ``register_cli_command``).
+(``hermes claimcoach corpus …`` registers through ``register_cli_command``), US-9.1 and US-9.2
+(the tools answer from the worker), US-9.3 (the ``claimcoach:denial-triage`` skill), US-9.4 (the
+``/denial`` command).
 Rules: PC-1, PC-2, PC-7, PC-8, BR-3.
 
 Hermes imports this file only when ``claimcoach`` is in ``plugins.enabled`` (PC-1), so importing it
@@ -28,7 +30,7 @@ class PluginRegistrar(AgentRegistrar, CliRegistrar, Protocol):
 
 
 def register(ctx: PluginRegistrar) -> None:
-    """Register ClaimCoach's agent-side contributions and its CLI command with Hermes.
+    """Register ClaimCoach's tools, hook, skill, slash command, and CLI command with Hermes.
 
     Args:
         ctx: Hermes plugin context.

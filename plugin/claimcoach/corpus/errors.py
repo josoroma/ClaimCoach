@@ -1,7 +1,8 @@
 """Corpus errors and the envelope codes the worker answers them with.
 
 Implements: US-4.1 (``IndexStaleError``, ``CaseNotFoundError``, ``ProfileNotFoundError``), US-4.2
-(``CorpusKeyError``), US-5.1 (``CaseClosedError``).
+(``CorpusKeyError``), US-5.1 (``CaseClosedError``), US-9.1 (``CodeNotFoundError``,
+``PayerNotFoundError``).
 Rules: ES-8 (each error maps to one fixed envelope code), BR-14 (no error carries document text,
 key material, or tool output).
 """
@@ -15,9 +16,11 @@ from claimcoach.api.models import ErrorCode
 __all__ = [
     "CaseClosedError",
     "CaseNotFoundError",
+    "CodeNotFoundError",
     "CorpusError",
     "CorpusKeyError",
     "IndexStaleError",
+    "PayerNotFoundError",
     "ProfileNotFoundError",
 ]
 
@@ -59,3 +62,17 @@ class CaseClosedError(CorpusError):
 
     code: ClassVar[ErrorCode] = "case_closed"
     status_code: ClassVar[int] = 409
+
+
+class CodeNotFoundError(CorpusError):
+    """The global corpus has no entry for the asked code (US-9.1)."""
+
+    code: ClassVar[ErrorCode] = "code_not_found"
+    status_code: ClassVar[int] = 404
+
+
+class PayerNotFoundError(CorpusError):
+    """No global rule card names the asked payer (US-9.1)."""
+
+    code: ClassVar[ErrorCode] = "payer_not_found"
+    status_code: ClassVar[int] = 404
