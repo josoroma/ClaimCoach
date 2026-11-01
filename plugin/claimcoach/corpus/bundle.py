@@ -4,10 +4,11 @@ Implements: US-4.3 (typed ``RuleCard``, ``CodeEntry``, ``LetterTemplate`` with r
 and ``verified_on``; ``CorpusBundle``; ``parse_bundle`` for a local YAML or JSON file; the corpus
 view with its ``stale`` flag), US-6.2 (``RuleCard.required_documents`` on ``required_docs`` cards,
 the source of the diagnosis checklist), US-6.3 (``RuleCard.appeal_limit_days`` on ``appeal_levels``
-cards, the appeal deadline's limit), US-10.4 (``parse_bundle_bytes`` for a file the settings page
-uploads; ``BundlePreview`` and ``preview_of``: what a bundle holds and replaces, before it is
-imported; a problem's location never echoes text from the file). Rules: ES-1, BR-1 (a local file
-only; nothing is fetched),
+cards, the appeal deadline's limit), US-7.4 (``RuleCard.remedies`` and ``frequency_code`` on
+``corrected_claims`` cards: a payer's own corrected-claim rules), US-10.4 (``parse_bundle_bytes``
+for a file the settings page uploads; ``BundlePreview`` and ``preview_of``: what a bundle holds
+and replaces, before it is imported; a problem's location never echoes text from the file).
+Rules: ES-1, BR-1 (a local file only; nothing is fetched),
 PRD §11 (rule cards carry source and verified-on dates; stale cards are flagged).
 
 A bundle file::
@@ -54,6 +55,7 @@ from typing import Annotated, Any, Final, Literal
 import yaml
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictInt,
@@ -62,6 +64,9 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+
+from claimcoach.cases.diagnosis import DenialReason, FrequencyCode, Remedy
+from claimcoach.corpus.types import RuleCardTopic
 
 __all__ = [
     "MAX_BUNDLE_BYTES",
@@ -124,8 +129,10 @@ class _Item(BaseModel):
 _CARD_FIELD_TOPICS: Final = {
     "required_documents": "required_docs",
     "appeal_limit_days": "appeal_levels",
+    "remedies": "corrected_claims",
+    "frequency_code": "corrected_claims",
 }
-"""The one topic each structured card field may appear on (US-6.2, US-6.3)."""
+"""The one topic each structured card field may appear on (US-6.2, US-6.3, US-7.4)."""
 STRUCTURED_CARD_FIELDS: Final = frozenset(_CARD_FIELD_TOPICS)
 """Card fields stored as JSON in the document metadata (written by ``item_document``, read back
 by ``corpus.lookup.rule_card_of``)."""
@@ -135,6 +142,11 @@ _WORD: Final = re.compile(r"[0-9a-z]+")
 def payer_words(name: str) -> tuple[str, ...]:
     """A payer name as lower-case words; punctuation separates them (``Blue Cross & Blue``)."""
     return tuple(_WORD.findall(name.casefold()))
+
+
+def _frequency(value: object) -> object:
+    """YAML reads ``frequency_code: 7`` as a number; the code is a string."""
+    return str(value) if type(value) is int else value
 
 
 class RuleCard(_Item):
@@ -148,13 +160,19 @@ class RuleCard(_Item):
             order the checklist lists them (US-6.2).
         appeal_limit_days: On an ``appeal_levels`` card, the calendar days from the denial date
             to file an appeal (US-6.3).
+        remedies: On a ``corrected_claims`` card, the fix this payer wants per denial reason;
+            it overrides ClaimCoach's table (US-7.4).
+        frequency_code: On a ``corrected_claims`` card, the claim frequency code this payer
+            wants on a corrected claim (US-7.4).
     """
 
     kind: Literal["rule_card"]
     payer: Key
-    topic: Literal["timely_filing", "appeal_levels", "required_docs", "submission", "other"]
+    topic: RuleCardTopic
     required_documents: list[RequiredDocument] = Field(default_factory=list, max_length=30)
     appeal_limit_days: StrictInt | None = Field(default=None, ge=1, le=3650)
+    remedies: dict[DenialReason, Remedy] = Field(default_factory=dict)
+    frequency_code: Annotated[FrequencyCode | None, BeforeValidator(_frequency)] = None
 
     @model_validator(mode="after")
     def _fields_on_their_topic(self) -> RuleCard:

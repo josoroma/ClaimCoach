@@ -19,7 +19,11 @@
  * "Draft for human review", with the template and rule cards it came from, flagged when stale),
  * US-7.2 (the draft in an editor with Save draft, Export PDF, and Export DOCX; an export is saved
  * through the host's save dialog, where the biller picks the folder), US-7.3 (no contribution or
- * control sends, submits, faxes, e-mails, or uploads anything to a payer), US-8.1 (an Outcome
+ * control sends, submits, faxes, e-mails, or uploads anything to a payer), US-7.4 (the fix the
+ * diagnosis points to, a corrected claim, an appeal, either, or verify first, with what decided
+ * it; a Draft corrected claim button beside Draft appeal; the corrected-claim draft under its
+ * review label as a list of changes, each value the documents lack shown as "not in your
+ * documents", flagged when stale, with Export PDF and Export DOCX), US-8.1 (an Outcome
  * section marks the case overturned, upheld, or written off, which closes it after the biller
  * confirms; the recorded outcome shows with the case, and a closed case's editing controls are
  * disabled), US-8.2 (the manager dashboard shows the last completed week's de-identified outcome
@@ -78,6 +82,13 @@ export const SETTINGS_REFRESH_MS = 15_000;
  *   cards: RuleCardView[], payerRead: boolean }} DiagnosisView
  * @typedef {{ text: string, templateId: string, ruleCards: string[], stale: boolean,
  *   edited: boolean }} DraftView
+ * @typedef {keyof typeof REMEDIES} Remedy
+ * @typedef {{ remedy: Remedy, basis: 'table' | 'codes' | 'rule_card', codes: string[],
+ *   card: string | null }} RemedyView
+ * @typedef {{ line: number | null, field: string, current: string | null, because: string[],
+ *   action: string, why: string }} ChangeView
+ * @typedef {{ claimId: string | null, frequencyCode: string, changes: ChangeView[],
+ *   omitted: number, ruleCards: string[], stale: boolean }} CorrectionView
  * @typedef {keyof typeof OUTCOMES} Outcome
  * @typedef {{ outcome: Outcome, recordedAt: string }} OutcomeView
  * @typedef {{ overturned: number, upheld: number, writtenOff: number, total: number,
@@ -94,6 +105,7 @@ export const SETTINGS_REFRESH_MS = 15_000;
  * @typedef {{ state: 'ready', caseId: string, documents: DocumentView[], fields: FieldView[],
  *   otherClaims?: number, unreadSources?: number, notice?: Refusal,
  *   diagnosis?: DiagnosisView, deadline?: DeadlineView, draft?: DraftView,
+ *   remedy?: RemedyView, correction?: CorrectionView,
  *   outcome?: OutcomeView, closed?: true, calls?: CallView[] }} ReadyState
  * @typedef {'none' | 'queued' | 'running' | 'done' | 'failed'} CallState
  * @typedef {{ text: string, referenceNumber: string | null, instructions: string[],
@@ -101,10 +113,10 @@ export const SETTINGS_REFRESH_MS = 15_000;
  * @typedef {{ callId: string, label: string, state: CallState,
  *   window: { start: number, end: number } | null, errorCode: string | null,
  *   transcript?: TranscriptView }} CallView
- * @typedef {'extract' | 'diagnose' | 'draft'} JobKind
+ * @typedef {'extract' | 'diagnose' | 'draft' | 'correct'} JobKind
  * @typedef {{ state: 'idle', notice?: Refusal } | { state: 'busy' } | ReadyState
  *   | { state: 'processing', caseId: string, progress: number, diagnosing?: true,
- *       drafting?: true }
+ *       drafting?: true, correcting?: true }
  *   | { state: 'unavailable', caseId?: string }} CaseState
  * @typedef {'pdf' | 'docx'} ExportFormat
  * @typedef {(path: string, suggestedName: string) => Promise<void>} SaveFile
@@ -173,6 +185,10 @@ export const REFUSALS = Object.freeze({
     'The draft was edited while a new one was being drafted, so your edits were kept; draft ' +
     'again to replace them.',
   invalid_draft: 'The draft needs some text, and at most 20,000 characters.',
+  correction_failed:
+    "The local model's corrected-claim draft could not be used; draft it again, or draft an " +
+    'appeal.',
+  not_corrected: 'Draft the corrected claim before exporting it.',
   outcome_busy: 'The case is being processed; record its outcome when that finishes.',
   unsaved_draft: 'Save the draft edits before opening another case.',
   unsupported_audio: 'ClaimCoach accepts WAV, MP3, FLAC, and M4A call recordings only.',
@@ -192,6 +208,37 @@ export const OUTCOMES = Object.freeze({
 export const DRAFT_LABEL = 'draft for human review';
 /** Longest draft the backend stores (US-7.2). */
 export const MAX_LETTER_CHARS = 20_000;
+
+/** The fix a denial needs, as the pane recommends it (US-7.4: the backend's `Remedy`). */
+export const REMEDIES = Object.freeze({
+  corrected_claim: 'Recommended fix: a corrected claim.',
+  appeal: 'Recommended fix: an appeal.',
+  either: 'Recommended fix: a corrected claim or an appeal; check which this payer wants.',
+  none: 'Recommended fix: neither yet. Verify the denial first (a duplicate, or coverage).',
+});
+const REMEDY_BASES = new Set(['table', 'codes', 'rule_card']);
+/** What a corrected-claim change points at, as the pane names it (US-7.4). */
+export const CORRECTABLE_FIELDS = Object.freeze({
+  procedure_code: 'procedure code',
+  modifier: 'modifier',
+  diagnosis_code: 'diagnosis code',
+  diagnosis_pointer: 'diagnosis pointer',
+  units: 'units',
+  service_date: 'service date',
+  place_of_service: 'place of service',
+  member_id: 'member ID',
+  patient_demographics: 'patient name, date of birth, or sex',
+  other_insurance: 'other insurance',
+  claim_data: 'claim information',
+});
+/** What each claim frequency code asks the biller to do (US-7.4). */
+export const FREQUENCY_CODES = Object.freeze({
+  1: 'a new claim',
+  7: 'a replacement of the prior claim',
+  8: 'a void of the prior claim',
+});
+/** How a value the case's documents do not hold is shown (US-7.4: never invented). */
+export const NOT_IN_DOCUMENTS = 'not in your documents';
 
 /** Denial reasons as the pane names them (US-6.1: the backend's closed set). */
 export const DENIAL_REASONS = Object.freeze({
@@ -285,6 +332,14 @@ export function createCaseApi(rest) {
      */
     exportDraft: (caseId, format) =>
       rest(`${casePath(caseId)}/export`, { method: 'POST', body: { format } }),
+    /** @param {string} caseId */
+    correctCase: (caseId) => rest(`${casePath(caseId)}/correction`, { method: 'POST', body: {} }),
+    /**
+     * @param {string} caseId
+     * @param {ExportFormat} format
+     */
+    exportCorrection: (caseId, format) =>
+      rest(`${casePath(caseId)}/correction/export`, { method: 'POST', body: { format } }),
     /**
      * @param {string} caseId
      * @param {Outcome} outcome
@@ -614,6 +669,101 @@ export function draftOf(body) {
 }
 
 /**
+ * A case body's recommended remedy, when it holds a well-formed one (US-7.4).
+ *
+ * @param {unknown} body
+ * @returns {RemedyView | null}
+ */
+export function remedyOf(body) {
+  const remedy = /** @type {{ remedy?: { remedy?: unknown, basis?: unknown, codes?: unknown,
+   *   rule_card?: unknown } | null } | null} */ (body)?.remedy;
+  const value = remedy?.remedy;
+  const basis = remedy?.basis;
+  if (
+    typeof value !== 'string' ||
+    !Object.hasOwn(REMEDIES, value) ||
+    typeof basis !== 'string' ||
+    !REMEDY_BASES.has(basis)
+  ) {
+    return null;
+  }
+  return {
+    remedy: /** @type {Remedy} */ (value),
+    basis: /** @type {RemedyView['basis']} */ (basis),
+    codes: stringsOf(remedy?.codes),
+    card: typeof remedy?.rule_card === 'string' ? remedy.rule_card : null,
+  };
+}
+
+/**
+ * One corrected-claim change, when well-formed.
+ *
+ * @param {unknown} value
+ * @returns {ChangeView[]}
+ */
+function changeOf(value) {
+  const change = /** @type {{ line?: unknown, field?: unknown, current_value?: unknown,
+   *   because?: unknown, action?: unknown, why?: unknown } | null} */ (value);
+  const { line, field, action, why } = change ?? {};
+  if (
+    (line !== null && !(Number.isInteger(line) && /** @type {number} */ (line) >= 1)) ||
+    typeof field !== 'string' ||
+    !Object.hasOwn(CORRECTABLE_FIELDS, field) ||
+    typeof action !== 'string' ||
+    typeof why !== 'string'
+  ) {
+    return [];
+  }
+  const current = change?.current_value;
+  return [
+    {
+      line: /** @type {number | null} */ (line),
+      field,
+      current: typeof current === 'string' ? current : null,
+      because: stringsOf(change?.because),
+      action,
+      why,
+    },
+  ];
+}
+
+/**
+ * A case body's corrected-claim draft, when it holds a well-formed one carrying the review label
+ * (US-7.4).
+ *
+ * @param {unknown} body
+ * @returns {CorrectionView | null}
+ */
+export function correctionOf(body) {
+  const outer = /** @type {{ correction?: unknown, correction_stale?: unknown } | null} */ (body);
+  const correction = /** @type {{ label?: unknown, original_claim_id?: unknown,
+   *   frequency_code?: unknown, corrections?: unknown, rule_cards?: unknown }
+   *   | null | undefined} */ (outer?.correction);
+  const code = correction?.frequency_code;
+  const changes = Array.isArray(correction?.corrections)
+    ? correction.corrections.flatMap(changeOf)
+    : [];
+  if (
+    correction?.label !== DRAFT_LABEL ||
+    typeof code !== 'string' ||
+    !Object.hasOwn(FREQUENCY_CODES, code) ||
+    changes.length === 0
+  ) {
+    return null;
+  }
+  const claimId = correction.original_claim_id;
+  const omitted = /** @type {{ omitted?: unknown }} */ (correction).omitted;
+  return {
+    claimId: typeof claimId === 'string' ? claimId : null,
+    frequencyCode: code,
+    changes,
+    omitted: isCount(omitted) ? omitted : 0,
+    ruleCards: stringsOf(correction.rule_cards),
+    stale: outer?.correction_stale === true,
+  };
+}
+
+/**
  * A case body's recorded outcome, when it holds a well-formed one (US-8.1).
  *
  * @param {unknown} body
@@ -723,6 +873,10 @@ function readyFrom(caseId, body) {
   if (deadline) ready.deadline = deadline;
   const draft = draftOf(body);
   if (draft) ready.draft = draft;
+  const remedy = remedyOf(body);
+  if (remedy) ready.remedy = remedy;
+  const correction = correctionOf(body);
+  if (correction) ready.correction = correction;
   const outcome = outcomeOf(body);
   if (outcome) ready.outcome = outcome;
   const calls = callsOf(body);
@@ -891,7 +1045,7 @@ export async function openCase(api, caseId) {
 
 /**
  * A processing state: `diagnosing` for a diagnosis (US-6.1), `drafting` for a draft (US-7.1),
- * neither for an extraction (US-5.2).
+ * `correcting` for a corrected-claim draft (US-7.4), none for an extraction (US-5.2).
  *
  * @param {string} caseId
  * @param {number} progress
@@ -901,6 +1055,7 @@ export async function openCase(api, caseId) {
 function processing(caseId, progress, kind) {
   if (kind === 'diagnose') return { state: 'processing', caseId, progress, diagnosing: true };
   if (kind === 'draft') return { state: 'processing', caseId, progress, drafting: true };
+  if (kind === 'correct') return { state: 'processing', caseId, progress, correcting: true };
   return { state: 'processing', caseId, progress };
 }
 
@@ -912,7 +1067,7 @@ function processing(caseId, progress, kind) {
  */
 function kindOf(body) {
   const kind = /** @type {{ kind?: unknown } | null} */ (body)?.kind;
-  return kind === 'diagnose' || kind === 'draft' ? kind : 'extract';
+  return kind === 'diagnose' || kind === 'draft' || kind === 'correct' ? kind : 'extract';
 }
 
 /**
@@ -968,6 +1123,18 @@ export function draftCase(api, caseId) {
 }
 
 /**
+ * Draft the diagnosed case's corrected claim (US-7.4). Progress arrives as
+ * `plugin.claimcoach.case.progress`.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @returns {Promise<CaseState>}
+ */
+export function correctCase(api, caseId) {
+  return startJob(api, caseId, api.correctCase);
+}
+
+/**
  * Store the editor's text as the case's draft, and show the case again (US-7.2).
  *
  * @param {CaseApi} api
@@ -997,12 +1164,37 @@ export async function saveDraft(api, caseId, text) {
  * @param {(() => SaveFile) | undefined} capture `captureGatewayFileDownload`, when the host has it
  * @returns {Promise<ExportResult>}
  */
-export async function exportDraft(api, caseId, format, capture) {
+export function exportDraft(api, caseId, format, capture) {
+  return exportWith(api.exportDraft, caseId, format, capture);
+}
+
+/**
+ * Export the stored corrected-claim draft and hand the file to the host's save dialog, as
+ * `exportDraft` does (US-7.4).
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {ExportFormat} format
+ * @param {(() => SaveFile) | undefined} capture `captureGatewayFileDownload`, when the host has it
+ * @returns {Promise<ExportResult>}
+ */
+export function exportCorrection(api, caseId, format, capture) {
+  return exportWith(api.exportCorrection, caseId, format, capture);
+}
+
+/**
+ * @param {(caseId: string, format: ExportFormat) => Promise<unknown>} call
+ * @param {string} caseId
+ * @param {ExportFormat} format
+ * @param {(() => SaveFile) | undefined} capture
+ * @returns {Promise<ExportResult>}
+ */
+async function exportWith(call, caseId, format, capture) {
   const save = capture?.();
   let body;
   try {
     body = /** @type {{ case_id?: unknown, path?: unknown, filename?: unknown,
-     *   expires_at?: unknown } | null} */ (await api.exportDraft(caseId, format));
+     *   expires_at?: unknown } | null} */ (await call(caseId, format));
   } catch (error) {
     const notice = known(codeOf(error));
     return notice === null ? { state: 'failed' } : { state: 'refused', notice };
@@ -1309,9 +1501,11 @@ export function describeCase(current) {
     case 'processing': {
       const verb = current.drafting
         ? 'Drafting the appeal for'
-        : current.diagnosing
-          ? 'Diagnosing'
-          : 'Processing';
+        : current.correcting
+          ? 'Drafting the corrected claim for'
+          : current.diagnosing
+            ? 'Diagnosing'
+            : 'Processing';
       return `${verb} case ${current.caseId} on this Mac… ${Math.round((current.progress ?? 0) * 100)}%`;
     }
     default:
@@ -1607,6 +1801,113 @@ export function DraftPanel({
 }
 
 /**
+ * The fix the diagnosis points to and what decided it (US-7.4): a recommendation, so both drafts
+ * stay available.
+ *
+ * @param {RemedyView | undefined} remedy
+ */
+export function RemedyLine(remedy) {
+  if (!remedy) return null;
+  const basis =
+    remedy.basis === 'rule_card'
+      ? `From the payer's rule card ${remedy.card}.`
+      : remedy.basis === 'codes'
+        ? `From the codes ${remedy.codes.join(', ')}.`
+        : "From ClaimCoach's table for this denial reason.";
+  return jsxs('section', {
+    'aria-label': 'Recommended fix',
+    children: [
+      jsx('p', { role: 'status', children: REMEDIES[remedy.remedy] }),
+      jsx('p', { children: `${basis} You can draft either one.` }),
+    ],
+  });
+}
+
+/**
+ * One change as the corrected-claim draft lists it: where, what, the current value or "not in
+ * your documents", what to do and why, and the codes behind it.
+ *
+ * @param {ChangeView} change
+ */
+export function describeChange(change) {
+  const where = change.line === null ? 'Claim' : `Line ${change.line}`;
+  const field = CORRECTABLE_FIELDS[/** @type {keyof typeof CORRECTABLE_FIELDS} */ (change.field)];
+  const codes = ` Codes: ${change.because.join(', ') || 'none read'}.`;
+  return (
+    `${where}, ${field} (current value: ${change.current ?? NOT_IN_DOCUMENTS}): ` +
+    `${change.action} Why: ${change.why}${codes}`
+  );
+}
+
+/**
+ * The corrected-claim draft under its review label: the changes to make in the biller's own
+ * billing system, and its exports (US-7.4). It is not edited here and nothing sends it.
+ *
+ * @param {{ correction: CorrectionView | undefined, result: ExportResult | null,
+ *   disabled: boolean, onExport: (format: ExportFormat) => void }} props
+ */
+export function CorrectionPanel({ correction, result, disabled, onExport }) {
+  if (!correction) return null;
+  const exporting = result?.state === 'exporting';
+  const code = /** @type {keyof typeof FREQUENCY_CODES} */ (Number(correction.frequencyCode));
+  const cards = correction.ruleCards.length
+    ? ` Drafted with the rule cards ${correction.ruleCards.join(', ')}.`
+    : '';
+  return jsxs('section', {
+    'aria-label': 'Corrected-claim draft',
+    'data-stale': correction.stale,
+    children: [
+      jsx('h3', { children: 'Corrected claim: draft for human review' }),
+      jsx('p', {
+        children:
+          `Original claim number: ${correction.claimId ?? NOT_IN_DOCUMENTS}. Claim frequency ` +
+          `code ${correction.frequencyCode} (${FREQUENCY_CODES[code]}).${cards} Make and check ` +
+          'these changes in your billing system; ClaimCoach does not file claims.',
+      }),
+      correction.stale
+        ? jsx('p', {
+            role: 'note',
+            children: 'The case changed since this draft was made; check it, or draft it again.',
+          })
+        : null,
+      jsx('ol', {
+        'aria-label': 'Changes',
+        children: correction.changes.map((change, i) =>
+          jsx('li', { children: describeChange(change) }, `c${i}`),
+        ),
+      }),
+      correction.omitted
+        ? jsx('p', {
+            role: 'note',
+            children:
+              `${correction.omitted} more change(s) are not listed: the codes point at more ` +
+              'lines than one draft lists. Check every line of the claim.',
+          })
+        : null,
+      jsx('button', {
+        type: 'button',
+        disabled: disabled || exporting,
+        onClick: () => onExport('pdf'),
+        children: 'Export corrected claim PDF',
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled: disabled || exporting,
+        onClick: () => onExport('docx'),
+        children: 'Export corrected claim DOCX',
+      }),
+      result
+        ? jsx('p', {
+            role: 'status',
+            'aria-label': 'Corrected-claim export',
+            children: describeExport(result),
+          })
+        : null,
+    ],
+  });
+}
+
+/**
  * How the case ended, with a Mark button per outcome (US-8.1). Marking closes the case, which
  * cannot be undone, so on an open case Mark asks first (`pending`) and the outcome is recorded on
  * Close the case; on a closed case Mark corrects the outcome at once.
@@ -1666,6 +1967,7 @@ const JOB_FAILED = Object.freeze({
   extract: 'extraction_failed',
   diagnose: 'diagnosis_failed',
   draft: 'drafting_failed',
+  correct: 'correction_failed',
 });
 
 /**
@@ -1675,7 +1977,9 @@ const JOB_FAILED = Object.freeze({
  * @returns {JobKind}
  */
 function kindOfState(state) {
-  return state.drafting ? 'draft' : state.diagnosing ? 'diagnose' : 'extract';
+  if (state.drafting) return 'draft';
+  if (state.correcting) return 'correct';
+  return state.diagnosing ? 'diagnose' : 'extract';
 }
 
 /**
@@ -1687,6 +1991,15 @@ function kindOfState(state) {
 export function draftButtonLabel(draft) {
   if (!draft) return 'Draft appeal';
   return draft.edited ? 'Draft again (replaces your edits)' : 'Draft again';
+}
+
+/**
+ * The Draft corrected claim button's text (US-7.4): drafting again replaces the draft.
+ *
+ * @param {CorrectionView | undefined} correction
+ */
+export function correctionButtonLabel(correction) {
+  return correction ? 'Draft corrected claim again' : 'Draft corrected claim';
 }
 
 /**
@@ -1741,6 +2054,8 @@ export function CasePane({
   const [exported, setExported] = useState(/** @type {ExportResult | null} */ (null));
   // The outcome the biller chose for an open case, until they confirm that it closes the case.
   const [pendingOutcome, setPendingOutcome] = useState(/** @type {Outcome | null} */ (null));
+  // The corrected-claim draft's last export (US-7.4).
+  const [corrected, setCorrected] = useState(/** @type {ExportResult | null} */ (null));
   // A closed case (US-8.1) takes no documents, fields, jobs, or edits; it still exports.
   const closed = current.state === 'ready' && current.closed === true;
   useEffect(() => {
@@ -1756,6 +2071,7 @@ export function CasePane({
     const action = life.action;
     setCurrent({ state: 'busy' });
     setExported(null);
+    setCorrected(null);
     setPendingOutcome(null);
     pending.then((next) => {
       if (!life.live || action !== life.action) return;
@@ -1847,6 +2163,11 @@ export function CasePane({
     follow(current.caseId, 'draft');
     settle(draftCase(api, current.caseId));
   };
+  const onDraftCorrection = () => {
+    if (current.state !== 'ready') return;
+    follow(current.caseId, 'correct');
+    settle(correctCase(api, current.caseId));
+  };
   const onSaveDraft = () => {
     if (current.state !== 'ready' || letter === null || !letter.trim()) return;
     const text = letter;
@@ -1865,6 +2186,17 @@ export function CasePane({
     setExported({ state: 'exporting', format });
     exportDraft(api, caseId, format, sdk.captureGatewayFileDownload).then((result) => {
       if (life.live && life.caseId === caseId) setExported(result);
+    });
+  };
+  /** @param {ExportFormat} format */
+  const onExportCorrection = (format) => {
+    if (current.state !== 'ready' || !current.correction || corrected?.state === 'exporting') {
+      return;
+    }
+    const caseId = current.caseId;
+    setCorrected({ state: 'exporting', format });
+    exportCorrection(api, caseId, format, sdk.captureGatewayFileDownload).then((result) => {
+      if (life.live && life.caseId === caseId) setCorrected(result);
     });
   };
   /** @param {Outcome} outcome */
@@ -1920,6 +2252,7 @@ export function CasePane({
     setEdits({});
     setLetter(null);
     setExported(null);
+    setCorrected(null);
     setPendingOutcome(null);
     setCurrent({ state: 'idle' });
   };
@@ -2013,6 +2346,7 @@ export function CasePane({
       }),
       DeadlineLine(current.state === 'ready' ? current.deadline : undefined, isoToday()),
       DiagnosisPanel(current.state === 'ready' ? current.diagnosis : undefined),
+      RemedyLine(current.state === 'ready' ? current.remedy : undefined),
       jsx('button', {
         type: 'button',
         // Unsaved editor text would be lost to the new draft: save it first (US-7.2).
@@ -2034,6 +2368,22 @@ export function CasePane({
         onLetter: setLetter,
         onSave: onSaveDraft,
         onExport,
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled:
+          current.state !== 'ready' ||
+          closed ||
+          !current.diagnosis ||
+          current.diagnosis.stale === true,
+        onClick: onDraftCorrection,
+        children: correctionButtonLabel(current.state === 'ready' ? current.correction : undefined),
+      }),
+      jsx(CorrectionPanel, {
+        correction: current.state === 'ready' ? current.correction : undefined,
+        result: corrected,
+        disabled: current.state !== 'ready',
+        onExport: onExportCorrection,
       }),
       jsx(OutcomePanel, {
         outcome: current.state === 'ready' ? current.outcome : undefined,

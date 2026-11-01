@@ -29,6 +29,7 @@ import plugin, {
   REFUSALS,
   saveDraft,
 } from '../plugin.js';
+import { ABSOLUTE, controlStrings, SEND } from './controls.mjs';
 import { byArea, casePaneOf, createFakeCtx } from './fake_ctx.mjs';
 import { hostAccesses, setFileDownload } from './fakes/plugin-sdk.mjs';
 import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
@@ -36,7 +37,7 @@ import { hooks, resetHooks, runCleanups } from './fakes/react.mjs';
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const CASE = 'case_0123456789abcdef';
 const DRAFT_JOB = 'job_0aaaaaaaaaaaaaaa';
-const at = { diagnose: 11, draftButton: 14, draftPanel: 15 };
+const at = { diagnose: 11, draftButton: 15, draftPanel: 16 };
 const slot = { current: 0, life: 1, letter: 4, exported: 5 };
 const LETTER = 'Re: Appeal of claim CLAIM-77\n\nTo the appeals reviewer:\n\n[Signature]';
 const EXPIRES = '2026-10-31T12:15:00Z';
@@ -601,66 +602,6 @@ describe('US-7.2 export produces PDF and DOCX through the save dialog', () => {
     assert.equal(latest(slot.exported), null);
   });
 });
-
-/** Words of a control that sends, submits, or files something with a payer (BR-4). */
-const SEND =
-  /(re)?send|\bsent\b|submit|fax|e-?mail|mailto|transmit|deliver|upload(?:ing)? to|(?:to|with) (?:the )?payer|portal|clearinghouse|file with/i;
-/** A link or form target that leaves the app: any scheme, or a protocol-relative URL. */
-const ABSOLUTE = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
-const CONTROLS = new Set(['button', 'a', 'form', 'input', 'textarea', 'select', 'option']);
-/** Props whose text names what a control does; `value` only where it is the control's label. */
-const LABEL_PROPS = ['title', 'name', 'placeholder', 'alt', 'label'];
-const LABEL_VALUES = new Set(['button', 'option']);
-
-/** Expand a function component, a `memo`, or a `forwardRef` into what it renders. */
-function expand(node) {
-  const { type, props } = node;
-  if (typeof type === 'function') return type(props);
-  if (type && typeof type === 'object') {
-    if (typeof type.render === 'function') return type.render(props, null);
-    if (type.type) return { type: type.type, props };
-  }
-  return undefined;
-}
-
-/**
- * Walk a rendered tree and collect every string a control or a label shows or acts on: all text
- * inside a control or a `<label>`, its label props and `aria-*` text, and every link or form
- * target.
- */
-function controlStrings(node, out = { strings: [], links: [], controls: 0 }, inside = false) {
-  if (node === null || node === undefined || typeof node === 'boolean') return out;
-  if (typeof node !== 'object') {
-    if (inside) out.strings.push(String(node));
-    return out;
-  }
-  if (Array.isArray(node)) {
-    for (const child of node) controlStrings(child, out, inside);
-    return out;
-  }
-  const expanded = expand(node);
-  if (expanded !== undefined) return controlStrings(expanded, out, inside);
-  const props = node.props ?? {};
-  const control = CONTROLS.has(node.type) || Boolean(props.onClick || props.onSubmit);
-  if (control && !inside) out.controls += 1;
-  const labelled = inside || control || node.type === 'label';
-  if (labelled) {
-    const keys = [
-      ...LABEL_PROPS,
-      ...(LABEL_VALUES.has(node.type) ? ['value'] : []),
-      ...Object.keys(props).filter((key) => key.startsWith('aria-')),
-    ];
-    for (const key of keys) {
-      if (typeof props[key] === 'string') out.strings.push(props[key]);
-    }
-  }
-  for (const key of ['href', 'action', 'formAction']) {
-    if (typeof props[key] === 'string') out.links.push(props[key]);
-  }
-  if (node.type === 'form') out.strings.push('<form>');
-  controlStrings(props.children, out, labelled);
-  return out;
-}
 
 describe('US-7.3 no contribution offers send or submit', () => {
   test('test_us_7_3_no_send_contribution', async () => {

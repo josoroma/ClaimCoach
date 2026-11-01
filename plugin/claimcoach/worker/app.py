@@ -8,6 +8,7 @@ model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI mo
 routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` events; running jobs
 are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider),
 US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper),
+US-7.4 (the corrector, whose corrected-claim jobs share the registry),
 US-8.2 (``/outcomes`` routes over the corpus root), US-9.1 and US-9.2 (``/agent`` routes behind
 the Hermes agent tools), US-11.1 (payer-call routes, the transcription queue, and the after-hours
 transcription scheduler in the lifespan), US-12.4 (``GET /egress``: whether this process's socket
@@ -40,6 +41,7 @@ from claimcoach.corpus.errors import CorpusError
 from claimcoach.corpus.paths import transcription_dir
 from claimcoach.corpus.retention import RetentionJob
 from claimcoach.corpus.service import CorpusService
+from claimcoach.corrections.draft import Corrector
 from claimcoach.egress import EGRESS_AUDIT, EgressStatus
 from claimcoach.letters.draft import Drafter
 from claimcoach.letters.export import Exports
@@ -165,6 +167,7 @@ def _mount_corpus(  # noqa: PLR0913 - the app, its stores, its models, and its l
         )
         app.state.jobs = jobs
         app.state.drafter = Drafter(cases, pipeline_models)
+        app.state.corrector = Corrector(cases, pipeline_models)
         shutdowns.append(jobs.shutdown)  # cancel extraction before the stores close
         app.include_router(case_routes.jobs_router)
         # Cancelled with the other lifespan tasks, before the stores close (US-11.1).

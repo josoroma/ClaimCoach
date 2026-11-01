@@ -9,7 +9,9 @@ biller's edits to the draft, and the draft an export renders), US-8.1 (recording
 outcome, which closes it; the case shows its outcome), US-8.2 (the outcome's de-identified
 snapshot is taken from the extraction and its current diagnosis), US-11.1 (payer-call recordings
 are sealed into the case, queued for after-hours transcription, and shown with their job and
-transcript; the scheduler reads a recording and stores its transcript), US-10.1 (``list_cases``:
+transcript; the scheduler reads a recording and stores its transcript), US-7.4 (the remedy
+recommended whenever a case is read; the stored corrected-claim draft, whether it is stale, and
+the draft an export renders), US-10.1 (``list_cases``:
 the profile's newest cases for the pane's list, not audited because no content is read). Rules:
 BR-2 (runs in the worker; the pane reaches it through ``plugin_api.py``), BR-6 and BR-13 (files
 are sealed into the profile's user scope), BR-7 (they are case items, deleted by the retention
@@ -46,6 +48,7 @@ from claimcoach.cases.errors import (
     DraftEditedError,
     FieldError,
     NoDocumentsError,
+    NotCorrectedError,
     NotDiagnosedError,
     NotDraftedError,
     NotExtractedError,
@@ -61,6 +64,7 @@ from claimcoach.cases.models import (
     SourceDocument,
     SourceKind,
 )
+from claimcoach.corpus.bundle import RuleCard
 from claimcoach.corpus.errors import CaseClosedError, CaseNotFoundError, ProfileNotFoundError
 from claimcoach.corpus.lookup import payer_rule_cards
 from claimcoach.corpus.service import CorpusService
@@ -74,6 +78,8 @@ from claimcoach.corpus.types import (
     OutcomeRecord,
     utc_now,
 )
+from claimcoach.corrections.remedy import recommended_remedy
+from claimcoach.corrections.types import CorrectedClaimDraft, RemedyAdvice
 from claimcoach.events import CASE_ID_PATTERN, new_case_id
 from claimcoach.letters.types import AppealDraft, DraftEdit
 from claimcoach.models.manager import ModelUnavailableError
@@ -81,6 +87,7 @@ from claimcoach.outcomes.features import outcome_features
 from claimcoach.pipeline.deadline import appeal_deadline
 
 __all__ = [
+    "CORRECTION_ITEM",
     "DIAGNOSIS_ITEM",
     "DRAFT_ITEM",
     "EXTRACTION_ITEM",
@@ -96,6 +103,8 @@ DIAGNOSIS_ITEM: Final = "diagnosis"
 """The item ID of a case's one diagnosis."""
 DRAFT_ITEM: Final = "draft"
 """The item ID of a case's one appeal draft (US-7.1)."""
+CORRECTION_ITEM: Final = "correction"
+"""The item ID of a case's one corrected-claim draft (US-7.4)."""
 
 
 def new_source_id() -> str:
@@ -173,28 +182,54 @@ class CaseService:
         """
         case_id = record.case_id
         extraction = extraction or self.extraction(store, case_id)
+        diagnosis = self.diagnosis(store, case_id)
+        cards = self.payer_cards(extraction)
         return _case(
             record,
             self.documents(store, case_id),
             extraction,
-            self.diagnosis(store, case_id),
-            deadline=self.deadline(extraction),
+            diagnosis,
+            deadline=self.deadline(extraction, cards),
+            remedy=self.remedy(extraction, diagnosis, cards),
             draft=self.draft(store, case_id),
+            correction=self.correction(store, case_id),
             outcome=store.outcome(case_id),
             calls=self.calls(store, case_id),
         )
 
-    def deadline(self, extraction: CaseExtraction | None) -> AppealDeadline | None:
+    def payer_cards(self, extraction: CaseExtraction | None) -> list[RuleCard]:
+        """Return the global rule cards of the extraction's payer; none when it was not read."""
+        payer = None if extraction is None else extraction.payer_name.value
+        return payer_rule_cards(self.corpus.global_store(), payer) if payer else []
+
+    def deadline(
+        self, extraction: CaseExtraction | None, cards: list[RuleCard] | None = None
+    ) -> AppealDeadline | None:
         """Return the appeal deadline for ``extraction`` under today's global rule cards (US-6.3).
 
         Computed on every read, never stored: a confirmed denial date or a re-imported card shows
-        at once, without running a model.
+        at once, without running a model. ``cards`` are the payer's, when the caller read them.
         """
         if extraction is None:
             return None
-        payer = extraction.payer_name.value
-        cards = payer_rule_cards(self.corpus.global_store(), payer) if payer else []
+        cards = self.payer_cards(extraction) if cards is None else cards
         return appeal_deadline(extraction, cards, date.today())
+
+    @staticmethod
+    def remedy(
+        extraction: CaseExtraction | None, diagnosis: Diagnosis | None, cards: list[RuleCard]
+    ) -> RemedyAdvice | None:
+        """Return the remedy recommended for a current diagnosis (US-7.4 design decision 6).
+
+        Computed on every read from the payer's ``cards``; a missing or stale diagnosis has none.
+        """
+        if (
+            extraction is None
+            or diagnosis is None
+            or diagnosis.extraction_digest != extraction.digest()
+        ):
+            return None
+        return recommended_remedy(diagnosis, extraction, cards)
 
     @staticmethod
     def documents(store: CorpusStore, case_id: str) -> list[SourceDocument]:
@@ -221,6 +256,12 @@ class CaseService:
         """Return the case's stored appeal draft, if drafting ran (not audited; US-7.1)."""
         items = store.case_items(case_id, "draft")
         return AppealDraft.model_validate_json(items[0].payload) if items else None
+
+    @staticmethod
+    def correction(store: CorpusStore, case_id: str) -> CorrectedClaimDraft | None:
+        """Return the case's stored corrected-claim draft, if one was drafted (not audited)."""
+        items = store.case_items(case_id, "correction")
+        return CorrectedClaimDraft.model_validate_json(items[0].payload) if items else None
 
     @staticmethod
     def recordings(store: CorpusStore, case_id: str) -> list[CallRecording]:
@@ -490,6 +531,20 @@ class CaseService:
             store.put_case_item(_draft_item(case_id, edited), audit=AuditAction.DRAFT_EDITED)
         return self._view(store, store.case_record(case_id))
 
+    def save_correction(self, profile: str, case_id: str, draft: CorrectedClaimDraft) -> None:
+        """Store the case's corrected-claim draft, replacing the previous one (US-7.4).
+
+        Audited ``correction_drafted``.
+
+        Raises:
+            CaseClosedError: The case was closed while drafting ran.
+        """
+        store = self.store(profile)
+        with self._case_lock(profile, case_id):
+            store.put_case_item(
+                _correction_item(case_id, draft), audit=AuditAction.CORRECTION_DRAFTED
+            )
+
     def record_outcome(self, profile: str, case_id: str, outcome: CaseOutcome) -> Case:
         """Store how the case ended and close it (audited ``outcome_recorded``; US-8.1).
 
@@ -531,6 +586,29 @@ class CaseService:
         if draft is None:
             raise NotDraftedError
         return draft
+
+    def record_correction_export(self, profile: str, case_id: str) -> None:
+        """Audit that the corrected-claim draft was written to a file (``correction_exported``)."""
+        self.store(profile).record(case_id, AuditAction.CORRECTION_EXPORTED)
+
+    def correction_of(self, profile: str, case_id: str) -> tuple[CorrectedClaimDraft, bool]:
+        """Return the corrected-claim draft an export renders, and whether it is stale (US-7.4).
+
+        Not audited. A closed case still exports; a stale draft exports with a warning.
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            NotCorrectedError: The case has no corrected-claim draft (or its content was purged).
+        """
+        store = self.store(profile)
+        store.case_record(case_id)
+        correction = self.correction(store, case_id)
+        if correction is None:
+            raise NotCorrectedError
+        extraction = self.extraction(store, case_id)
+        digest = None if extraction is None else extraction.digest()
+        return correction, _stale(correction, digest, self.diagnosis(store, case_id))
 
     def extraction_of(self, profile: str, case_id: str) -> CaseExtraction:
         """Return the extraction a diagnosis reads (not audited: the job, not a person, reads it).
@@ -670,6 +748,29 @@ def _draft_item(case_id: str, draft: AppealDraft) -> CaseItem:
     )
 
 
+def _correction_item(case_id: str, draft: CorrectedClaimDraft) -> CaseItem:
+    return CaseItem(
+        case_id=case_id,
+        item_id=CORRECTION_ITEM,
+        kind="correction",
+        created_at=utc_now(),
+        payload=draft.model_dump_json().encode(),
+    )
+
+
+def _stale(
+    drafted: AppealDraft | CorrectedClaimDraft | None,
+    digest: str | None,
+    diagnosis: Diagnosis | None,
+) -> bool:
+    """A draft is stale once the fields or the diagnosis it was drafted from changed (US-7.1)."""
+    return drafted is not None and (
+        drafted.extraction_digest != digest
+        or diagnosis is None
+        or drafted.diagnosed_at != diagnosis.diagnosed_at
+    )
+
+
 def _case(  # noqa: PLR0913 - the case and each of its items
     record: CaseRecord,
     documents: list[SourceDocument],
@@ -677,18 +778,14 @@ def _case(  # noqa: PLR0913 - the case and each of its items
     diagnosis: Diagnosis | None = None,
     *,
     deadline: AppealDeadline | None = None,
+    remedy: RemedyAdvice | None = None,
     draft: AppealDraft | None = None,
+    correction: CorrectedClaimDraft | None = None,
     outcome: OutcomeRecord | None = None,
     calls: list[PayerCall] | None = None,
 ) -> Case:
     digest = None if extraction is None else extraction.digest()
     stale = diagnosis is not None and diagnosis.extraction_digest != digest
-    # A draft is stale once the fields or the diagnosis it argued from changed (US-7.1).
-    draft_stale = draft is not None and (
-        draft.extraction_digest != digest
-        or diagnosis is None
-        or draft.diagnosed_at != diagnosis.diagnosed_at
-    )
     return Case(
         case_id=record.case_id,
         opened_at=record.opened_at,
@@ -700,7 +797,10 @@ def _case(  # noqa: PLR0913 - the case and each of its items
         diagnosis_stale=stale,
         deadline=deadline,
         draft=draft,
-        draft_stale=draft_stale,
+        draft_stale=_stale(draft, digest, diagnosis),
+        remedy=remedy,
+        correction=correction,
+        correction_stale=_stale(correction, digest, diagnosis),
         outcome=outcome,
         calls=calls or [],
     )

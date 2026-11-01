@@ -299,12 +299,15 @@ class FieldConfirmation(_Strict):
     value: str = Field(min_length=1, max_length=200)
 
 
-JobKind = Literal["extract", "diagnose", "draft"]
-"""What a case job does: extraction (US-5.2), diagnosis (US-6.1), or drafting (US-7.1)."""
+JobKind = Literal["extract", "diagnose", "draft", "correct"]
+"""What a case job does: extraction (US-5.2), diagnosis (US-6.1), drafting the appeal (US-7.1),
+or drafting the corrected claim (US-7.4)."""
 
 
 class JobStarted(_Strict):
-    """``POST /cases/{case_id}/process``, ``/diagnose``, or ``/draft``: the job working on the case.
+    """``POST /cases/{case_id}/process`` (or a later step's route): the job working on the case.
+
+    ``/diagnose``, ``/draft``, and ``/correction`` answer the same way.
 
     Attributes:
         ok: Always ``True``.

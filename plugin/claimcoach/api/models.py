@@ -7,7 +7,8 @@ Implements: US-1.2 (worker 401 envelope), US-1.3 (``ApiError``, ``ErrorEnvelope`
 (``document_too_large``, ``unsupported_document``, ``case_closed``), US-5.2
 (``no_documents``, ``job_not_found``, ``extraction_failed``, ``processing_timeout``), US-6.1
 (``not_extracted``, ``diagnosis_failed``), US-7.1 (``not_diagnosed``, ``no_letter_template``,
-``drafting_failed``), US-7.2 (``not_drafted``, ``draft_edited``), US-8.3 (``export_not_approved``),
+``drafting_failed``), US-7.2 (``not_drafted``, ``draft_edited``), US-7.4 (``correction_failed``,
+``not_corrected``), US-8.3 (``export_not_approved``),
 US-9.1 (``code_not_found``, ``payer_not_found``), US-11.1 (``unsupported_audio``,
 ``call_too_large``, ``call_not_found``, ``transcription_failed``), US-10.3 (``SettingsResponse``
 carries ``retention_days``; ``RetentionUpdate``; ``settings_unavailable``, ``settings_managed``),
@@ -65,6 +66,8 @@ ErrorCode = Literal[
     "drafting_failed",
     "not_drafted",
     "draft_edited",
+    "correction_failed",
+    "not_corrected",
     "export_not_approved",
     "code_not_found",
     "payer_not_found",
@@ -114,6 +117,9 @@ ERROR_MESSAGES: Final[dict[ErrorCode, str]] = {
     "not_drafted": "Draft the appeal before editing or exporting it.",
     "draft_edited": "The draft was edited while a new one was being drafted, so the edits were "
     "kept; draft again to replace them.",
+    "correction_failed": "The local model's corrected-claim draft could not be used; draft it "
+    "again, or draft an appeal.",
+    "not_corrected": "Draft the corrected claim before exporting it.",
     "export_not_approved": "A fine-tune export needs the manager's explicit approval; nothing was "
     "exported.",
     "code_not_found": "That code is not in the ClaimCoach global corpus.",

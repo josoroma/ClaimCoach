@@ -10,7 +10,9 @@ worker), US-5.2 (``POST /cases/{case_id}/process`` starts extraction and relays 
 starts a diagnosis and relays its events), US-7.1 (``POST /cases/{case_id}/draft`` starts a draft
 and relays its events), US-7.2 (``POST /cases/{case_id}/draft/text`` saves the biller's edits;
 ``POST /cases/{case_id}/export`` answers where the exported file is, for the host's save dialog),
-US-8.1 (``POST /cases/{case_id}/outcome`` records how the case ended, which closes it), US-8.2
+US-7.4 (``POST /cases/{case_id}/correction`` starts a corrected-claim draft and relays its events;
+``POST /cases/{case_id}/correction/export`` answers where its exported file is), US-8.1 (``POST
+/cases/{case_id}/outcome`` records how the case ended, which closes it), US-8.2
 (``GET /outcomes/summary`` is the manager's weekly summary of opted-in profiles' de-identified
 outcomes), US-8.3 (``POST /outcomes/export`` writes the manager-approved fine-tune export),
 US-11.1 (``POST /cases/{case_id}/calls`` forwards a payer-call recording's raw upload body;
@@ -448,6 +450,22 @@ async def draft_case(
     return started
 
 
+@router.post("/cases/{case_id}/correction", response_model=JobStarted, responses=_ERRORS)
+async def correct_case(
+    case_id: str,
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+    sink: Annotated[EventSink | None, Depends(get_event_sink)],
+) -> JobStarted | JSONResponse:
+    """Start drafting the corrected claim; progress arrives as ``plugin.claimcoach.case.progress``.
+
+    The body is ``{}``: the case's codes plan the changes (US-7.4 design decision 3).
+    """
+    return await _start_job(
+        case_id, request, client.start_correction, lambda job: start_relay(client, job, sink)
+    )
+
+
 @router.post("/cases/{case_id}/draft/text", response_model=Case, responses=_ERRORS)
 async def edit_draft(
     case_id: str,
@@ -526,6 +544,22 @@ async def weekly_summary(
     try:
         return await client.weekly_summary(week)
     except WorkerError as exc:
+        return _error_response(exc)
+
+
+@router.post("/cases/{case_id}/correction/export", response_model=ExportedFile, responses=_ERRORS)
+async def export_correction(
+    case_id: str,
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> ExportedFile | JSONResponse:
+    """Export the stored corrected-claim draft as PDF or DOCX; the answer says where it is."""
+    try:
+        body = await _body(request, ExportRequest, SMALL_BODY)
+        if not _CASE_ID.fullmatch(case_id) or body is None:
+            return _invalid()
+        return await client.export_correction(active_profile(), case_id, body)
+    except (CaseError, WorkerError) as exc:
         return _error_response(exc)
 
 

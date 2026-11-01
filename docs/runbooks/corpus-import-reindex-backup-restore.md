@@ -32,11 +32,15 @@ Every command below also runs as `hermes claimcoach corpus <command>` once the p
 1. **Import the global corpus (US-4.3).** Write a bundle (`.yaml`, `.yml`, or `.json`, at most
    5 MiB): `items:` with `kind: rule_card | code | letter_template`; every item needs `title`,
    `body`, `source`, and `verified_on` (ISO date). Rule cards add `payer` and `topic`
-   (`timely_filing`, `appeal_levels`, `required_docs`, `submission`, `other`); a `required_docs`
+   (`timely_filing`, `appeal_levels`, `required_docs`, `submission`, `corrected_claims`, `other`);
+   a `required_docs`
    card may add `required_documents`, a list of up to 30 documents that becomes the diagnosis
    checklist (US-6.2; see [case-diagnosis](case-diagnosis.md)), and an `appeal_levels` card may add
    `appeal_limit_days` (1–3650 calendar days from the denial date), the appeal deadline's limit
-   (US-6.3); codes add
+   (US-6.3), and a `corrected_claims` card may add `remedies` (denial reason → `corrected_claim`,
+   `appeal`, `either`, or `none`) and `frequency_code` (`1`, `7`, or `8`), which override
+   ClaimCoach's corrected-claim table for that payer (US-7.4; see
+   [appeal-drafting](appeal-drafting.md)); codes add
    `code_set` (`CARC`, `RARC`, `GROUP`) and `code`; templates add `template_id`. Then:
    `make corpus-import FILE=rules.yaml`, or in Hermes Desktop Settings → **ClaimCoach** →
    **Global corpus import** (US-10.4): pick the file, read what it holds and replaces, then press

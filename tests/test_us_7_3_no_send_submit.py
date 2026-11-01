@@ -33,6 +33,7 @@ from claimcoach.models.types import ConversionRequest, DownloadRequest, ModelRol
 from claimcoach.worker.app import create_app
 from claimcoach.worker.config import LOOPBACK, WorkerConfig
 from tests.fakes.corpus import TOKEN, make_service
+from tests.fakes.corrections import drafting_responder
 from tests.fakes.diagnosis import (
     CODE_BUNDLE,
     RULE_BUNDLE,
@@ -76,6 +77,8 @@ GATEWAY_ROUTES: Final = {
     ("POST", "/cases/{case_id}/draft"),
     ("POST", "/cases/{case_id}/draft/text"),
     ("POST", "/cases/{case_id}/export"),
+    ("POST", "/cases/{case_id}/correction"),
+    ("POST", "/cases/{case_id}/correction/export"),
     ("POST", "/cases/{case_id}/outcome"),
     ("POST", "/cases/{case_id}/fields"),
     ("GET", "/outcomes/summary"),
@@ -111,6 +114,8 @@ WORKER_ROUTES: Final = {
     ("POST", "/cases/{case_id}/draft"),
     ("POST", "/cases/{case_id}/draft/text"),
     ("POST", "/cases/{case_id}/export"),
+    ("POST", "/cases/{case_id}/correction"),
+    ("POST", "/cases/{case_id}/correction/export"),
     ("POST", "/cases/{case_id}/outcome"),
     ("POST", "/cases/{case_id}/fields"),
     ("GET", "/jobs/{job_id}/events"),
@@ -283,7 +288,8 @@ async def test_us_7_3_case_routes_reach_only_loopback(
 ) -> None:
     """Every case route with case content, end to end; record every socket connect.
 
-    Upload, paste, extract, confirm, diagnose, draft, edit, export, and open, through the gateway
+    Upload, paste, extract, confirm, diagnose, draft, edit, export, draft and export the corrected
+    claim (US-7.4), and open, through the gateway
     (the relay reads ``/jobs/{job_id}/events``). The worker's ``/redact`` is the PHI model's
     loopback call (US-3.1) and is not reachable from the gateway.
     """
@@ -295,6 +301,7 @@ async def test_us_7_3_case_routes_reach_only_loopback(
         ModelRole.DRAFTING: letter_reply(),
     }
     servers = [FakeModelServer(replies={DEFAULT_MODEL_ID: r}).start() for r in replies.values()]
+    servers[-1].responders[DEFAULT_MODEL_ID] = drafting_responder()  # the letter and the changes
     connects: list[Any] = []
     lookups: list[Any] = []
     real_connect, real_getaddrinfo = socket.socket.connect, socket.getaddrinfo
@@ -330,6 +337,8 @@ async def test_us_7_3_case_routes_reach_only_loopback(
                 ("draft/text", {"text": "Edited letter."}),
                 ("export", {"format": "pdf"}),
                 ("export", {"format": "docx"}),
+                ("correction", {}),
+                ("correction/export", {"format": "pdf"}),
             ]
             for action, body in calls:
                 response = await desktop.post(f"{PREFIX}/cases/{case_id}/{action}", json=body)

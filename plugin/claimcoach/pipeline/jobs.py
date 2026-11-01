@@ -4,7 +4,8 @@ Implements: US-5.2 (``JobRegistry``: one job per case at a time; each stage appe
 ``CaseProgressEvent``; ``events`` waits for new ones so the gateway can relay them through
 ``broadcast_plugin_event``), US-6.1 (a second job kind, ``diagnose``, run by a ``Runner``; still
 one job per case, so a diagnosis never reads an extraction being rewritten), US-7.1 (a third kind,
-``draft``, whose runner the route binds to the draft request). Rules: PC-4 (heavy
+``draft``, whose runner the route binds to the draft request), US-7.4 (a fourth, ``correct``, run by
+the ``Corrector`` the route passes). Rules: PC-4 (heavy
 work in the worker, push updates through the gateway), BR-14 (events hold IDs, a stage enum, a
 fraction, and an error code only; a failure is logged by error type and job kind only).
 
@@ -42,12 +43,13 @@ _FAILED: Final[dict[JobKind, ErrorCode]] = {
     "extract": "extraction_failed",
     "diagnose": "diagnosis_failed",
     "draft": "drafting_failed",
+    "correct": "correction_failed",
 }
 """The code a job of each kind ends with when it fails for an unexpected reason."""
 
 
 class Runner(Protocol):
-    """A kind of case job: ``Extractor`` (US-5.2), ``Diagnoser`` (US-6.1), ``Drafter`` (US-7.1)."""
+    """A kind of case job: ``Extractor``, ``Diagnoser``, ``Drafter``, or ``Corrector`` (US-7.4)."""
 
     async def run(self, profile: str, case_id: str, report: Report) -> object:
         """Do the work for one case, calling ``report`` for each stage; ends with ``done``."""

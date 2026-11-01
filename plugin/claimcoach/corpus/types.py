@@ -10,7 +10,9 @@ and the ``case_drafted`` audit action), US-7.2 (the ``draft_edited`` and ``draft
 actions), US-8.2 (``OutcomeRow``: an outcome as the manager's summary reads it), US-9.2 (the
 ``case_summarized`` audit action), US-11.1 (the ``call`` and ``transcript`` case items and the
 ``call_added`` and ``call_transcribed`` audit actions), US-10.1 (``CaseListEntry``: a case as the
-pane's case list shows it, without case content). Rules:
+pane's case list shows it, without case content), US-7.4 (the ``correction`` case item, the
+``correction_drafted`` and ``correction_exported`` audit actions, and the ``corrected_claims``
+rule-card topic). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
 IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
 ``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
@@ -64,6 +66,7 @@ __all__ = [
     "ReindexResult",
     "RetrievalQuery",
     "RetrievedChunk",
+    "RuleCardTopic",
     "ScopeStatus",
     "utc_now",
 ]
@@ -191,10 +194,18 @@ class CaseRecord(_Strict):
     purged_at: Timestamp | None = None
 
 
-CaseItemKind = Literal["source", "extraction", "diagnosis", "draft", "call", "transcript"]
+CaseItemKind = Literal[
+    "source", "extraction", "diagnosis", "draft", "call", "transcript", "correction"
+]
 """A case item: an attached source file (US-5.1), the case's structured extraction (US-5.2), its
-diagnosis (US-6.1), its appeal draft (US-7.1), a payer-call recording, or a call's transcript
-(US-11.1)."""
+diagnosis (US-6.1), its appeal draft (US-7.1), a payer-call recording, a call's transcript
+(US-11.1), or its corrected-claim draft (US-7.4)."""
+
+RuleCardTopic = Literal[
+    "timely_filing", "appeal_levels", "required_docs", "submission", "corrected_claims", "other"
+]
+"""What a rule card is about, in the order a payer's cards are listed (US-4.3; US-7.4 adds
+``corrected_claims``)."""
 
 
 class CaseItem(_Strict):
@@ -430,6 +441,10 @@ class AuditAction(StrEnum):
     """A payer-call recording was attached to the case (US-11.1)."""
     CALL_TRANSCRIBED = "call_transcribed"
     """A call's transcript was stored with the case (US-11.1)."""
+    CORRECTION_DRAFTED = "correction_drafted"
+    """Drafting stored the case's corrected-claim draft (US-7.4)."""
+    CORRECTION_EXPORTED = "correction_exported"
+    """The case's corrected-claim draft was written to a PDF or DOCX file (US-7.4)."""
 
 
 class AuditEntry(_Strict):

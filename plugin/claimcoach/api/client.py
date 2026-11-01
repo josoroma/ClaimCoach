@@ -7,7 +7,8 @@ download, and conversion calls; the worker's own model error codes reach the des
 reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command), US-5.1 (case
 creation, open, upload, and paste calls; an upload is forwarded as the raw multipart body), US-5.2
 (start extraction, long-poll a job's events, confirm a field), US-6.1 (start a diagnosis), US-7.1
-(start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac), US-8.1
+(start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac), US-7.4
+(start a corrected-claim draft, export it to a file on this Mac), US-8.1
 (record a case's outcome), US-8.2 (the manager's weekly summary), US-8.3 (the manager-approved
 fine-tune export), US-9.1 (explain a code, a payer's rule cards), US-9.2 (a case's redacted
 summary), all for the agent tools, US-11.1 (attach a payer-call recording, queue it for
@@ -91,6 +92,7 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "not_diagnosed": 409,
     "no_letter_template": 409,
     "not_drafted": 409,
+    "not_corrected": 409,
     "export_not_approved": 403,
     "code_not_found": 404,
     "payer_not_found": 404,
@@ -416,6 +418,37 @@ class WorkerClient:
         return await self._request(
             "POST",
             f"/cases/{case_id}/export",
+            ExportedFile,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def start_correction(self, profile: str, case_id: str) -> JobStarted:
+        """Start drafting a diagnosed case's corrected claim; progress from ``job_events`` (US-7.4).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/correction",
+            JobStarted,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def export_correction(
+        self, profile: str, case_id: str, body: ExportRequest
+    ) -> ExportedFile:
+        """Write the case's corrected-claim draft as a PDF or DOCX file on this Mac (US-7.4).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. No file is written then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/correction/export",
             ExportedFile,
             body,
             params={"profile": profile},

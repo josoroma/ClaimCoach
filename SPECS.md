@@ -194,7 +194,7 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-6.3#1 | Implement a pure, typed compute_deadline() in claimcoach/pipeline/deadline.py with docstr… | DONE | US-6.3 |
 | US-6.3#2 | Add test test_us_6_3_deadline_from_rule_card | DONE | US-6.3 |
 | US-6.3#3 | Record evidence/US-6.3/test-report.md | DONE | US-6.3 |
-| EPIC-7 | Appeal Drafting and Export | — | — |
+| EPIC-7 | Appeal Drafting and Export | DONE | — |
 | US-7.1 | Draft the Appeal Letter | DONE | EPIC-7 |
 | US-7.1#1 | Implement claimcoach/letters/draft.py with typed DraftRequest, AppealDraft | DONE | US-7.1 |
 | US-7.1#2 | Add tests test_us_7_1_draft_from_rule_card_and_template, test_us_7_1_draft_carries_review… | DONE | US-7.1 |
@@ -207,8 +207,11 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-7.3#1 | Add a route-table test and a contribution-label test; document the rule in the module doc… | DONE | US-7.3 |
 | US-7.3#2 | Add tests test_us_7_3_no_send_contribution, test_us_7_3_no_transmitting_route | DONE | US-7.3 |
 | US-7.3#3 | Record evidence/US-7.3/test-report.md | DONE | US-7.3 |
-| US-7.4 | Corrected Claim Draft | NEEDS CLARIFICATION | EPIC-7 |
-| US-7.4#1 | Define the corrected-claim output once its format is decided | TODO | US-7.4 |
+| US-7.4 | Corrected Claim Draft | DONE | EPIC-7 |
+| US-7.4#1 | Define the corrected-claim output once its format is decided | DONE | US-7.4 |
+| US-7.4#2 | Implement claimcoach/corrections/ (typed CorrectedClaimDraft, recommended_remedy, the Co… | DONE | US-7.4 |
+| US-7.4#3 | Add tests test_us_7_4_* (Python and node --test) and extend the US-7.3 pins | DONE | US-7.4 |
+| US-7.4#4 | Record evidence/US-7.4/test-report.md | DONE | US-7.4 |
 | EPIC-8 | Outcomes, Manager Dashboard, and Export | DONE | — |
 | US-8.1 | Record a Case Outcome | DONE | EPIC-8 |
 | US-8.1#1 | Implement typed CaseOutcome (enum) and the outcome route; store outcomes in a de-identifi… | DONE | US-8.1 |
@@ -692,6 +695,12 @@ flowchart TD
   US-7_4["US-7.4: Corrected Claim Draft"]
   US-7_4_T1["#1 Define the corrected-claim output once its form…"]
   US-7_4 --> US-7_4_T1
+  US-7_4_T2["#2 Implement claimcoach/corrections/ (typed Correc…"]
+  US-7_4 --> US-7_4_T2
+  US-7_4_T3["#3 Add tests test_us_7_4_* (Python and node --test…"]
+  US-7_4 --> US-7_4_T3
+  US-7_4_T4["#4 Record evidence/US-7.4/test-report.md"]
+  US-7_4 --> US-7_4_T4
 ```
 
 ### EPIC-8 detail
@@ -2130,7 +2139,7 @@ Open Questions:
 
 ### US-7.4: Corrected Claim Draft
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a biller
 I want ClaimCoach to draft a corrected claim when that is the right fix
@@ -2139,24 +2148,111 @@ So that I can resubmit instead of appealing.
 Source:
 - PRD.md §1 (drafts the appeal letter or corrected claim)
 
-Acceptance Criteria:
+Acceptance Criteria (approved by the PM on 2026-11-01 with the defaults below; they replace the
+original scenario, "A corrected-claim draft is produced for a correctable denial"):
 
 ```gherkin
-Scenario: A corrected-claim draft is produced for a correctable denial
-  Given a diagnosed case whose fix is a corrected claim
-  When the biller requests a corrected claim draft
-  Then a corrected-claim draft is attached to the case for human review
+Scenario: An appeal-only denial gets a recommendation, not a corrected-claim draft
+  Given a diagnosed case whose denial reason is medical_necessity
+  When the biller opens the case
+  Then the pane recommends an appeal and shows why
+  And no corrected-claim draft is attached unless the biller asks for one
+
+Scenario: A correctable denial gets a list of changes for human review
+  Given a diagnosed case whose recommended remedy is a corrected claim
+  When the biller requests a corrected-claim draft
+  Then a corrected-claim draft labeled "draft for human review" is attached to the case
+  And each change names a claim line or the claim, a field, an action, and the codes behind it
+
+Scenario: A value missing from the documents is never invented
+  Given a corrected-claim draft that points at a field the extraction does not hold
+  When the biller opens the draft
+  Then that change's current value reads "not in your documents"
+  And no change proposes a new procedure, diagnosis, or modifier code
+
+Scenario: A draft goes stale after re-extraction
+  Given a case with a corrected-claim draft
+  When the case's fields change
+  Then the draft is marked stale and the pane offers to redraft it
+
+Scenario: The corrected-claim draft exports as PDF or DOCX
+  Given a corrected-claim draft
+  When the biller exports it
+  Then a corrected-claim-draft-*.pdf or .docx file carrying the draft label is written
+
+Scenario: No submit control
+  Given the corrected-claim route and its pane control
+  Then neither sends, submits, or transmits anything (US-7.3)
 ```
 
 Dependencies:
 - US-6.1
+- US-7.1, US-7.2, US-7.3 (the corrected-claim draft reuses the drafting job, export, and the
+  no-send test)
+- US-4.3 rule cards (a payer's `corrected_claims` card can override the routing table)
 
 Tasks:
-- [ ] Define the corrected-claim output once its format is decided
+- [x] Define the corrected-claim output once its format is decided
+- [x] Implement `claimcoach/corrections/` (typed `CorrectedClaimDraft`, `recommended_remedy`, the
+  `Corrector` job), the correction routes, the `corrected_claims` rule-card topic, and the pane's
+  recommendation, Draft corrected claim, and exports
+- [x] Add tests `test_us_7_4_*` (Python and `node --test`) and extend the US-7.3 pins
+- [x] Record `evidence/US-7.4/test-report.md`
 
 Open Questions:
 - What format is a corrected-claim draft (claim form fields, an 837 snippet, a summary of changes)?
+  Resolved (PM-approved 2026-11-01; openspec us-7-4-corrected-claim-draft, design decisions
+  1-4): a typed list of changes for the biller to make in their
+  own billing system, not claim form fields and not an 837. Why:
+  - The data isn't there. A case accepts pdf, image, edi_835, and text sources, and
+    `CaseExtraction` holds the payer, claim ID, amounts, CARC/RARC/group codes, and per-line
+    procedure code, date, and amounts. It holds no ICD-10 codes, modifiers, units, NPI, place of
+    service, or member ID: those are on the original claim (837 or CMS-1500), not on the ERA. A
+    filled form would make up fields on a billing document.
+  - An 837 is a clearinghouse submission, and proposing new CPT/ICD codes is coding claims: both
+    are Non-goals (§5).
+  - Shape: `CorrectedClaimDraft` holds the draft label, the original claim ID, the frequency
+    code as an instruction to the biller, at least one `ClaimCorrection`, the extraction digest,
+    and the draft time. Each `ClaimCorrection` holds a line number (none = claim level), a field
+    from a fixed enum (procedure_code, modifier, diagnosis_pointer, member_id, units, …), the
+    current value, what to check or change, the CARC/RARC codes behind it, and the rule card it
+    cites.
+  - Rules the parser enforces, not only the prompt: every current value comes from the extraction
+    (absent = "not in your documents"; modifier, diagnosis pointer, member ID, and units are
+    always absent in v1). The action text never holds a code-shaped value the extraction does not
+    hold. The field, line, current value, and codes are filled deterministically; the model
+    writes only the action and its explanation, as JSON parsed into the typed model (BR-10).
+  - Built like the appeal draft: a job like `Drafter`, sealed on the case as `Case.correction`
+    with `correction_stale` by the same extraction-digest check; pane → plugin_api → worker
+    (BR-2); export through US-7.2. No agent tool in v1 (the draft holds claim values).
+  - Later (v1.1): accept the original CMS-1500 as a source, so current values cover modifiers
+    and diagnosis pointers too.
 - Which denial reasons route to a corrected claim instead of an appeal?
+  Resolved (PM-approved 2026-11-01; design decisions 5-6): a fixed table decides, not the model. A pure function
+  `recommended_remedy(diagnosis, extraction)` returns corrected claim, appeal, either, or none;
+  `Diagnosis` gains no field (US-6.1 is unchanged). The pane shows the recommendation, and the
+  biller can still ask for either draft.
+
+  | Remedy | Denial reasons |
+  | --- | --- |
+  | Corrected claim | coding_error; missing_information when the codes point at claim data, not attachments; eligibility when the codes say the patient could not be identified (CARC 31) |
+  | Either | bundling (a modifier fix or an appeal); coordination_of_benefits (rebill with the primary payer's EOB) |
+  | Appeal | medical_necessity, prior_authorization, timely_filing, non_covered_service |
+  | None (verify first) | duplicate_claim, other; eligibility for terminated coverage (CARC 27) |
+
+  The extraction has no member ID or demographics, so the eligibility and missing_information
+  splits are made from the CARC/RARC codes alone; a case the codes do not settle is "either".
+  A payer's rule card overrides the table (payers differ on reconsideration versus corrected
+  claims). Once US-12.2's labeled set exists, the table is scored against it.
+- Raised by the defaults above:
+  - The rule-card override needs a corpus schema change: `RuleCard.topic` was timely_filing,
+    appeal_levels, required_docs, submission, or other, and no card said which remedy a payer
+    wants. Resolved (design decision 10): a `corrected_claims` topic with `remedies` (per denial
+    reason) and `frequency_code`; a payer's six cards fit the diagnosis and the appeal draft.
+  - Frequency code: 7 (replacement) and 8 (void) are not enough. A claim returned as
+    unprocessable (CARC 16 with RARC MA130) has no appeal rights and is resubmitted as a new
+    claim (frequency 1). Resolved (design decision 7): 1 with RARC MA130, otherwise 7; the
+    payer's `corrected_claims` card may set 1, 7, or 8; never the model.
 
 # EPIC-8: Outcomes, Manager Dashboard, and Export
 

@@ -5,8 +5,9 @@ Implements: US-5.1 (``CaseCreate``, ``PastedText``, ``SourceDocument``, ``Case``
 that need confirmation), US-6.1 (``Case`` carries the diagnosis and whether it is stale), US-6.3
 (``Case`` carries the appeal deadline), US-7.1 (``Case`` carries the appeal draft, labeled "draft
 for human review", and whether it is stale), US-8.1 (``OutcomeRequest``; ``Case`` carries the
-recorded outcome), US-11.1 (``Case`` carries its payer calls), US-10.1 (``CaseList``, the pane's
-case list: no case content). Rules:
+recorded outcome), US-11.1 (``Case`` carries its payer calls), US-7.4 (``Case`` carries the
+recommended remedy and the corrected-claim draft, and whether that draft is stale), US-10.1
+(``CaseList``, the pane's case list: no case content). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-2 (these bodies travel pane →
 ``plugin_api.py`` → worker only), BR-14 (they carry case content, so they are never logged and
 never reach an agent tool or an event).
@@ -24,6 +25,7 @@ from claimcoach.calls.types import PayerCall
 from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.extraction import CaseExtraction
 from claimcoach.corpus.types import CaseId, CaseListEntry, CaseOutcome, OutcomeRecord, Timestamp
+from claimcoach.corrections.types import CorrectedClaimDraft, RemedyAdvice
 from claimcoach.letters.types import AppealDraft
 
 __all__ = [
@@ -115,6 +117,11 @@ class Case(_Strict):
         draft: Its appeal draft, once drafting ran (US-7.1), with the biller's edits (US-7.2).
         draft_stale: The fields or the diagnosis changed after the draft was made, so the pane
             asks the biller to check it or draft again.
+        remedy: The fix the denial needs, recommended by fixed rules whenever the diagnosis is
+            current (US-7.4); none before diagnosis or once the fields changed.
+        correction: Its corrected-claim draft, once drafted (US-7.4).
+        correction_stale: The fields or the diagnosis changed after the corrected-claim draft was
+            made.
         outcome: How the case ended, once the biller recorded it (US-8.1); the case is closed.
         calls: Its payer-call recordings, each with its transcription job and transcript, oldest
             first (US-11.1).
@@ -132,6 +139,9 @@ class Case(_Strict):
     deadline: AppealDeadline | None = None
     draft: AppealDraft | None = None
     draft_stale: bool = False
+    remedy: RemedyAdvice | None = None
+    correction: CorrectedClaimDraft | None = None
+    correction_stale: bool = False
     outcome: OutcomeRecord | None = None
     calls: list[PayerCall] = Field(default_factory=list)
 

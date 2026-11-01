@@ -8,10 +8,13 @@ with the raw single-file multipart body, ``POST /cases/{case_id}/paste``), US-5.
 starts a diagnosis job), US-7.1 (``POST /cases/{case_id}/draft`` starts a draft job), US-7.2 (``POST
 /cases/{case_id}/draft/text`` saves the biller's edits; ``POST /cases/{case_id}/export`` writes the
 stored draft as a PDF or DOCX file on this Mac), US-8.1 (``POST /cases/{case_id}/outcome`` records
-how the case ended and closes it). Rules: ES-8 (typed bodies; ``CaseError`` and ``CorpusError``
-become their fixed envelopes in ``create_app``), BR-2 (case content reaches the worker only from the
-gateway), BR-4 (no route sends, submits, or transmits anything: an export is a file the biller
-saves; ``test_us_7_3_no_transmitting_route`` pins the route set), BR-14 (no content is logged).
+how the case ended and closes it), US-7.4 (``POST /cases/{case_id}/correction`` starts a
+corrected-claim job; ``POST /cases/{case_id}/correction/export`` writes the stored corrected-claim
+draft as a PDF or DOCX file on this Mac). Rules: ES-8 (typed bodies; ``CaseError`` and
+``CorpusError`` become their fixed envelopes in ``create_app``), BR-2 (case content reaches the
+worker only from the gateway), BR-4 (no route sends, submits, or transmits anything: an export is
+a file the biller saves; ``test_us_7_3_no_transmitting_route`` pins the route set), BR-14 (no
+content is logged).
 
 Store calls run off the event loop (``asyncio.to_thread`` or plain ``def`` routes): opening a user
 store may prompt the Keychain, and sealing a 16 MiB file takes a moment.
@@ -36,14 +39,23 @@ from claimcoach.cases.models import (
 )
 from claimcoach.cases.service import CaseService
 from claimcoach.corpus.types import DEFAULT_PROFILE, CaseId, ProfileName
+from claimcoach.corrections.draft import Corrector
 from claimcoach.events import JOB_ID_PATTERN
 from claimcoach.letters.draft import Drafter
-from claimcoach.letters.export import Exports, render
+from claimcoach.letters.export import Exports, render, render_correction
 from claimcoach.letters.types import DraftEdit, DraftRequest, ExportedFile, ExportRequest
 from claimcoach.models.manager import ModelBusyError, ModelUnavailableError
 from claimcoach.pipeline.jobs import MAX_WAIT, JobRegistry
 
-__all__ = ["get_cases", "get_drafter", "get_exports", "get_jobs", "jobs_router", "router"]
+__all__ = [
+    "get_cases",
+    "get_corrector",
+    "get_drafter",
+    "get_exports",
+    "get_jobs",
+    "jobs_router",
+    "router",
+]
 
 router = APIRouter(prefix="/cases")
 jobs_router = APIRouter(prefix="/jobs")
@@ -79,6 +91,18 @@ def get_drafter(request: Request) -> Drafter:
     return cast("Drafter", drafter)
 
 
+def get_corrector(request: Request) -> Corrector:
+    """Return the worker's corrector (set by ``create_app`` when it has a model provider).
+
+    Raises:
+        ModelUnavailableError: This worker runs without models, so nothing can be drafted.
+    """
+    corrector = getattr(request.app.state, "corrector", None)
+    if corrector is None:
+        raise ModelUnavailableError
+    return cast("Corrector", corrector)
+
+
 def get_exports(request: Request) -> Exports:
     """Return the worker's exports folder manager (set by ``create_app``)."""
     return cast("Exports", request.app.state.exports)
@@ -87,6 +111,7 @@ def get_exports(request: Request) -> Exports:
 Cases = Annotated[CaseService, Depends(get_cases)]
 Jobs = Annotated[JobRegistry, Depends(get_jobs)]
 Drafters = Annotated[Drafter, Depends(get_drafter)]
+Correctors = Annotated[Corrector, Depends(get_corrector)]
 ExportFiles = Annotated[Exports, Depends(get_exports)]
 Profile = Annotated[ProfileName, Query()]
 CasePath = Annotated[CaseId, Path()]
@@ -212,6 +237,38 @@ async def export(
         data = render(cases.draft_of(profile, case_id), body.format)
         written = exports.write(profile, case_id, body.format, data)
         cases.record_export(profile, case_id)  # audited: case content left the encrypted store
+        return written
+
+    return await asyncio.to_thread(write)
+
+
+@router.post("/{case_id}/correction", response_model=JobStarted)
+async def correct(
+    case_id: CasePath, jobs: Jobs, corrector: Correctors, profile: Profile = DEFAULT_PROFILE
+) -> JobStarted:
+    """Start drafting the diagnosed case's corrected claim (or return the job already running)."""
+    running = jobs.running(profile, case_id)
+    if running is not None:
+        return running
+    await asyncio.to_thread(corrector.check, profile, case_id)
+    return jobs.start(profile, case_id, "correct", runner=corrector)
+
+
+@router.post("/{case_id}/correction/export", response_model=ExportedFile)
+async def export_correction(
+    case_id: CasePath,
+    body: ExportRequest,
+    cases: Cases,
+    exports: ExportFiles,
+    profile: Profile = DEFAULT_PROFILE,
+) -> ExportedFile:
+    """Write the stored corrected-claim draft as a PDF or DOCX file for the biller to save."""
+
+    def write() -> ExportedFile:
+        correction, stale = cases.correction_of(profile, case_id)
+        data = render_correction(correction, body.format, stale=stale)
+        written = exports.write(profile, case_id, body.format, data, stem="corrected-claim-draft")
+        cases.record_correction_export(profile, case_id)  # case content left the encrypted store
         return written
 
     return await asyncio.to_thread(write)

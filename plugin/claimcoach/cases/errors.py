@@ -4,7 +4,8 @@ Implements: US-5.1 (``MalformedUploadError``, ``UnsupportedDocumentError``,
 ``DocumentTooLargeError``), US-5.2 (``NoDocumentsError``, ``FieldError``, ``JobNotFoundError``),
 US-6.1 (``NotExtractedError``, ``DiagnosisFailedError``), US-7.1 (``NotDiagnosedError``,
 ``NoLetterTemplateError``, ``DraftingFailedError``), US-7.2 (``NotDraftedError``,
-``DraftEditedError``), US-11.1 (``UnsupportedAudioError``, ``CallTooLargeError``,
+``DraftEditedError``), US-7.4 (``CorrectionFailedError``, ``NotCorrectedError``), US-11.1
+(``UnsupportedAudioError``, ``CallTooLargeError``,
 ``CallNotFoundError``, ``TranscriptionFailedError``, ``TranscriptionTimeoutError``).
 Rules: ES-8 (each error maps to one fixed envelope code), BR-14 (no error carries content).
 """
@@ -19,6 +20,7 @@ __all__ = [
     "CallNotFoundError",
     "CallTooLargeError",
     "CaseError",
+    "CorrectionFailedError",
     "DiagnosisFailedError",
     "DocumentTooLargeError",
     "DraftEditedError",
@@ -28,6 +30,7 @@ __all__ = [
     "MalformedUploadError",
     "NoDocumentsError",
     "NoLetterTemplateError",
+    "NotCorrectedError",
     "NotDiagnosedError",
     "NotDraftedError",
     "NotExtractedError",
@@ -127,6 +130,20 @@ class NotDraftedError(CaseError):
     """Editing or exporting needs the case's draft, and the case has none yet (US-7.2)."""
 
     code: ClassVar[ErrorCode] = "not_drafted"
+    status_code: ClassVar[int] = 409
+
+
+class CorrectionFailedError(CaseError):
+    """The model's corrected-claim reply was unusable or named an unknown code (US-7.4)."""
+
+    code: ClassVar[ErrorCode] = "correction_failed"
+    status_code: ClassVar[int] = 502
+
+
+class NotCorrectedError(CaseError):
+    """Exporting needs the case's corrected-claim draft, and the case has none (US-7.4)."""
+
+    code: ClassVar[ErrorCode] = "not_corrected"
     status_code: ClassVar[int] = 409
 
 

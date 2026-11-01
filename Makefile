@@ -126,8 +126,9 @@ REQUIRE_OUTCOME = $(if $(and $(filter 1,$(words $(OUTCOME))),$(if $(findstring %
 REQUIRE_FORMAT = $(if $(and $(filter 1,$(words $(FORMAT))),$(filter $(FORMAT),pdf docx)),:,\
 	$(error usage: make $@ CASE=<case id> FORMAT=<pdf|docx> [TO=<file or folder>]))
 
-# Start a case job ($(1): extract, diagnose, or draft, US-5.2, US-6.1, US-7.1; $(2): extra curl
-# arguments, such as a JSON body) and print its progress events until it ends; the target fails
+# Start a case job ($(1): its route, extract, diagnose, draft, or correction, US-5.2, US-6.1,
+# US-7.1, US-7.4; $(2): extra curl arguments, such as a JSON body; $(3): the job's kind when it is
+# not the route's name: correct) and print its progress events until it ends; the target fails
 # when the job ends `failed`, or when the case was already running a job of another kind (one job
 # per case), which is followed instead and named on stderr.
 # Backslash-newlines become spaces here, so every shell and Python statement ends with `;`.
@@ -136,7 +137,7 @@ CASE_JOB = started=$$($(WORKER_CURL) -X POST $(2) "$(WORKER_URL)/cases/$(CASE)/$
 	    print(b["job_id"], b.get("kind", "extract")) if b.get("ok") \
 	    else sys.exit("error: " + b["error"]["code"])') || exit 1; \
 	read -r job kind <<< "$$started"; \
-	[ "$$kind" = "$(1)" ] || echo "a $$kind job is already running on this case; following it," \
+	[ "$$kind" = "$(or $(3),$(1))" ] || echo "a $$kind job is already running on this case; following it," \
 	  "then run this target again" >&2; \
 	after=0; while :; do \
 	  body=$$($(WORKER_CURL) "$(WORKER_URL)/jobs/$$job/events?after=$$after&wait=20") || exit 1; \
@@ -146,7 +147,7 @@ CASE_JOB = started=$$($(WORKER_CURL) -X POST $(2) "$(WORKER_URL)/cases/$(CASE)/$
 	    last = b["events"][-1]["stage"] if b["events"] else ""; \
 	    print(int(sys.argv[1]) + len(b["events"]), int(b["finished"]), last)' "$$after"); \
 	  read -r after finished last <<< "$$out"; \
-	  if [ "$$finished" = 1 ]; then [ "$$last" != failed ] && [ "$$kind" = "$(1)" ]; exit; fi; \
+	  if [ "$$finished" = 1 ]; then [ "$$last" != failed ] && [ "$$kind" = "$(or $(3),$(1))" ]; exit; fi; \
 	done
 
 # The agent tools (US-9.1, US-9.2). TOOL is checked by make itself, before any shell sees it.
@@ -168,7 +169,8 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
         case-new case-list case-add case-paste case-show case-process case-confirm case-diagnose \
-        case-draft case-edit case-export case-outcome case-call case-transcribe transcription-queue \
+        case-draft case-edit case-export case-correct case-correction-export case-outcome \
+        case-call case-transcribe transcription-queue \
         outcomes-summary outcomes-export \
         agent-tools agent-skill agent-call agent-denial agent-probe \
         eval-redaction eval-classification eval-drafts eval-latency eval-egress evals release-gate \
@@ -471,23 +473,40 @@ case-edit: ## Save a text file as the case's draft (US-7.2): make case-edit CASE
 
 # The export is deleted 15 minutes after it is written, or when the worker stops (BR-6); TO copies
 # it out first: created mode 0600, never over an existing file (TO goes through the environment).
+# $(1): the export route under /cases/<case>; $(2): the exported file's name before -<case>.
+define CASE_EXPORT
+@if [ -n "$$TO" ]; then python3 -c 'import os, sys; target = os.environ["TO"]; \
+  target = os.path.join(target, sys.argv[1]) if os.path.isdir(target) else target; \
+  os.path.lexists(target) and sys.exit(f"{target} exists; choose another TO")' \
+  "$(2)-$(CASE).$(FORMAT)" || exit 2; fi
+@body=$$($(WORKER_CURL) -X POST -H 'Content-Type: application/json' -d '{"format": "$(FORMAT)"}' \
+  "$(WORKER_URL)/cases/$(CASE)/$(1)?profile=$(CASE_PROFILE)") || { echo "$$body"; exit 1; }; \
+printf '%s' "$$body" | python3 -m json.tool; \
+if [ -n "$$TO" ]; then printf '%s' "$$body" | python3 -c 'import json, os, sys; \
+  body = json.load(sys.stdin); target = os.environ["TO"]; \
+  target = os.path.join(target, body["filename"]) if os.path.isdir(target) else target; \
+  data = open(body["path"], "rb").read(); \
+  fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600) \
+    if not os.path.lexists(target) else sys.exit(f"{target} exists; choose another TO"); \
+  os.write(fd, data); os.close(fd); print("copied to", target)' || exit 1; fi
+endef
+
 case-export: ## Export the case's draft as PDF or DOCX: make case-export CASE=id FORMAT=pdf [TO=dir]
 	@$(REQUIRE_CASE)
 	@$(REQUIRE_FORMAT)
-	@if [ -n "$$TO" ]; then python3 -c 'import os, sys; target = os.environ["TO"]; \
-	  target = os.path.join(target, sys.argv[1]) if os.path.isdir(target) else target; \
-	  os.path.lexists(target) and sys.exit(f"{target} exists; choose another TO")' \
-	  "appeal-draft-$(CASE).$(FORMAT)" || exit 2; fi
-	@body=$$($(WORKER_CURL) -X POST -H 'Content-Type: application/json' -d '{"format": "$(FORMAT)"}' \
-	  "$(WORKER_URL)/cases/$(CASE)/export?profile=$(CASE_PROFILE)") || { echo "$$body"; exit 1; }; \
-	printf '%s' "$$body" | python3 -m json.tool; \
-	if [ -n "$$TO" ]; then printf '%s' "$$body" | python3 -c 'import json, os, sys; \
-	  body = json.load(sys.stdin); target = os.environ["TO"]; \
-	  target = os.path.join(target, body["filename"]) if os.path.isdir(target) else target; \
-	  data = open(body["path"], "rb").read(); \
-	  fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600) \
-	    if not os.path.lexists(target) else sys.exit(f"{target} exists; choose another TO"); \
-	  os.write(fd, data); os.close(fd); print("copied to", target)' || exit 1; fi
+	$(call CASE_EXPORT,export,appeal-draft)
+
+# --- Corrected claims (docs/runbooks/appeal-drafting.md, US-7.4) --------------------------------
+# A list of the changes a corrected claim needs, for the biller to make in their billing system.
+
+case-correct: ## Draft a diagnosed case's corrected claim and print its progress: make case-correct CASE=id
+	@$(REQUIRE_CASE)
+	@$(call CASE_JOB,correction,,correct)
+
+case-correction-export: ## Export the corrected-claim draft: make case-correction-export CASE=id FORMAT=pdf [TO=dir]
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_FORMAT)
+	$(call CASE_EXPORT,correction/export,corrected-claim-draft)
 
 # --- Payer calls (docs/runbooks/payer-call-transcription.md) -------------------------------------
 # A recording is sealed into the case; the worker transcribes it in the profile's after-hours

@@ -17,8 +17,14 @@ from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from claimcoach.cases.diagnosis import AppealLikelihood, CaseCode, DeadlineStatus, DenialReason
-from claimcoach.corpus.types import CaseId, CaseOutcome
+from claimcoach.cases.diagnosis import (
+    MAX_RULE_CARDS,
+    AppealLikelihood,
+    CaseCode,
+    DeadlineStatus,
+    DenialReason,
+)
+from claimcoach.corpus.types import CaseId, CaseOutcome, RuleCardTopic
 
 __all__ = [
     "MAX_REFERENCE_CHARS",
@@ -140,7 +146,7 @@ class PayerRuleCard(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     payer: PayerName
-    topic: Literal["timely_filing", "appeal_levels", "required_docs", "submission", "other"]
+    topic: RuleCardTopic
     title: Title
     body: Text
     truncated: bool = False
@@ -158,11 +164,11 @@ class PayerRulesResult(ToolResult):
 
     Attributes:
         payer: The payer as its cards name it (the asked name is never echoed).
-        cards: The cards, in topic order.
+        cards: The cards, in topic order: one per topic, six with ``corrected_claims`` (US-7.4).
     """
 
     payer: PayerName
-    cards: list[PayerRuleCard] = Field(min_length=1, max_length=5)
+    cards: list[PayerRuleCard] = Field(min_length=1, max_length=MAX_RULE_CARDS)
 
 
 CaseStage = Literal["intake", "extracted", "diagnosed", "drafted"]

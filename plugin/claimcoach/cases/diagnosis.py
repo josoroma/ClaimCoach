@@ -3,7 +3,8 @@
 Implements: US-6.1 (``DenialReason``, a closed set, with ``REASON_GUIDE``; ``AppealLikelihood``;
 ``Diagnosis`` with one to five reasons, the codes it read, and the digest of the extraction it was
 based on), US-6.2 (``Explanation``, ``ChecklistItem``, ``RuleCardRef``), US-6.3 (``AppealDeadline``
-and its ``DeadlineStatus``). Rules: ES-1
+and its ``DeadlineStatus``), US-7.4 (``Remedy``: the fix a denial needs, recommended by
+``corrections.remedy``; a payer's six rule cards). Rules: ES-1
 (Pydantic v2, ``extra="forbid"``, frozen), BR-14 (a diagnosis holds case content: it travels
 worker → gateway → pane only and is never logged or put in an event).
 
@@ -21,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 from claimcoach.corpus.types import Timestamp
 
 __all__ = [
+    "MAX_RULE_CARDS",
     "REASON_GUIDE",
     "AppealDeadline",
     "AppealLikelihood",
@@ -30,7 +32,9 @@ __all__ = [
     "DenialReason",
     "Diagnosis",
     "Explanation",
+    "FrequencyCode",
     "Reason",
+    "Remedy",
     "RuleCardRef",
 ]
 
@@ -76,6 +80,24 @@ REASON_GUIDE: Final[dict[DenialReason, str]] = {
     DenialReason.OTHER: "none of the families above fits",
 }
 """Each denial family and the reason codes that usually signal it; guidance, not rules."""
+
+
+class Remedy(StrEnum):
+    """The fix a denial needs (US-7.4): a recommendation the biller may overrule."""
+
+    CORRECTED_CLAIM = "corrected_claim"
+    APPEAL = "appeal"
+    EITHER = "either"
+    NONE = "none"
+    """Neither yet: verify the denial first (a duplicate, or terminated coverage)."""
+
+
+FrequencyCode = Literal["1", "7", "8"]
+"""A claim frequency code (837 CLM05-3), as an instruction to the biller (US-7.4): 1 a new claim,
+7 a replacement of the prior claim, 8 a void of it."""
+
+MAX_RULE_CARDS: Final = 6
+"""A payer's rule cards: one per topic (US-4.3, US-7.4 adds ``corrected_claims``)."""
 
 
 class AppealLikelihood(StrEnum):
@@ -215,4 +237,4 @@ class Diagnosis(_Strict):
     diagnosed_at: Timestamp
     explanation: Explanation | None = None
     checklist: list[ChecklistItem] = Field(default_factory=list, max_length=30)
-    rule_cards: list[RuleCardRef] = Field(default_factory=list, max_length=5)
+    rule_cards: list[RuleCardRef] = Field(default_factory=list, max_length=MAX_RULE_CARDS)

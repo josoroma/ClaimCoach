@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/appeal_draft.test.mjs" time="0.182654" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_diagnosis.test.mjs" time="0.153945" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.173202" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.178399" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_outcome.test.mjs" time="0.178243" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.177377" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/corpus_import.test.mjs" time="0.173710" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corpus_import.test.mjs"/>
+	<testsuite name="US-7.4 an appeal-only denial gets a recommendation, not a corrected-claim draft" time="0.005067" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.133Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_appeal_only_denial_gets_a_recommendation" time="0.004097" classname="US-7.4 an appeal-only denial gets a recommendation, not a corrected-claim draft" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.4 a correctable denial gets a list of changes for human review" time="0.006436" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.133Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_correctable_denial_gets_a_list_of_changes" time="0.006057" classname="US-7.4 a correctable denial gets a list of changes for human review" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.4 a value missing from the documents is never invented" time="0.000744" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.139Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_value_missing_from_documents_is_never_invented" time="0.000555" classname="US-7.4 a value missing from the documents is never invented" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.4 a draft goes stale after re-extraction" time="0.000562" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.139Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_draft_goes_stale_after_re_extraction" time="0.000311" classname="US-7.4 a draft goes stale after re-extraction" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.4 the label is always present" time="0.000566" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.139Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_label_is_always_present" time="0.000454" classname="US-7.4 the label is always present" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.4 the corrected-claim draft exports as PDF or DOCX" time="0.004730" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.135Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_export_pdf_and_docx" time="0.004403" classname="US-7.4 the corrected-claim draft exports as PDF or DOCX" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-7.4 no submit control" time="0.001584" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-11-01T11:00:02.138Z" hostname="iX-00277">
+		<testcase name="test_us_7_4_pane_no_submit_control" time="0.001500" classname="US-7.4 no submit control" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/corrected_claim.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/dashboard.test.mjs" time="0.174473" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/dashboard.test.mjs"/>
+	<testcase name="plugin/desktop/tests/desktop_ui.test.mjs" time="0.173205" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/desktop_ui.test.mjs"/>
+	<testcase name="plugin/desktop/tests/payer_calls.test.mjs" time="0.174815" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/payer_calls.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.120059" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.117047" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 19 -->
+	<!-- suites 7 -->
+	<!-- pass 19 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 301.201416 -->
+</testsuites>

@@ -1,7 +1,8 @@
 """Typed appeal-draft bodies: what drafting stores and what the pane sends and gets back.
 
 Implements: US-7.1 (``DRAFT_LABEL``, ``DraftRequest``, ``AppealDraft``), US-7.2 (``DraftEdit``,
-``ExportFormat``, ``ExportRequest``, ``ExportedFile``). Rules: ES-1 (Pydantic v2,
+``ExportFormat``, ``ExportRequest``, ``ExportedFile``), US-7.4 (an export of a corrected-claim
+draft is an ``ExportedFile`` too). Rules: ES-1 (Pydantic v2,
 ``extra="forbid"``, frozen), BR-4 (``AppealDraft.label`` is fixed to "draft for human review", so a
 draft without it does not validate; no body here names a recipient or a channel: nothing is sent),
 BR-14 (a draft holds case content: it travels worker → gateway → pane only and is never logged or
@@ -17,6 +18,7 @@ from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from claimcoach.cases.diagnosis import MAX_RULE_CARDS
 from claimcoach.corpus.types import CaseId, Timestamp
 
 __all__ = [
@@ -78,7 +80,7 @@ class AppealDraft(_Strict):
     text: LetterText
     template_id: TemplateId
     rule_cards: list[Annotated[str, StringConstraints(min_length=1, max_length=120)]] = Field(
-        default_factory=list, max_length=5
+        default_factory=list, max_length=MAX_RULE_CARDS
     )
     extraction_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     diagnosed_at: Timestamp
@@ -116,6 +118,8 @@ class ExportRequest(_Strict):
 class ExportedFile(_Strict):
     """An export, written on this Mac for the biller to save (US-7.2 design decision 4).
 
+    A corrected-claim draft's export is one too (US-7.4).
+
     Attributes:
         ok: Always ``True``.
         case_id: The case.
@@ -131,6 +135,8 @@ class ExportedFile(_Strict):
     case_id: CaseId
     format: ExportFormat
     path: str = Field(min_length=1)
-    filename: str = Field(pattern=r"^appeal-draft-[A-Za-z0-9_-]{1,64}\.(pdf|docx)$")
+    filename: str = Field(
+        pattern=r"^(?:appeal-draft|corrected-claim-draft)-[A-Za-z0-9_-]{1,64}\.(pdf|docx)$"
+    )
     size_bytes: int = Field(ge=1)
     expires_at: Timestamp

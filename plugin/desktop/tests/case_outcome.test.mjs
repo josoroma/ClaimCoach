@@ -32,9 +32,9 @@ const at = {
   attach: 7,
   fields: 10,
   diagnose: 11,
-  draftButton: 14,
-  draftPanel: 15,
-  outcomePanel: 16,
+  draftButton: 15,
+  draftPanel: 16,
+  outcomePanel: 19,
 };
 const slot = { current: 0, pending: 6 };
 const RECORDED = '2026-10-31T15:04:05Z';
