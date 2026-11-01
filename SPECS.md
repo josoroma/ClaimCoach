@@ -70,6 +70,9 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
   - [US-13.3: Data, API, Storage, and Upload Reference](#us-133-data-api-storage-and-upload-reference)
   - [US-13.4: App Flow Diagrams for Stakeholders and Users](#us-134-app-flow-diagrams-for-stakeholders-and-users)
   - [US-13.5: Product README for Y Combinator](#us-135-product-readme-for-y-combinator)
+  - [US-13.6: Diagram Text Stays Inside Its Container](#us-136-diagram-text-stays-inside-its-container)
+  - [US-13.7: Diagrams in the diagram-design Style](#us-137-diagrams-in-the-diagram-design-style)
+  - [US-13.8: Diagram Theme from the Design Tokens](#us-138-diagram-theme-from-the-design-tokens)
 - [EPIC-14: Remove Unused Model Paths](#epic-14-remove-unused-model-paths)
   - [US-14.1: Remove Unused Retrieval and the Reranker](#us-141-remove-unused-retrieval-and-the-reranker)
   - [US-14.2: Remove the Unread models_home Setting](#us-142-remove-the-unread-models_home-setting)
@@ -309,6 +312,20 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-13.5#1 | Rewrite README.md as the product page (problem, personas, what it does, targets, privacy,… | DONE | US-13.5 |
 | US-13.5#2 | Add tests test_us_13_5_readme_is_product_page, test_us_13_5_targets_match_prd, test_us_13… | DONE | US-13.5 |
 | US-13.5#3 | Record evidence/US-13.5/test-report.md | DONE | US-13.5 |
+| US-13.6 | Diagram Text Stays Inside Its Container | DONE | EPIC-13 |
+| US-13.6#1 | Group each node, chip, and tag with its texts, and measure text with the diagram-design b… | DONE | US-13.6 |
+| US-13.6#2 | Fix every text that runs past its container | DONE | US-13.6 |
+| US-13.6#3 | Add tests test_us_13_6_node_text_fits, test_us_13_6_labels_fit_chips, test_us_13_6_free_t… | DONE | US-13.6 |
+| US-13.6#4 | Record evidence/US-13.6/test-report.md | DONE | US-13.6 |
+| US-13.7 | Diagrams in the diagram-design Style | DONE | EPIC-13 |
+| US-13.7#1 | Redraw the stakeholder, user, and request diagrams with diagram-design's node, connector,… | DONE | US-13.7 |
+| US-13.7#2 | Add tests test_us_13_7_background_transparent, test_us_13_7_connectors_orthogonal_on_grid… | DONE | US-13.7 |
+| US-13.7#3 | Record evidence/US-13.7/test-report.md | DONE | US-13.7 |
+| US-13.8 | Diagram Theme from the Design Tokens | DONE | EPIC-13 |
+| US-13.8#1 | Save the theme as docs/assets/theme.css and color every diagram with its tokens, dark by … | DONE | US-13.8 |
+| US-13.8#2 | Add tests test_us_13_8_colors_from_tokens, test_us_13_8_dark_by_default, test_us_13_8_lig… | DONE | US-13.8 |
+| US-13.8#3 | Update README-DEV.md (App flows) with the diagram conventions | DONE | US-13.8 |
+| US-13.8#4 | Record evidence/US-13.8/test-report.md | DONE | US-13.8 |
 | EPIC-14 | Remove Unused Model Paths | DONE | — |
 | US-14.1 | Remove Unused Retrieval and the Reranker | DONE | EPIC-14 |
 | US-14.1#1 | Remove the rerank role, ConversionSpec, the convert command, ConversionRequest, source_pr… | DONE | US-14.1 |
@@ -405,6 +422,9 @@ flowchart TD
     US-13_3["US-13.3: Data, API, Storage, and Upload Reference"]
     US-13_4["US-13.4: App Flow Diagrams for Stakeholders and Users"]
     US-13_5["US-13.5: Product README for Y Combinator"]
+    US-13_6["US-13.6: Diagram Text Stays Inside Its Container"]
+    US-13_7["US-13.7: Diagrams in the diagram-design Style"]
+    US-13_8["US-13.8: Diagram Theme from the Design Tokens"]
   end
   subgraph EPIC_14["EPIC-14: Remove Unused Model Paths"]
     US-14_1["US-14.1: Remove Unused Retrieval and the Reranker"]
@@ -482,6 +502,9 @@ flowchart TD
   US-13_1 -.-> US-13_5
   US-13_2 -.-> US-13_5
   US-13_4 -.-> US-13_5
+  US-13_4 -.-> US-13_6
+  US-13_6 -.-> US-13_7
+  US-13_7 -.-> US-13_8
   US-2_4 -.-> US-14_1
   US-4_4 -.-> US-14_1
   US-13_3 -.-> US-14_1
@@ -950,6 +973,31 @@ flowchart TD
   US-13_5 --> US-13_5_T2
   US-13_5_T3["#3 Record evidence/US-13.5/test-report.md"]
   US-13_5 --> US-13_5_T3
+  US-13_6["US-13.6: Diagram Text Stays Inside Its Container"]
+  US-13_6_T1["#1 Group each node, chip, and tag with its texts, …"]
+  US-13_6 --> US-13_6_T1
+  US-13_6_T2["#2 Fix every text that runs past its container"]
+  US-13_6 --> US-13_6_T2
+  US-13_6_T3["#3 Add tests test_us_13_6_node_text_fits, test_us_…"]
+  US-13_6 --> US-13_6_T3
+  US-13_6_T4["#4 Record evidence/US-13.6/test-report.md"]
+  US-13_6 --> US-13_6_T4
+  US-13_7["US-13.7: Diagrams in the diagram-design Style"]
+  US-13_7_T1["#1 Redraw the stakeholder, user, and request diagr…"]
+  US-13_7 --> US-13_7_T1
+  US-13_7_T2["#2 Add tests test_us_13_7_background_transparent, …"]
+  US-13_7 --> US-13_7_T2
+  US-13_7_T3["#3 Record evidence/US-13.7/test-report.md"]
+  US-13_7 --> US-13_7_T3
+  US-13_8["US-13.8: Diagram Theme from the Design Tokens"]
+  US-13_8_T1["#1 Save the theme as docs/assets/theme.css and col…"]
+  US-13_8 --> US-13_8_T1
+  US-13_8_T2["#2 Add tests test_us_13_8_colors_from_tokens, test…"]
+  US-13_8 --> US-13_8_T2
+  US-13_8_T3["#3 Update README-DEV.md (App flows) with the diagr…"]
+  US-13_8 --> US-13_8_T3
+  US-13_8_T4["#4 Record evidence/US-13.8/test-report.md"]
+  US-13_8 --> US-13_8_T4
 ```
 
 ### EPIC-14 detail
@@ -3224,17 +3272,17 @@ Scenario: The user diagram follows a case from upload to outcome
   When it is viewed
   Then it shows upload or paste, extraction and confirmation, diagnosis, drafting, edit and export, and the outcome, with the model each step uses
 
-Scenario: The developer diagram follows one request
+Scenario: The developer diagram follows one extraction
   Given docs/assets/flow-request.svg
   When it is viewed
-  Then it shows one extraction from the pane through plugin_api and the worker to the model server and the user corpus, in order
-  And the job's progress events repeat while the job runs
+  Then it shows one extraction from the pane through plugin_api and the worker to the model server and the user corpus, each message between the lifelines that exchange it, in order
+  And only the gateway's polling for progress events repeats, until the job ends
 
-Scenario: The diagrams are self-contained and readable in light and dark themes
+Scenario: The diagrams are self-contained and shown in the guide
   Given every diagram under docs/assets/
   When it is parsed
   Then it is a valid SVG with a title and no script, external reference, or embedded image
-  And it draws its own background and switches its colors for a dark color scheme
+  And it switches to the theme's light colors on a page that prefers a light color scheme
   And README-DEV.md shows every diagram
 ```
 
@@ -3248,7 +3296,11 @@ Tasks:
 - [x] Record evidence/US-13.4/test-report.md
 
 Open Questions:
-- None
+- Superseded in part by US-13.7 and US-13.8 (2026-11-01): the last two scenarios above replace
+  "The developer diagram follows one request" and "The diagrams are self-contained and readable in
+  light and dark themes". The diagrams no longer draw their own background (the canvas is
+  transparent), take the theme's colors, dark by default and light on a light page, and the request
+  diagram's loop holds only the gateway's polling.
 
 ### US-13.5: Product README for Y Combinator
 
@@ -3296,6 +3348,172 @@ Tasks:
 
 Open Questions:
 - None
+
+### US-13.6: Diagram Text Stays Inside Its Container
+
+Status: DONE
+
+As a reader of ClaimCoach's diagrams
+I want every word to sit inside its box, chip, or frame
+So that no label runs over a border or another shape, in any theme.
+
+Source:
+- User feedback 2026-11-01: in the dark theme, the stakeholder diagram's "rules · codes · templates" ran past the Global corpus shape
+- diagram-design `references/primitives-core.md` (size text with 0.60em per character for sans and 0.62em for mono; never estimate by eye)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: Node text fits its box
+  Given every diagram under docs/assets
+  When each text inside a node is measured
+  Then it fits inside the node's box with at least 8px of padding on each side
+
+Scenario: Labels and tags fit their chips
+  Given every arrow label and type tag
+  When its text is measured
+  Then it fits inside its chip
+
+Scenario: Free text stays on the canvas and off the nodes
+  Given every text that belongs to no node, chip, or tag
+  When it is measured
+  Then it stays inside the viewBox and overlaps no node
+
+Scenario: An overflow is named
+  Given a diagram whose text is wider than its box
+  When the check runs
+  Then it fails and names the text and its box
+```
+
+Dependencies:
+- US-13.4
+
+Tasks:
+- [x] Group each node, chip, and tag with its texts, and measure text with the diagram-design budget and font metrics, whichever is wider
+- [x] Fix every text that runs past its container
+- [x] Add tests test_us_13_6_node_text_fits, test_us_13_6_labels_fit_chips, test_us_13_6_free_text_on_canvas, test_us_13_6_overflow_is_named
+- [x] Record evidence/US-13.6/test-report.md
+
+Open Questions:
+- Which font does the measurement assume?
+  Default: the wider of diagram-design's per-character budget and the Helvetica, Courier, or
+  Times metrics PyMuPDF ships, with a 20% margin on the proportional ones for wider fallbacks
+  (DejaVu on Linux), so a system font that replaces Geist still fits.
+
+### US-13.7: Diagrams in the diagram-design Style
+
+Status: DONE
+
+As a stakeholder reading the README
+I want the diagrams drawn with one quiet, consistent design system on a transparent background
+So that they read as part of the product on any page.
+
+Source:
+- User request 2026-11-01: use github.com/cathrynlavery/diagram-design; transparent background; labels allowed
+- diagram-design `SKILL.md`, `references/primitives-core.md`, `style-guide.md`, `layout-budget.md`, `type-sequence.md`
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: The background is transparent
+  Given every diagram under docs/assets
+  When it is parsed
+  Then no shape paints the whole canvas
+
+Scenario: Connectors are orthogonal on a 4px grid
+  Given every diagram
+  When its connectors and boxes are read
+  Then every connector runs only horizontally or vertically, with rounded elbows
+  And every box's position and size is a multiple of 4
+
+Scenario: Nodes and labels follow the primitives
+  Given every diagram
+  When its nodes and labels are read
+  Then node boxes are 1px hairlines (1.2px for the accent) with a corner radius of at most 8 and no shadow or filter
+  And arrow labels are uppercase chips of at most 14 characters
+  And the title and description IDs carry the diagram's name
+
+Scenario: Each diagram stays within its complexity budget
+  Given every diagram
+  When its parts are counted
+  Then it has at most 9 nodes, 12 connectors, and 2 accent elements
+  And the sequence diagram has at most 5 lifelines, 12 messages, and 1 fragment
+```
+
+Dependencies:
+- US-13.6
+
+Tasks:
+- [x] Redraw the stakeholder, user, and request diagrams with diagram-design's node, connector, label, tag, legend, and sequence primitives on a transparent canvas
+- [x] Add tests test_us_13_7_background_transparent, test_us_13_7_connectors_orthogonal_on_grid, test_us_13_7_primitives_followed, test_us_13_7_within_budget
+- [x] Record evidence/US-13.7/test-report.md
+
+Open Questions:
+- Geist, Geist Mono, and Instrument Serif cannot load inside an SVG shown as an image.
+  Default: name them first in each font stack, with system fallbacks; US-13.6 measures for the
+  fallbacks.
+- The extraction job and the gateway's polling run at the same time, but a sequence diagram reads
+  top to bottom. Default: draw the job's steps once, then one `LOOP` frame over the polling only,
+  guarded `[until the job ends]`; README-DEV.md says the polling runs while the job does. The
+  request diagram is a sequence diagram, so its heads carry no type tag and its messages are mono
+  labels rather than chips (diagram-design `type-sequence.md`).
+
+### US-13.8: Diagram Theme from the Design Tokens
+
+Status: DONE
+
+As a developer keeping the docs consistent
+I want the diagrams to use the project's theme tokens, dark by default and light on a light page
+So that every color comes from one palette instead of hand-picked values.
+
+Source:
+- User request 2026-11-01: the theme's `:root` (light) and `.dark` tokens; "handle dark and light, for now use dark"
+- diagram-design `references/style-guide.md` (text 4.5:1, essential marks 3:1)
+
+Acceptance Criteria:
+
+```gherkin
+Scenario: Colors come from the theme tokens
+  Given docs/assets/theme.css and every diagram under docs/assets
+  When the diagram's colors are read
+  Then every fill and stroke is a theme token
+  And each token's light and dark values equal the theme's
+
+Scenario: Dark is the default
+  Given a diagram shown without a light color-scheme preference
+  When it renders
+  Then it uses the theme's dark values
+
+Scenario: Light is handled
+  Given a page that prefers a light color scheme
+  When a diagram renders on it
+  Then it uses the theme's light values
+
+Scenario: Text and marks stay readable in both themes
+  Given each theme
+  When text and marks are compared with what they sit on
+  Then text clears 4.5:1, and connectors, arrowheads, lifelines, zones, and the loop frame clear 3:1
+```
+
+Dependencies:
+- US-13.7
+
+Tasks:
+- [x] Save the theme as docs/assets/theme.css and color every diagram with its tokens, dark by default and light under prefers-color-scheme: light
+- [x] Add tests test_us_13_8_colors_from_tokens, test_us_13_8_dark_by_default, test_us_13_8_light_handled, test_us_13_8_contrast_in_both_themes
+- [x] Update README-DEV.md (App flows) with the diagram conventions
+- [x] Record evidence/US-13.8/test-report.md
+
+Open Questions:
+- The logo keeps its own colors?
+  Default: yes. The theme applies to graphs and diagrams; the logo is the brand mark US-13.1 pinned.
+- "For now use dark" on a transparent canvas leaves light text on a white page.
+  Default: dark is the default (`class="dark"` on the root), and the theme's light values apply
+  only when the viewer prefers a light color scheme, so the diagrams stay readable on a light page.
+- Which lines must clear 3:1?
+  Default: the ones that carry meaning (connectors, arrowheads, lifelines, zones, the loop frame,
+  and accents). Box hairlines, chips, tags, and the legend rule are decorative, since the text
+  inside names each box; in the light theme a node's `--border` hairline is about 1.3:1.
 
 # EPIC-14: Remove Unused Model Paths
 

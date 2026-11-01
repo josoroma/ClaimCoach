@@ -35,8 +35,16 @@ payer names, and redacted summaries, never a document.
 
 ![ClaimCoach PHI boundary: everything that reads a case stays on the Mac](docs/assets/flow-stakeholder.svg)
 
-**For billers: a case from upload to outcome.** Each step names the local model that does it. A
-person reviews every draft; nothing is sent to a payer.
+**For billers: a case from upload to outcome.** Each step names the local model that does it. Add
+the EOB, ERA, or denial letter as a PDF or image, or paste 835 text, which is read by rules, not a
+model. When every field
+was read, the diagnosis starts on its own; otherwise you confirm the unreadable fields first. The
+case then recommends an appeal or a corrected claim (a fixed table decides, not the model), and
+you can ask for either draft. A person reviews every draft; nothing is sent to a payer. A recorded
+payer call is transcribed after hours, so its reference number and the rep's instructions land in
+the case. `retention_days` (90 by default) after a case closes, its source documents are purged;
+the outcome stays, de-identified. A profile that opts in (`share_outcome_stats`) adds it to the
+manager's weekly summary and to the fine-tune export, which a manager approves each time.
 
 ![A ClaimCoach case: upload, extract, confirm, diagnose, draft, export, outcome](docs/assets/flow-user.svg)
 
@@ -46,6 +54,19 @@ job answers at once with a `job_id`; while it runs, the gateway long-polls the w
 `/jobs/{job_id}/events` and publishes each event to the pane as `plugin.claimcoach.case.progress`.
 
 ![A ClaimCoach request: pane, gateway, worker, model servers, and progress events](docs/assets/flow-request.svg)
+
+**Editing the diagrams.** They follow
+[diagram-design](https://github.com/cathrynlavery/diagram-design): hairline nodes with a type tag,
+a name, and a mono sublabel; orthogonal connectors with rounded elbows on a 4px grid; uppercase
+label chips; a legend strip; at most 9 nodes, 12 connectors, and 2 accent elements per diagram.
+The request diagram is a sequence diagram, so it follows diagram-design's sequence type instead:
+lifeline heads without a tag, plain mono message labels, solid calls, dashed returns, an open head
+for an event, and one `LOOP` frame with its guard.
+The canvas is transparent. Colors are the tokens in [docs/assets/theme.css](docs/assets/theme.css):
+each SVG copies the tokens it uses, is dark by default (`class="dark"` on the root), and switches
+to the light values on a page that prefers a light color scheme. Every text is measured against
+its box, chip, or tag, so a label that would run past its border fails `make check`
+(`tests/test_us_13_6_*` to `test_us_13_8_*`).
 
 ## Models
 
@@ -396,7 +417,7 @@ plugin/                     # the Hermes package (symlinked to ~/.hermes/plugins
 ├── skills/denial-triage/
 └── claimcoach/             # app package: api/, worker/, models/, corpus/, cases/, pipeline/, …
 tests/                      # pytest: test_us_<epic>_<n>_*.py, fakes/, hermes/ probe
-docs/runbooks/ · docs/adr/ · docs/assets/
+docs/runbooks/ · docs/adr/ · docs/assets/ (diagrams, theme.css)
 evidence/US-x.y/            # test reports + JUnit
 openspec/                   # OpenSpec changes (one per story) and specs
 ```

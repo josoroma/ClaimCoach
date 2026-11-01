@@ -1,122 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="t d">
-  <title id="t">ClaimCoach: what stays on the Mac</title>
-  <desc id="d">The biller's documents go from the ClaimCoach pane through plugin_api.py to the worker, the local model servers, and the encrypted user corpus, all on the Mac. The Hermes chat agent, which may run on a cloud model, gets only case IDs, codes, payer names, and redacted summaries from the agent tools. Model weights come in only after the user confirms each download. ClaimCoach never sends anything to a payer.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="dark" viewBox="0 0 968 600" width="968" height="600" role="img" aria-labelledby="flow-stakeholder-title flow-stakeholder-desc">
+  <title id="flow-stakeholder-title">ClaimCoach: what stays on the Mac</title>
+  <desc id="flow-stakeholder-desc">Case documents go from the ClaimCoach pane through plugin_api.py to the worker, the local models, and the encrypted user corpus, all on the Mac; the Hermes chat agent, which may run on a cloud model, gets only case IDs, codes, payer names, and redacted summaries from the agent tools; model weights come in only after the user confirms a download.</desc>
   <style>
-    .bg{fill:#FFFFFF}
-    .zone{fill:#EEF6F4;stroke:#0F5E59;stroke-width:2}
-    .out{fill:#FFF8EB;stroke:#D97706;stroke-width:2;stroke-dasharray:8 6}
-    .card{fill:#FFFFFF;stroke:#B9CCC8;stroke-width:1.5}
-    .key{fill:#FFFFFF;stroke:#0F5E59;stroke-width:2}
-    .ext{fill:#FFFFFF;stroke:#D97706;stroke-width:1.5}
-    .h{font:700 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#111827}
-    .zl{font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#0F5E59}
-    .ol{font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#B45309}
-    .b{font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#111827}
-    .s{font:400 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#4B5563}
-    .al{font:600 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#B45309}
-    .phi{stroke:#0F5E59;stroke-width:2.5;fill:none}
-    .safe{stroke:#6B7280;stroke-width:2;fill:none}
-    .leave{stroke:#D97706;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
-    .mphi{fill:#0F5E59}.msafe{fill:#6B7280}.mleave{fill:#D97706}
-    @media (prefers-color-scheme: dark){
-      .bg{fill:#0D1117}
-      .zone{fill:#0F2A27;stroke:#2DD4BF}
-      .out{fill:#2A2110;stroke:#F59E0B}
-      .card{fill:#161B22;stroke:#30363D}
-      .key{fill:#161B22;stroke:#2DD4BF}
-      .ext{fill:#161B22;stroke:#F59E0B}
-      .h,.b{fill:#E6EDF3}
-      .zl{fill:#5EEAD4}
-      .ol,.al{fill:#FBBF24}
-      .s{fill:#9DA7B3}
-      .phi{stroke:#2DD4BF}.safe{stroke:#8B949E}.leave{stroke:#F59E0B}
-      .mphi{fill:#2DD4BF}.msafe{fill:#8B949E}.mleave{fill:#F59E0B}
-    }
+    :root{--background:oklch(1 0 0);--foreground:oklch(0.145 0 0);--card:oklch(1 0 0);--card-foreground:oklch(0.145 0 0);--primary:oklch(0.205 0 0);--secondary:oklch(0.97 0 0);--secondary-foreground:oklch(0.205 0 0);--muted:oklch(0.97 0 0);--muted-foreground:oklch(0.556 0 0);--border:oklch(0.922 0 0);--ring:oklch(0.708 0 0);--chart-2:oklch(0.556 0 0);}
+    .dark{--background:oklch(0.145 0 0);--foreground:oklch(0.985 0 0);--card:oklch(0.205 0 0);--card-foreground:oklch(0.985 0 0);--primary:oklch(0.922 0 0);--secondary:oklch(0.269 0 0);--secondary-foreground:oklch(0.985 0 0);--muted:oklch(0.269 0 0);--muted-foreground:oklch(0.708 0 0);--border:oklch(1 0 0 / 10%);--ring:oklch(0.556 0 0);--chart-2:oklch(0.556 0 0);}
+    @media (prefers-color-scheme: light){:root.dark{--background:oklch(1 0 0);--foreground:oklch(0.145 0 0);--card:oklch(1 0 0);--card-foreground:oklch(0.145 0 0);--primary:oklch(0.205 0 0);--secondary:oklch(0.97 0 0);--secondary-foreground:oklch(0.205 0 0);--muted:oklch(0.97 0 0);--muted-foreground:oklch(0.556 0 0);--border:oklch(0.922 0 0);--ring:oklch(0.708 0 0);--chart-2:oklch(0.556 0 0);}}
+    text{font-family:Geist,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;stroke:none}
+    rect.node{fill:var(--card);stroke:var(--border);stroke-width:1}
+    rect.node-accent{fill:var(--card);stroke:var(--primary);stroke-width:1.2}
+    rect.node-optional{fill:var(--card);stroke:var(--chart-2);stroke-width:1;stroke-dasharray:4 3}
+    rect.zone{fill:none;stroke:var(--chart-2);stroke-width:1;stroke-dasharray:4 3}
+    rect.zone-accent{fill:none;stroke:var(--primary);stroke-width:1.2}
+    rect.tag{fill:none;stroke:var(--ring);stroke-width:0.8}
+    rect.chip{fill:var(--secondary);stroke:var(--border);stroke-width:0.8}
+    rect.frame{fill:var(--muted);fill-opacity:0.35;stroke:var(--chart-2);stroke-width:1}
+    rect.tab{fill:var(--secondary);stroke:var(--chart-2);stroke-width:1}
+    path.rule{fill:none;stroke:var(--border);stroke-width:0.8}
+    path.life{fill:none;stroke:var(--chart-2);stroke-width:1;stroke-dasharray:3 3}
+    path.arrow{fill:none;stroke:var(--muted-foreground);stroke-width:1}
+    path.nophi{stroke-dasharray:5 4}
+    path.return{stroke-dasharray:5 4}
+    path.arrow-accent{fill:none;stroke:var(--primary);stroke-width:1.2}
+    polygon.head{fill:var(--muted-foreground)}
+    polygon.head-accent{fill:var(--primary)}
+    polyline.head-open{fill:none;stroke:var(--muted-foreground);stroke-width:1.2}
+    .name{fill:var(--card-foreground);font-size:14px;font-weight:600}
+    .sub{fill:var(--muted-foreground);font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}
+    .tagtext{fill:var(--muted-foreground);font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:8px;font-weight:500;letter-spacing:0.08em}
+    .label{fill:var(--secondary-foreground);font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;letter-spacing:0.06em}
+    .eyebrow{fill:var(--muted-foreground);font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:500;letter-spacing:0.14em}
+    .msg{fill:var(--foreground);font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px}
+    .guard{fill:var(--muted-foreground);font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px}
+    .callout{fill:var(--muted-foreground);font-family:"Instrument Serif",Georgia,"Times New Roman",serif;font-style:italic;font-size:14px}
+    .legend{fill:var(--muted-foreground);font-size:12px}
   </style>
-  <defs>
-    <marker id="a-phi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mphi" d="M0 0L10 5L0 10z"/></marker>
-    <marker id="a-safe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="msafe" d="M0 0L10 5L0 10z"/></marker>
-    <marker id="a-leave" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mleave" d="M0 0L10 5L0 10z"/></marker>
-  </defs>
-  <rect class="bg" x="0" y="0" width="1200" height="600" rx="16"/>
-  <text class="h" x="28" y="40">ClaimCoach: what stays on the Mac</text>
-
-  <rect class="zone" x="16" y="60" width="894" height="520" rx="18"/>
-  <text class="zl" x="36" y="88">This Mac: case documents and PHI never leave it</text>
-  <rect class="out" x="930" y="60" width="254" height="520" rx="18"/>
-  <text class="ol" x="950" y="88">Outside the Mac</text>
-
-  <rect class="card" x="40" y="110" width="130" height="72" rx="10"/>
-  <text class="b" x="56" y="140">Biller or</text>
-  <text class="b" x="56" y="160">manager</text>
-
-  <rect class="key" x="200" y="110" width="150" height="72" rx="10"/>
-  <text class="b" x="214" y="140">ClaimCoach pane</text>
-  <text class="s" x="214" y="162">Hermes Desktop</text>
-
-  <rect class="key" x="380" y="110" width="150" height="72" rx="10"/>
-  <text class="b" x="394" y="140">plugin_api.py</text>
-  <text class="s" x="394" y="162">Hermes gateway</text>
-
-  <rect class="key" x="560" y="110" width="150" height="72" rx="10"/>
-  <text class="b" x="574" y="140">Worker</text>
-  <text class="s" x="574" y="162">127.0.0.1:18200</text>
-
-  <rect class="key" x="740" y="110" width="150" height="72" rx="10"/>
-  <text class="b" x="754" y="140">Local models</text>
-  <text class="s" x="754" y="162">MLX, 8B to 27B</text>
-
-  <rect class="card" x="200" y="252" width="150" height="78" rx="10"/>
-  <text class="b" x="214" y="280">PDF or DOCX</text>
-  <text class="s" x="214" y="300">for human review;</text>
-  <text class="s" x="214" y="318">you save and file it</text>
-
-  <path class="card" d="M440 262a75 12 0 0 1 150 0v58a75 12 0 0 1-150 0z"/>
-  <path class="card" d="M440 262a75 12 0 0 0 150 0"/>
-  <text class="b" x="456" y="296">Global corpus</text>
-  <text class="s" x="456" y="316">rules · codes · templates</text>
-
-  <path class="key" d="M670 262a75 12 0 0 1 150 0v58a75 12 0 0 1-150 0z"/>
-  <path class="key" d="M670 262a75 12 0 0 0 150 0"/>
-  <text class="b" x="686" y="296">User corpus</text>
-  <text class="s" x="686" y="316">cases, encrypted</text>
-
-  <rect class="card" x="560" y="400" width="150" height="72" rx="10"/>
-  <text class="b" x="574" y="430">Agent tools</text>
-  <text class="s" x="574" y="452">redact their results</text>
-
-  <rect class="ext" x="955" y="110" width="210" height="72" rx="10"/>
-  <text class="b" x="970" y="140">Model weights</text>
-  <text class="s" x="970" y="160">Hugging Face, only after</text>
-  <text class="s" x="970" y="176">you confirm each one</text>
-
-  <rect class="ext" x="955" y="252" width="210" height="78" rx="10"/>
-  <text class="b" x="970" y="280">Payers</text>
-  <text class="s" x="970" y="300">ClaimCoach never sends,</text>
-  <text class="s" x="970" y="318">submits, faxes, or e-mails</text>
-
-  <rect class="ext" x="955" y="400" width="210" height="72" rx="10"/>
-  <text class="b" x="970" y="430">Hermes chat agent</text>
-  <text class="s" x="970" y="452">may run on a cloud model</text>
-
-  <path class="phi" d="M170 146H196" marker-end="url(#a-phi)"/>
-  <path class="phi" d="M350 146H376" marker-end="url(#a-phi)"/>
-  <path class="phi" d="M530 146H556" marker-end="url(#a-phi)"/>
-  <path class="phi" d="M710 146H736" marker-end="url(#a-phi)"/>
-  <path class="phi" d="M275 182V248" marker-end="url(#a-phi)"/>
-  <path class="safe" d="M600 182L548 248" marker-end="url(#a-safe)"/>
-  <path class="phi" d="M670 182L722 248" marker-end="url(#a-phi)"/>
-  <path class="safe" d="M635 186V396" marker-start="url(#a-safe)" marker-end="url(#a-safe)"/>
-  <path class="leave" d="M710 436H951" marker-end="url(#a-leave)"/>
-  <text class="al" x="726" y="418">case IDs, codes, payer</text>
-  <text class="al" x="726" y="460">names, redacted summaries</text>
-  <path class="leave" d="M955 146H894" marker-end="url(#a-leave)"/>
-
-  <path class="phi" d="M40 520H84" marker-end="url(#a-phi)"/>
-  <text class="s" x="94" y="524">case content (PHI), loopback only</text>
-  <path class="safe" d="M330 520H374" marker-end="url(#a-safe)"/>
-  <text class="s" x="384" y="524">no PHI</text>
-  <path class="leave" d="M470 520H514" marker-end="url(#a-leave)"/>
-  <text class="s" x="524" y="524">crosses the Mac's edge, never with case content</text>
-  <text class="s" x="40" y="556">The user corpus is AES-256-GCM encrypted per value, with its key in the macOS Keychain. Logs, events, and agent tool results are redacted.</text>
+  <defs><marker id="flow-stakeholder-head" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon class="head" points="0 0, 8 3, 0 6"/></marker><marker id="flow-stakeholder-head-accent" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon class="head-accent" points="0 0, 8 3, 0 6"/></marker><marker id="flow-stakeholder-head-open" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polyline class="head-open" points="0 0, 8 3, 0 6"/></marker></defs>
+  <rect class="zone-accent" x="24" y="24" width="920" height="344" rx="8"/>
+  <rect class="zone" x="24" y="400" width="920" height="112" rx="4"/>
+  <path class="arrow" d="M248 100H272" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow" d="M472 100H496" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow" d="M696 100H720" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow" d="M148 136V248" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow nophi" d="M544 136V168A8 8 0 0 1 536 176H380A8 8 0 0 0 372 184V248" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow" d="M596 136V248" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow nophi" d="M648 136V192A8 8 0 0 0 656 200H812A8 8 0 0 1 820 208V248" marker-end="url(#flow-stakeholder-head)"/>
+  <path class="arrow-accent nophi" d="M820 320V424" marker-end="url(#flow-stakeholder-head-accent)"/>
+  <path class="rule" d="M24 544H944"/>
+  <text class="eyebrow" x="40" y="44">THIS MAC · CASE CONTENT STAYS HERE</text>
+  <text class="eyebrow" x="40" y="420">OUTSIDE THE MAC</text>
+  <g class="node"><rect class="node" x="48" y="64" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="56" y="72" width="20" height="12" rx="2"/><text class="tagtext" x="66" y="81" text-anchor="middle">UI</text></g><text class="name" x="56" y="106">ClaimCoach pane</text><text class="sub" x="56" y="122">Hermes Desktop</text></g>
+  <g class="node"><rect class="node" x="272" y="64" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="280" y="72" width="48" height="12" rx="2"/><text class="tagtext" x="304" y="81" text-anchor="middle">GATEWAY</text></g><text class="name" x="280" y="106">plugin_api.py</text><text class="sub" x="280" y="122">/api/plugins/claimcoach</text></g>
+  <g class="node"><rect class="node" x="496" y="64" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="504" y="72" width="44" height="12" rx="2"/><text class="tagtext" x="526" y="81" text-anchor="middle">WORKER</text></g><text class="name" x="504" y="106">Worker</text><text class="sub" x="504" y="122">127.0.0.1:18200</text></g>
+  <g class="node"><rect class="node" x="720" y="64" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="728" y="72" width="28" height="12" rx="2"/><text class="tagtext" x="742" y="81" text-anchor="middle">MLX</text></g><text class="name" x="728" y="106">Local models</text><text class="sub" x="728" y="122">7 roles · loopback</text></g>
+  <g class="node"><rect class="node" x="48" y="248" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="56" y="256" width="32" height="12" rx="2"/><text class="tagtext" x="72" y="265" text-anchor="middle">FILE</text></g><text class="name" x="56" y="290">PDF or DOCX</text><text class="sub" x="56" y="306">draft for human review</text></g>
+  <g class="node"><rect class="node" x="272" y="248" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="280" y="256" width="44" height="12" rx="2"/><text class="tagtext" x="302" y="265" text-anchor="middle">SQLITE</text></g><text class="name" x="280" y="290">Global corpus</text><text class="sub" x="280" y="306">rules · codes · templates</text></g>
+  <g class="node"><rect class="node" x="496" y="248" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="504" y="256" width="44" height="12" rx="2"/><text class="tagtext" x="526" y="265" text-anchor="middle">SQLITE</text></g><text class="name" x="504" y="290">User corpus</text><text class="sub" x="504" y="306">AES-256 · Keychain key</text></g>
+  <g class="node"><rect class="node" x="720" y="248" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="728" y="256" width="44" height="12" rx="2"/><text class="tagtext" x="750" y="265" text-anchor="middle">HERMES</text></g><text class="name" x="728" y="290">Agent tools</text><text class="sub" x="728" y="306">redact every result</text></g>
+  <g class="node"><rect class="node-optional" x="720" y="424" width="200" height="72" rx="6"/><g class="tag"><rect class="tag" x="728" y="432" width="76" height="12" rx="2"/><text class="tagtext" x="766" y="441" text-anchor="middle">MAY BE CLOUD</text></g><text class="name" x="728" y="466">Hermes chat agent</text><text class="sub" x="728" y="482">IDs · codes · payer names</text></g>
+  <g class="chip"><rect class="chip" x="156" y="184" width="80" height="16" rx="2"/><text class="label" x="196" y="195" text-anchor="middle">YOU FILE IT</text></g>
+  <g class="chip"><rect class="chip" x="380" y="208" width="88" height="16" rx="2"/><text class="label" x="424" y="219" text-anchor="middle">BY EXACT KEY</text></g>
+  <g class="chip"><rect class="chip" x="536" y="208" width="52" height="16" rx="2"/><text class="label" x="562" y="219" text-anchor="middle">SEALED</text></g>
+  <g class="chip"><rect class="chip" x="700" y="176" width="64" height="16" rx="2"/><text class="label" x="732" y="187" text-anchor="middle">REDACTED</text></g>
+  <g class="chip"><rect class="chip" x="828" y="376" width="92" height="16" rx="2"/><text class="label" x="874" y="387" text-anchor="middle">REDACTED ONLY</text></g>
+  <text class="callout" x="48" y="452">Model weights arrive only after you confirm a download.</text>
+  <text class="callout" x="48" y="480">Nothing is sent to a payer: you file the export yourself.</text>
+  <text class="eyebrow" x="24" y="568">LEGEND</text>
+  <path class="arrow sample" d="M104 564H136" marker-end="url(#flow-stakeholder-head)"/>
+  <text class="legend" x="144" y="568">case content (PHI)</text>
+  <path class="arrow nophi sample" d="M308 564H340" marker-end="url(#flow-stakeholder-head)"/>
+  <text class="legend" x="348" y="568">no case content</text>
+  <path class="arrow-accent nophi sample" d="M488 564H520" marker-end="url(#flow-stakeholder-head-accent)"/>
+  <text class="legend" x="528" y="568">leaves the Mac, redacted</text>
 </svg>
