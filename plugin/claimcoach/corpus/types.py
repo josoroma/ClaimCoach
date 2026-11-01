@@ -7,7 +7,7 @@ Implements: US-4.1 (``CorpusScope``, ``Document``, ``Chunk``, ``CaseRecord``, ``
 ``CaseItemKind``), US-5.2 (``case_extracted`` and ``field_confirmed`` audit actions), US-6.1 (the
 ``diagnosis`` case item and the ``case_diagnosed`` audit action), US-7.1 (the ``draft`` case item
 and the ``case_drafted`` audit action), US-7.2 (the ``draft_edited`` and ``draft_exported`` audit
-actions). Rules:
+actions), US-8.2 (``OutcomeRow``: an outcome as the manager's summary reads it). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-5, BR-7, BR-14 (status and audit bodies carry
 IDs, counts, and dates only; document text appears only in ``Document``, ``Chunk``,
 ``RetrievedChunk``, and ``CaseItem``, which never leave the worker).
@@ -34,6 +34,7 @@ from pydantic import (
 
 __all__ = [
     "DEFAULT_PROFILE",
+    "MAX_FEATURES_CHARS",
     "PROFILE_PATTERN",
     "AuditAction",
     "AuditEntry",
@@ -50,6 +51,7 @@ __all__ = [
     "DocumentKind",
     "IndexInfo",
     "OutcomeRecord",
+    "OutcomeRow",
     "ProfileName",
     "PurgeReport",
     "PurgeRequest",
@@ -228,6 +230,26 @@ class OutcomeRecord(_Strict):
     case_id: CaseId
     outcome: CaseOutcome
     recorded_at: Timestamp
+
+
+MAX_FEATURES_CHARS: Final = 65536
+"""Longest stored outcome snapshot; a longer one is stored without its claim facts (US-8.3)."""
+
+
+class OutcomeRow(_Strict):
+    """One stored outcome as the manager's weekly summary reads it: no case ID (US-8.2).
+
+    Attributes:
+        outcome: How the case ended.
+        recorded_at: When the biller recorded it.
+        features: The de-identified snapshot taken when it was recorded, as JSON
+            (``claimcoach.outcomes.features.OutcomeFeatures``); ``None`` for outcomes recorded
+            before US-8.2 or without one.
+    """
+
+    outcome: CaseOutcome
+    recorded_at: Timestamp
+    features: str | None = Field(default=None, max_length=MAX_FEATURES_CHARS)
 
 
 class IndexInfo(_Strict):

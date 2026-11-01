@@ -202,9 +202,11 @@ class Extractor:
         Raises:
             ModelUnavailableError: The extraction model is missing or stopped answering.
             ModelBusyError: The memory guard kept the model queued too long.
+            CaseClosedError: The case was closed before the job ran (checked before any model).
             CorpusError: The case store failed (for example the case was closed meanwhile).
         """
         report("extracting", 0.0)
+        await asyncio.to_thread(self.cases.check_open, profile, case_id)
         sources = await asyncio.to_thread(self.cases.sources, profile, case_id)
         # 835 text first: it is exact, so its lines win over a scanned copy of the same claim.
         ordered = sorted(sources, key=lambda source: source[0].kind != "edi_835")

@@ -33,6 +33,7 @@ RUNBOOKS = (
     "case-intake-extraction",
     "case-diagnosis",
     "appeal-drafting",
+    "outcomes-and-export",
 )
 SECTIONS = ("Preconditions", "Steps", "Verification", "Rollback")
 

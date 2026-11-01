@@ -4,13 +4,13 @@ Implements: US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST /cases/{ca
 with the raw single-file multipart body, ``POST /cases/{case_id}/paste``), US-5.2 (``POST
 /cases/{case_id}/extract`` starts a job, ``POST /cases/{case_id}/fields`` confirms a value, ``GET
 /jobs/{job_id}/events`` long-polls a job's progress), US-6.1 (``POST /cases/{case_id}/diagnose``
-starts a diagnosis job), US-7.1 (``POST /cases/{case_id}/draft`` starts a draft job), US-7.2
-(``POST /cases/{case_id}/draft/text`` saves the biller's edits; ``POST /cases/{case_id}/export``
-writes the stored draft as a PDF or DOCX file on this Mac). Rules: ES-8 (typed bodies; ``CaseError``
-and ``CorpusError`` become their fixed envelopes in ``create_app``), BR-2 (case content reaches the
-worker only from the gateway), BR-4 (no route sends, submits, or transmits anything: an export is a
-file the biller saves; ``test_us_7_3_no_transmitting_route`` pins the route set), BR-14 (no content
-is logged).
+starts a diagnosis job), US-7.1 (``POST /cases/{case_id}/draft`` starts a draft job), US-7.2 (``POST
+/cases/{case_id}/draft/text`` saves the biller's edits; ``POST /cases/{case_id}/export`` writes the
+stored draft as a PDF or DOCX file on this Mac), US-8.1 (``POST /cases/{case_id}/outcome`` records
+how the case ended and closes it). Rules: ES-8 (typed bodies; ``CaseError`` and ``CorpusError``
+become their fixed envelopes in ``create_app``), BR-2 (case content reaches the worker only from the
+gateway), BR-4 (no route sends, submits, or transmits anything: an export is a file the biller
+saves; ``test_us_7_3_no_transmitting_route`` pins the route set), BR-14 (no content is logged).
 
 Store calls run off the event loop (``asyncio.to_thread`` or plain ``def`` routes): opening a user
 store may prompt the Keychain, and sealing a 16 MiB file takes a moment.
@@ -25,7 +25,13 @@ from fastapi import APIRouter, Depends, Path, Query, Request
 
 from claimcoach.cases.extraction import FieldConfirmation, JobEvents, JobStarted
 from claimcoach.cases.intake import parse_upload, read_limited
-from claimcoach.cases.models import MAX_UPLOAD_BODY, Case, DocumentAdded, PastedText
+from claimcoach.cases.models import (
+    MAX_UPLOAD_BODY,
+    Case,
+    DocumentAdded,
+    OutcomeRequest,
+    PastedText,
+)
 from claimcoach.cases.service import CaseService
 from claimcoach.corpus.types import DEFAULT_PROFILE, CaseId, ProfileName
 from claimcoach.events import JOB_ID_PATTERN
@@ -201,6 +207,25 @@ async def export(
         return written
 
     return await asyncio.to_thread(write)
+
+
+@router.post("/{case_id}/outcome", response_model=Case)
+async def record_outcome(
+    case_id: CasePath,
+    body: OutcomeRequest,
+    cases: Cases,
+    request: Request,
+    profile: Profile = DEFAULT_PROFILE,
+) -> Case:
+    """Store how the case ended and close it (US-8.1); refused while a job runs on the case.
+
+    Raises:
+        ModelBusyError: A job is running on the case; it could not save once the case closed.
+    """
+    jobs = getattr(request.app.state, "jobs", None)
+    if jobs is not None and cast("JobRegistry", jobs).running(profile, case_id) is not None:
+        raise ModelBusyError
+    return await asyncio.to_thread(cases.record_outcome, profile, case_id, body.outcome)
 
 
 @router.post("/{case_id}/fields", response_model=Case)

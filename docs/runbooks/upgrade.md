@@ -46,6 +46,7 @@ make worker-health
 | before US-6.1 | Each user store's `case_items` table is rebuilt once so its CHECK accepts every case-item kind (`diagnosis` from US-6.1); rows are copied unchanged, in one transaction | When the worker first opens the store | `test_us_6_1_case_items_check_migrates` |
 | before US-6.3 | None at upgrade: an extraction stored earlier reads its new `denial_date` field as unreadable. Every extraction stored or confirmed afterwards holds `denial_date`, which an earlier version refuses to read | — | `test_us_6_3_older_extraction_loads` |
 | before US-7.1 | The same `case_items` rebuild, once, so the CHECK accepts `draft` | When the worker first opens the store | `test_us_7_1_a_us_6_store_accepts_drafts` |
+| before US-8.2 | `ALTER TABLE outcomes ADD COLUMN features TEXT`, once; existing outcomes keep `NULL` and count as unclassified in the weekly summary and as unlabeled in the fine-tune export | When the worker first opens the store | `test_us_8_2_an_older_outcomes_table_gains_features` |
 
 ### Configuration changes
 
@@ -56,6 +57,7 @@ the table below says the worker migrates it.
 | From | Change to the copy | Why |
 | --- | --- | --- |
 | before US-7.1 | The worker adds `"--reasoning", "off"` to the `drafting` role's `command` on its next start when the copy still holds the old shipped line unchanged (`test_us_7_1_unedited_drafting_command_migrates`). If you edited that line, append `"--reasoning", "off"` to its list yourself, then `make worker-stop` and `make worker-start` | With the default (`auto`), Bonsai 27B's hidden reasoning spends the reply's token budget and every draft ends `drafting_failed` ([appeal-drafting](appeal-drafting.md)) |
+| before US-8.2 | None: `share_outcome_stats` is off until a profile turns it on in Settings → Plugins → ClaimCoach. An earlier version that reads a config holding it treats the unknown key as invalid and uses its defaults for the settings it reads through Hermes (richer agent access stays off; retention is read on its own) | Sharing outcomes with the manager is opt-in (US-8.2) |
 
 ## Rollback
 
@@ -74,3 +76,7 @@ case items it does not know, such as diagnoses. It cannot read an extraction sto
 by US-6.3 or later (its model forbids the `denial_date` field), so such a case would not open:
 rolling back past US-6.3 means restoring the backup taken before the upgrade
 ([corpus runbook](corpus-import-reindex-backup-restore.md)), which loses the work done since.
+
+Before US-8.1 no route recorded an outcome, so a store has outcome rows only from this version on.
+An earlier version reads them (it selects the columns it knows) but cannot record one into the
+four-column table; rolling back past US-8.1 loses only the ability to mark outcomes.

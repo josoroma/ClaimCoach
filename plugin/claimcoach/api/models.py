@@ -7,7 +7,8 @@ Implements: US-1.2 (worker 401 envelope), US-1.3 (``ApiError``, ``ErrorEnvelope`
 (``document_too_large``, ``unsupported_document``, ``case_closed``), US-5.2
 (``no_documents``, ``job_not_found``, ``extraction_failed``, ``processing_timeout``), US-6.1
 (``not_extracted``, ``diagnosis_failed``), US-7.1 (``not_diagnosed``, ``no_letter_template``,
-``drafting_failed``), US-7.2 (``not_drafted``, ``draft_edited``). Rules: ES-1
+``drafting_failed``), US-7.2 (``not_drafted``, ``draft_edited``), US-8.3 (``export_not_approved``).
+Rules: ES-1
 (Pydantic v2 for every REST body), ES-8 (typed success model or the envelope ``{"ok": false,
 "error": {"code", "message"}}``), BR-14 (messages are fixed strings and never carry document text).
 """
@@ -59,6 +60,7 @@ ErrorCode = Literal[
     "drafting_failed",
     "not_drafted",
     "draft_edited",
+    "export_not_approved",
 ]
 """Closed set of error codes the desktop half can switch on."""
 
@@ -97,6 +99,8 @@ ERROR_MESSAGES: Final[dict[ErrorCode, str]] = {
     "not_drafted": "Draft the appeal before editing or exporting it.",
     "draft_edited": "The draft was edited while a new one was being drafted, so the edits were "
     "kept; draft again to replace them.",
+    "export_not_approved": "A fine-tune export needs the manager's explicit approval; nothing was "
+    "exported.",
 }
 """One fixed, PHI-free message per code; no caller text is ever echoed (BR-14)."""
 

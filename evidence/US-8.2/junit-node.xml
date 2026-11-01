@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/appeal_draft.test.mjs" time="0.156962" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_diagnosis.test.mjs" time="0.149753" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.162529" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.162133" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_outcome.test.mjs" time="0.148747" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.152798" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testsuite name="US-8.2 only opted-in profiles are aggregated" time="0.002615" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T21:42:34.127Z" hostname="iX-00277">
+		<testcase name="test_us_8_2_dashboard_shows_the_weekly_summary" time="0.002025" classname="US-8.2 only opted-in profiles are aggregated" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/dashboard.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.163163" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.149490" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 9 -->
+	<!-- suites 1 -->
+	<!-- pass 9 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 175.702 -->
+</testsuites>

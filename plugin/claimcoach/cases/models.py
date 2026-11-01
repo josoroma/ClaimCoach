@@ -4,7 +4,8 @@ Implements: US-5.1 (``CaseCreate``, ``PastedText``, ``SourceDocument``, ``Case``
 ``DocumentAdded``, and the intake limits), US-5.2 (``Case`` carries the extraction and the fields
 that need confirmation), US-6.1 (``Case`` carries the diagnosis and whether it is stale), US-6.3
 (``Case`` carries the appeal deadline), US-7.1 (``Case`` carries the appeal draft, labeled "draft
-for human review", and whether it is stale). Rules:
+for human review", and whether it is stale), US-8.1 (``OutcomeRequest``; ``Case`` carries the
+recorded outcome). Rules:
 ES-1 (Pydantic v2, ``extra="forbid"``, frozen), BR-2 (these bodies travel pane →
 ``plugin_api.py`` → worker only), BR-14 (they carry case content, so they are never logged and
 never reach an agent tool or an event).
@@ -20,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from claimcoach.cases.diagnosis import AppealDeadline, Diagnosis
 from claimcoach.cases.extraction import CaseExtraction
-from claimcoach.corpus.types import CaseId, Timestamp
+from claimcoach.corpus.types import CaseId, CaseOutcome, OutcomeRecord, Timestamp
 from claimcoach.letters.types import AppealDraft
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     "Case",
     "CaseCreate",
     "DocumentAdded",
+    "OutcomeRequest",
     "PastedText",
     "SourceDocument",
     "SourceKind",
@@ -107,6 +109,7 @@ class Case(_Strict):
         draft: Its appeal draft, once drafting ran (US-7.1), with the biller's edits (US-7.2).
         draft_stale: The fields or the diagnosis changed after the draft was made, so the pane
             asks the biller to check it or draft again.
+        outcome: How the case ended, once the biller recorded it (US-8.1); the case is closed.
     """
 
     ok: Literal[True] = True
@@ -121,6 +124,17 @@ class Case(_Strict):
     deadline: AppealDeadline | None = None
     draft: AppealDraft | None = None
     draft_stale: bool = False
+    outcome: OutcomeRecord | None = None
+
+
+class OutcomeRequest(_Strict):
+    """``POST /cases/{case_id}/outcome``: how the case ended (US-8.1). An enum, nothing free-text.
+
+    Attributes:
+        outcome: ``overturned``, ``upheld``, or ``written_off``.
+    """
+
+    outcome: CaseOutcome
 
 
 class DocumentAdded(_Strict):

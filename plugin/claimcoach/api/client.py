@@ -7,7 +7,9 @@ download, and conversion calls; the worker's own model error codes reach the des
 reindex, purge, and audit calls for the ``hermes claimcoach corpus`` command), US-5.1 (case
 creation, open, upload, and paste calls; an upload is forwarded as the raw multipart body), US-5.2
 (start extraction, long-poll a job's events, confirm a field), US-6.1 (start a diagnosis), US-7.1
-(start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac).
+(start a draft), US-7.2 (save the biller's edits, export the draft to a file on this Mac), US-8.1
+(record a case's outcome), US-8.2 (the manager's weekly summary), US-8.3 (the manager-approved
+fine-tune export).
 Rules: ES-1, ES-8, PC-4 (the gateway only proxies; heavy work runs in the worker), BR-14 (a relayed
 error keeps only its code; the message is the fixed one for that code).
 """
@@ -22,7 +24,7 @@ from pydantic import BaseModel, ValidationError
 
 from claimcoach.api.models import ErrorCode, ErrorEnvelope, HealthResponse
 from claimcoach.cases.extraction import FieldConfirmation, JobEvents, JobStarted
-from claimcoach.cases.models import Case, DocumentAdded, PastedText
+from claimcoach.cases.models import Case, DocumentAdded, OutcomeRequest, PastedText
 from claimcoach.corpus.bundle import CorpusBundle, CorpusViewResponse, ImportResult
 from claimcoach.corpus.types import (
     AuditResponse,
@@ -39,6 +41,7 @@ from claimcoach.models.types import (
     DownloadRequest,
     ModelsStatusResponse,
 )
+from claimcoach.outcomes.types import FineTuneExport, FineTuneExportRequest, WeeklySummary
 from claimcoach.redact.types import RedactRequest, RedactResponse
 
 __all__ = [
@@ -75,6 +78,7 @@ RELAYED_CODES: Final[dict[ErrorCode, int]] = {
     "not_diagnosed": 409,
     "no_letter_template": 409,
     "not_drafted": 409,
+    "export_not_approved": 403,
 }
 """Worker error codes the desktop half acts on, with the status the gateway answers them with."""
 
@@ -373,6 +377,42 @@ class WorkerClient:
             body,
             params={"profile": profile},
             timeout=CASE_TIMEOUT,
+        )
+
+    async def record_outcome(self, profile: str, case_id: str, body: OutcomeRequest) -> Case:
+        """Store how the case ended, which closes it (US-8.1).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. Nothing changes then.
+        """
+        return await self._request(
+            "POST",
+            f"/cases/{case_id}/outcome",
+            Case,
+            body,
+            params={"profile": profile},
+            timeout=CASE_TIMEOUT,
+        )
+
+    async def weekly_summary(self, week: str | None) -> WeeklySummary:
+        """Return the manager's summary of ``week``, the last completed week by default (US-8.2).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why.
+        """
+        params = {} if week is None else {"week": week}
+        return await self._request(
+            "GET", "/outcomes/summary", WeeklySummary, params=params, timeout=CASE_TIMEOUT
+        )
+
+    async def export_fine_tune(self, body: FineTuneExportRequest) -> FineTuneExport:
+        """Write the manager-approved, de-identified fine-tune export (US-8.3).
+
+        Raises:
+            WorkerError: The call failed; the subclass names why. No file is written then.
+        """
+        return await self._request(
+            "POST", "/outcomes/export", FineTuneExport, body, timeout=CASE_TIMEOUT
         )
 
     async def job_events(self, job_id: str, after: int, wait: float) -> JobEvents:

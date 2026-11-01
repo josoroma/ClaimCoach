@@ -69,7 +69,10 @@ GATEWAY_ROUTES: Final = {
     ("POST", "/cases/{case_id}/draft"),
     ("POST", "/cases/{case_id}/draft/text"),
     ("POST", "/cases/{case_id}/export"),
+    ("POST", "/cases/{case_id}/outcome"),
     ("POST", "/cases/{case_id}/fields"),
+    ("GET", "/outcomes/summary"),
+    ("POST", "/outcomes/export"),
 }
 """Every ``plugin_api.py`` route; each proxies to the loopback worker. Review before changing."""
 
@@ -96,8 +99,11 @@ WORKER_ROUTES: Final = {
     ("POST", "/cases/{case_id}/draft"),
     ("POST", "/cases/{case_id}/draft/text"),
     ("POST", "/cases/{case_id}/export"),
+    ("POST", "/cases/{case_id}/outcome"),
     ("POST", "/cases/{case_id}/fields"),
     ("GET", "/jobs/{job_id}/events"),
+    ("GET", "/outcomes/summary"),
+    ("POST", "/outcomes/export"),
 }
 """Every worker route with every optional part mounted. Review before changing."""
 

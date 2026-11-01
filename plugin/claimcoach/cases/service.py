@@ -5,7 +5,9 @@ uploaded file or pasted text), US-5.2 (the sources extraction reads, the stored 
 field confirmation), US-6.1 (the extraction diagnosis reads, the stored diagnosis, and whether it is
 stale), US-6.3 (the appeal deadline, computed whenever a case is read), US-7.1 (what drafting reads:
 the extraction and its current diagnosis; the stored draft and whether it is stale), US-7.2 (the
-biller's edits to the draft, and the draft an export renders). Rules: BR-2 (runs in the
+biller's edits to the draft, and the draft an export renders), US-8.1 (recording the case's
+outcome, which closes it; the case shows its outcome), US-8.2 (the outcome's de-identified
+snapshot is taken from the extraction and its current diagnosis). Rules: BR-2 (runs in the
 worker; the pane reaches it through ``plugin_api.py``), BR-6 and BR-13 (files are sealed into the
 profile's user scope), BR-7 (they are case items, deleted by the retention purge), BR-14 (nothing
 here logs content).
@@ -40,9 +42,18 @@ from claimcoach.corpus.errors import CaseClosedError, CaseNotFoundError
 from claimcoach.corpus.lookup import payer_rule_cards
 from claimcoach.corpus.service import CorpusService
 from claimcoach.corpus.store import CorpusStore
-from claimcoach.corpus.types import AuditAction, CaseItem, CaseRecord, utc_now
+from claimcoach.corpus.types import (
+    MAX_FEATURES_CHARS,
+    AuditAction,
+    CaseItem,
+    CaseOutcome,
+    CaseRecord,
+    OutcomeRecord,
+    utc_now,
+)
 from claimcoach.events import CASE_ID_PATTERN, new_case_id
 from claimcoach.letters.types import AppealDraft, DraftEdit
+from claimcoach.outcomes.features import outcome_features
 from claimcoach.pipeline.deadline import appeal_deadline
 
 __all__ = [
@@ -126,6 +137,7 @@ class CaseService:
             self.diagnosis(store, case_id),
             deadline=self.deadline(extraction),
             draft=self.draft(store, case_id),
+            outcome=store.outcome(case_id),
         )
 
     def deadline(self, extraction: CaseExtraction | None) -> AppealDeadline | None:
@@ -189,6 +201,16 @@ class CaseService:
         if record.closed_at is not None or record.purged_at is not None:
             raise CaseClosedError
         return store
+
+    def check_open(self, profile: str, case_id: str) -> None:
+        """Refuse a job's work on a case that closed after the job was started (US-8.1).
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+            CaseClosedError: The case is closed or purged.
+        """
+        self._require_open(profile, case_id)
 
     def check_extractable(self, profile: str, case_id: str) -> None:
         """Refuse extraction before a job starts: the case must be open and hold a document.
@@ -299,6 +321,29 @@ class CaseService:
                 current.model_dump() | {"text": edit.text, "edited_at": utc_now()}
             )
             store.put_case_item(_draft_item(case_id, edited), audit=AuditAction.DRAFT_EDITED)
+        return self._view(store, store.case_record(case_id))
+
+    def record_outcome(self, profile: str, case_id: str, outcome: CaseOutcome) -> Case:
+        """Store how the case ended and close it (audited ``outcome_recorded``; US-8.1).
+
+        A closed or purged case takes a later outcome, which corrects the first; its close date
+        is kept, so the retention clock does not restart. The de-identified snapshot (US-8.2)
+        is taken now; a purged case keeps the one taken before.
+
+        Raises:
+            ProfileNotFoundError: The profile has no user scope.
+            CaseNotFoundError: No such case.
+        """
+        store = self.store(profile)
+        with self._case_lock(profile, case_id):
+            features = outcome_features(
+                self.extraction(store, case_id), self.diagnosis(store, case_id)
+            )
+            snapshot = None if features is None else features.model_dump_json()
+            if features is not None and len(features.model_dump_json()) > MAX_FEATURES_CHARS:
+                # A claim of hundreds of lines: kept for the summary, too large to export.
+                snapshot = features.model_copy(update={"facts": None}).model_dump_json()
+            store.record_outcome(case_id, outcome, features=snapshot)
         return self._view(store, store.case_record(case_id))
 
     def record_export(self, profile: str, case_id: str) -> None:
@@ -466,6 +511,7 @@ def _case(  # noqa: PLR0913 - the case and each of its items
     *,
     deadline: AppealDeadline | None = None,
     draft: AppealDraft | None = None,
+    outcome: OutcomeRecord | None = None,
 ) -> Case:
     digest = None if extraction is None else extraction.digest()
     stale = diagnosis is not None and diagnosis.extraction_digest != digest
@@ -487,4 +533,5 @@ def _case(  # noqa: PLR0913 - the case and each of its items
         deadline=deadline,
         draft=draft,
         draft_stale=draft_stale,
+        outcome=outcome,
     )

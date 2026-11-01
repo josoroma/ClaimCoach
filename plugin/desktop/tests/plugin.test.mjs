@@ -139,7 +139,8 @@ describe('views', () => {
   });
 
   test('DashboardPage renders static content and the indicator starts local-only', () => {
-    assert.equal(DashboardPage().props.children[0].props.children, 'ClaimCoach dashboard');
+    const page = DashboardPage({ rest: async () => ({}) });
+    assert.equal(page.props.children[0].props.children, 'ClaimCoach dashboard');
     const indicator = LocalOnlyIndicator({ rest: healthy });
     assert.equal(indicator.props.children, 'Local-only');
     assert.match(indicator.props.title, /never leaves this Mac/);

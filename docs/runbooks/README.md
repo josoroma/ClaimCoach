@@ -17,3 +17,4 @@ ES-6: every runbook has **Preconditions, Steps (copy-paste commands), Verificati
 | [case-intake-extraction](case-intake-extraction.md) | US-5.1, US-5.2 | complete |
 | [case-diagnosis](case-diagnosis.md) | US-6.1, US-6.2, US-6.3 | complete |
 | [appeal-drafting](appeal-drafting.md) | US-7.1, US-7.2, US-7.3 | complete |
+| [outcomes-and-export](outcomes-and-export.md) | US-8.1, US-8.2, US-8.3 | complete |

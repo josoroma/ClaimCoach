@@ -7,7 +7,8 @@ model-server shutdown in the lifespan), US-3.1 (``POST /redact`` with the PHI mo
 (``/corpus`` routes; the scheduled retention purge runs in the lifespan), US-5.1 (``/cases``
 routes over the corpus's user stores), US-5.2 (extraction jobs and ``/jobs`` events; running jobs
 are cancelled on shutdown), US-6.1 (diagnosis jobs share the registry and its model provider),
-US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper).
+US-7.1 (the drafter, whose draft jobs share the registry), US-7.2 (exports and their sweeper),
+US-8.2 (``/outcomes`` routes over the corpus root).
 Rules: ES-8
 (every response is a typed model or the envelope), BR-14 (no exception text or request content in
 responses or logs).
@@ -43,7 +44,13 @@ from claimcoach.pipeline.extract import Extractor
 from claimcoach.pipeline.jobs import JobRegistry
 from claimcoach.redact.detector import PhiDetector
 from claimcoach.redact.redactor import Redactor
-from claimcoach.worker import case_routes, corpus_routes, model_routes, redact_routes
+from claimcoach.worker import (
+    case_routes,
+    corpus_routes,
+    model_routes,
+    outcome_routes,
+    redact_routes,
+)
 
 __all__ = ["create_app", "get_health", "router"]
 
@@ -134,6 +141,7 @@ def _mount_corpus(
     shutdowns.append(_closer(corpus))
     app.include_router(corpus_routes.router)
     app.include_router(case_routes.router)
+    app.include_router(outcome_routes.router)
 
 
 def create_app(

@@ -111,7 +111,8 @@ def test_us_4_5_outcomes_survive_deidentified(service: CorpusService) -> None:
     assert leaked_strings(outcome.model_dump_json(), document) == []
     with sqlite3.connect(store.directory / DATABASE) as db:
         columns = [row[1] for row in db.execute("PRAGMA table_info(outcomes)")]
-    assert columns == ["case_id", "outcome", "recorded_at"]  # nothing free-text to leak
+    # Nothing free-text to leak; ``features`` is the de-identified snapshot of US-8.2.
+    assert columns == ["case_id", "outcome", "recorded_at", "features"]
 
 
 # --- Scenario: Retention period is configurable -------------------------------------------------

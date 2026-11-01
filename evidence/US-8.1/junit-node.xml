@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="plugin/desktop/tests/appeal_draft.test.mjs" time="0.149459" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/appeal_draft.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_diagnosis.test.mjs" time="0.157523" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_diagnosis.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_extraction.test.mjs" time="0.146868" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_extraction.test.mjs"/>
+	<testcase name="plugin/desktop/tests/case_intake.test.mjs" time="0.146077" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_intake.test.mjs"/>
+	<testsuite name="US-8.1 outcome is recorded on the case" time="0.004769" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T21:42:38.793Z" hostname="iX-00277">
+		<testcase name="test_us_8_1_pane_outcome_recorded" time="0.004120" classname="US-8.1 outcome is recorded on the case" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-8.1 a later outcome corrects the first" time="0.000725" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T21:42:38.798Z" hostname="iX-00277">
+		<testcase name="test_us_8_1_pane_outcome_corrected" time="0.000639" classname="US-8.1 a later outcome corrects the first" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	</testsuite>
+	<testsuite name="US-8.1 an outcome while a job runs" time="0.000427" disabled="0" errors="0" tests="1" failures="0" skipped="0" timestamp="2026-10-31T21:42:38.798Z" hostname="iX-00277">
+		<testcase name="test_us_8_1_pane_outcome_refused_while_a_job_runs" time="0.000318" classname="US-8.1 an outcome while a job runs" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_outcome.test.mjs"/>
+	</testsuite>
+	<testcase name="plugin/desktop/tests/case_pane.test.mjs" time="0.144454" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/case_pane.test.mjs"/>
+	<testcase name="plugin/desktop/tests/dashboard.test.mjs" time="0.149957" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/dashboard.test.mjs"/>
+	<testcase name="plugin/desktop/tests/plugin.test.mjs" time="0.144038" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/plugin.test.mjs"/>
+	<testcase name="plugin/desktop/tests/statusbar.test.mjs" time="0.148308" classname="test" file="/Users/josoroma/sites/ycombinator/claimcoach/plugin/desktop/tests/statusbar.test.mjs"/>
+	<!-- tests 11 -->
+	<!-- suites 3 -->
+	<!-- pass 11 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 170.701583 -->
+</testsuites>

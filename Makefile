@@ -43,8 +43,15 @@ VALUE ?=
 # FORMAT pdf or docx; TO a file or folder to copy the export to (default: print where it is).
 TEMPLATE ?=
 FORMAT ?=
+# Outcome targets (EPIC-8): OUTCOME overturned, upheld, or written_off; WEEK an ISO week such as
+# 2026-W44 (default: the last completed week); MANAGER the approving manager's name (US-8.3).
+OUTCOME ?=
+WEEK ?=
+MANAGER ?=
 # Through the environment, never spliced into shell text: a value may hold quotes.
-export FIELD VALUE TEMPLATE TO
+# make expands an exported command-line value, so `$` in a manager's name would be lost; keep it.
+override MANAGER := $(value MANAGER)
+export FIELD VALUE TEMPLATE TO WEEK MANAGER
 
 MYPY_FILES := plugin/claimcoach tests tools
 # Entry points Hermes imports as package members; mypy checks them in a second pass.
@@ -88,6 +95,10 @@ REQUIRE_CASE_FILE = test -f "$(FILE)" || { echo "usage: make $@ CASE=<case id> F
 # make itself, before any shell sees it.
 DRAFT_BODY = $(if $(TEMPLATE),-H 'Content-Type: application/json' --data-binary @<(python3 -c \
 	'import json, os, sys; json.dump({"template_id": os.environ["TEMPLATE"]}, sys.stdout)'))
+# filter treats % as a wildcard, so a value holding one is refused first.
+REQUIRE_OUTCOME = $(if $(and $(filter 1,$(words $(OUTCOME))),$(if $(findstring %,$(OUTCOME)),,1),\
+	$(filter $(OUTCOME),overturned upheld written_off)),:,\
+	$(error usage: make $@ CASE=<case id> OUTCOME=<overturned|upheld|written_off>))
 REQUIRE_FORMAT = $(if $(and $(filter 1,$(words $(FORMAT))),$(filter $(FORMAT),pdf docx)),:,\
 	$(error usage: make $@ CASE=<case id> FORMAT=<pdf|docx> [TO=<file or folder>]))
 
@@ -126,7 +137,7 @@ REQUIRE_STORY = [[ "$(STORY)" =~ ^US-[0-9]+\.[0-9]+$$ ]] || { echo "usage: make 
         models-convert redact phi-fixtures corpus-status corpus-import corpus-list corpus-reindex \
         corpus-purge corpus-audit corpus-backup corpus-restore corpus-key-export corpus-key-import \
         case-new case-add case-paste case-show case-process case-confirm case-diagnose \
-        case-draft case-edit case-export \
+        case-draft case-edit case-export case-outcome outcomes-summary outcomes-export \
         clean
 
 help: ## List targets
@@ -439,6 +450,36 @@ case-export: ## Export the case's draft as PDF or DOCX: make case-export CASE=id
 	  fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600) \
 	    if not os.path.lexists(target) else sys.exit(f"{target} exists; choose another TO"); \
 	  os.write(fd, data); os.close(fd); print("copied to", target)' || exit 1; fi
+
+# --- Outcomes (docs/runbooks/outcomes-and-export.md) ---------------------------------------------
+
+# OUTCOME is checked by make itself, before any shell sees it. Recording an outcome closes the
+# case (US-8.1): it takes no new documents or edits, and its content is purged on schedule.
+case-outcome: ## Record how a case ended, which closes it: make case-outcome CASE=id OUTCOME=upheld
+	@$(REQUIRE_CASE)
+	@$(REQUIRE_OUTCOME)
+	@$(WORKER_CURL) -X POST -H 'Content-Type: application/json' -d '{"outcome": "$(OUTCOME)"}' \
+	  "$(WORKER_URL)/cases/$(CASE)/outcome?profile=$(CASE_PROFILE)" | python3 -m json.tool
+
+# De-identified counts of the profiles that share their outcomes (share_outcome_stats); no case
+# content. WEEK is checked by its shape here and by the calendar in the worker.
+outcomes-summary: ## The manager's weekly summary of shared outcomes: make outcomes-summary [WEEK=2026-W44]
+	@[[ -z "$$WEEK" || "$$WEEK" =~ ^[0-9]{4}-W[0-9]{2}$$ ]] || { \
+	  echo "usage: make $@ [WEEK=<ISO week, such as 2026-W44>]"; exit 2; }
+	@$(WORKER_CURL) "$(WORKER_URL)/outcomes/summary$${WEEK:+?week=$$WEEK}" | python3 -m json.tool
+
+# The export runs only with MANAGER and CONFIRM=yes typed on this command line (the manager's
+# approval, US-8.3; a CONFIRM left in the shell's environment does not count); without them the
+# worker answers export_not_approved and writes nothing. MANAGER goes through the environment into
+# JSON, never into shell text; make reduces CONFIRM to yes or no. The file holds de-identified pairs only and stays
+# until the manager deletes it.
+outcomes-export: ## Manager-approved, de-identified fine-tune export: make outcomes-export MANAGER="Dana Lee" CONFIRM=yes
+	@body=$$(python3 -c 'import json, os, sys; manager = os.environ.get("MANAGER", ""); \
+	  approval = {"manager": manager, "approved": sys.argv[1] == "yes"}; \
+	  json.dump({"approval": approval} if manager else {}, sys.stdout)' \
+	  "$(if $(and $(filter command line,$(origin CONFIRM)),$(filter yes,$(CONFIRM))),yes,no)"); \
+	$(WORKER_CURL) -X POST -H 'Content-Type: application/json' --data-binary "$$body" \
+	  "$(WORKER_URL)/outcomes/export" | python3 -m json.tool
 
 clean: ## Remove caches and coverage output
 	rm -rf .mypy_cache .pytest_cache .ruff_cache htmlcov .coverage .coverage.*

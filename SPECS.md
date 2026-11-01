@@ -208,15 +208,19 @@ Sources: `PRD.md` (Draft v0.1, 2026-10-30), including §7.9 platform constraints
 | US-7.3#3 | Record evidence/US-7.3/test-report.md | DONE | US-7.3 |
 | US-7.4 | Corrected Claim Draft | NEEDS CLARIFICATION | EPIC-7 |
 | US-7.4#1 | Define the corrected-claim output once its format is decided | TODO | US-7.4 |
-| EPIC-8 | Outcomes, Manager Dashboard, and Export | — | — |
-| US-8.1 | Record a Case Outcome | READY | EPIC-8 |
-| US-8.1#1 | Implement typed CaseOutcome (enum) and the outcome route; store outcomes in a de-identifi… | TODO | US-8.1 |
-| US-8.1#2 | Add test test_us_8_1_outcome_recorded | TODO | US-8.1 |
-| US-8.1#3 | Record evidence/US-8.1/test-report.md | TODO | US-8.1 |
-| US-8.2 | Opt-In De-identified Aggregation and Weekly Summary | NEEDS CLARIFICATION | EPIC-8 |
-| US-8.2#1 | Implement the aggregation job and typed WeeklySummary once measures and opt-in UX are dec… | TODO | US-8.2 |
-| US-8.3 | Manager-Approved Fine-Tune Export | NEEDS CLARIFICATION | EPIC-8 |
-| US-8.3#1 | Implement the export with typed ExportApproval and FineTuneRecord once the format is deci… | TODO | US-8.3 |
+| EPIC-8 | Outcomes, Manager Dashboard, and Export | DONE | — |
+| US-8.1 | Record a Case Outcome | DONE | EPIC-8 |
+| US-8.1#1 | Implement typed CaseOutcome (enum) and the outcome route; store outcomes in a de-identifi… | DONE | US-8.1 |
+| US-8.1#2 | Add test test_us_8_1_outcome_recorded | DONE | US-8.1 |
+| US-8.1#3 | Record evidence/US-8.1/test-report.md | DONE | US-8.1 |
+| US-8.2 | Opt-In De-identified Aggregation and Weekly Summary | DONE | EPIC-8 |
+| US-8.2#1 | Implement the aggregation job and typed WeeklySummary once measures and opt-in UX are dec… | DONE | US-8.2 |
+| US-8.2#2 | Add tests test_us_8_2_only_opted_in_profiles, test_us_8_2_aggregation_reads_only_outcomes | DONE | US-8.2 |
+| US-8.2#3 | Record evidence/US-8.2/test-report.md | DONE | US-8.2 |
+| US-8.3 | Manager-Approved Fine-Tune Export | DONE | EPIC-8 |
+| US-8.3#1 | Implement the export with typed ExportApproval and FineTuneRecord once the format is deci… | DONE | US-8.3 |
+| US-8.3#2 | Add tests test_us_8_3_export_requires_approval, test_us_8_3_exported_pairs_contain_no_phi | DONE | US-8.3 |
+| US-8.3#3 | Record evidence/US-8.3/test-report.md | DONE | US-8.3 |
 | EPIC-9 | Hermes Agent Integration | — | — |
 | US-9.1 | Code and Payer-Rule Tools | READY | EPIC-9 |
 | US-9.1#1 | Register both tools with ctx.register_tool; generate schemas from ExplainCodeParams/Expla… | TODO | US-9.1 |
@@ -694,9 +698,17 @@ flowchart TD
   US-8_2["US-8.2: Opt-In De-identified Aggregation and Weekly Sum…"]
   US-8_2_T1["#1 Implement the aggregation job and typed WeeklyS…"]
   US-8_2 --> US-8_2_T1
+  US-8_2_T2["#2 Add tests test_us_8_2_only_opted_in_profiles, t…"]
+  US-8_2 --> US-8_2_T2
+  US-8_2_T3["#3 Record evidence/US-8.2/test-report.md"]
+  US-8_2 --> US-8_2_T3
   US-8_3["US-8.3: Manager-Approved Fine-Tune Export"]
   US-8_3_T1["#1 Implement the export with typed ExportApproval…"]
   US-8_3 --> US-8_3_T1
+  US-8_3_T2["#2 Add tests test_us_8_3_export_requires_approval,…"]
+  US-8_3 --> US-8_3_T2
+  US-8_3_T3["#3 Record evidence/US-8.3/test-report.md"]
+  US-8_3 --> US-8_3_T3
 ```
 
 ### EPIC-9 detail
@@ -2129,7 +2141,7 @@ Open Questions:
 
 ### US-8.1: Record a Case Outcome
 
-Status: READY
+Status: DONE
 
 As a biller
 I want to mark a case's outcome later
@@ -2151,16 +2163,20 @@ Dependencies:
 - US-5.1
 
 Tasks:
-- [ ] Implement typed `CaseOutcome` (enum) and the outcome route; store outcomes in a de-identified table separate from source documents
-- [ ] Add test test_us_8_1_outcome_recorded
-- [ ] Record evidence/US-8.1/test-report.md
+- [x] Implement typed `CaseOutcome` (enum) and the outcome route; store outcomes in a de-identified table separate from source documents
+- [x] Add test test_us_8_1_outcome_recorded
+- [x] Record evidence/US-8.1/test-report.md
 
 Open Questions:
 - Does marking an outcome close the case (which starts the retention clock in US-4.5), or is closing a separate action?
+  Resolved (openspec us-8-1-case-outcome, design decisions 1, 2, and 4): marking an outcome closes
+  the case in the same transaction, which starts the retention clock; the pane asks the biller to
+  confirm before an open case closes. A later outcome corrects the first and keeps the first close
+  date, so the clock never restarts.
 
 ### US-8.2: Opt-In De-identified Aggregation and Weekly Summary
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a manager
 I want a weekly denial-pattern summary per payer and code built from opted-in profiles
@@ -2188,16 +2204,26 @@ Dependencies:
 - US-8.1
 
 Tasks:
-- [ ] Implement the aggregation job and typed `WeeklySummary` once measures and opt-in UX are decided
+- [x] Implement the aggregation job and typed `WeeklySummary` once measures and opt-in UX are decided
+- [x] Add tests test_us_8_2_only_opted_in_profiles, test_us_8_2_aggregation_reads_only_outcomes
+- [x] Record evidence/US-8.2/test-report.md
 
 Open Questions:
 - Which measures appear in the weekly summary (counts, overturn rate, dollar amounts)?
+  Resolved (openspec us-8-2-weekly-summary, design decision 1): overturned, upheld, and
+  written-off counts, their total, and the overturn rate, per payer and denial reason and per
+  payer and code; no dollar amounts.
 - How does a profile opt in or out, where is the choice stored, and how is it revoked?
+  Resolved (design decision 3): the per-profile `share_outcome_stats` setting (Settings → Plugins
+  → ClaimCoach, stored in the profile's `config.yaml`), off by default; only an explicit `true`
+  shares. Turning it off excludes the profile from the next summary and export.
 - What defines the week boundary and time zone?
+  Resolved (design decision 4): ISO 8601 weeks, Monday 00:00 to the next Monday 00:00 in this
+  Mac's time zone with its daylight-saving rules; the default is the last completed week.
 
 ### US-8.3: Manager-Approved Fine-Tune Export
 
-Status: NEEDS CLARIFICATION
+Status: DONE
 
 As a manager
 I want to explicitly approve a de-identified export of case/outcome pairs to a file
@@ -2226,11 +2252,23 @@ Dependencies:
 - US-3.1
 
 Tasks:
-- [ ] Implement the export with typed `ExportApproval` and `FineTuneRecord` once the format is decided
+- [x] Implement the export with typed `ExportApproval` and `FineTuneRecord` once the format is decided
+- [x] Add tests test_us_8_3_export_requires_approval, test_us_8_3_exported_pairs_contain_no_phi
+- [x] Record evidence/US-8.3/test-report.md
 
 Open Questions:
 - What file format and record fields does the export use?
+  Resolved (openspec us-8-3-fine-tune-export, design decisions 1 and 2): JSON Lines, one
+  `FineTuneRecord` per labeled outcome (`format: "claimcoach-fine-tune-1"`, the rule-card payer,
+  the codes and lines the classifier read with each charge reduced to a payment status and no
+  dollar amount, the denial reason, the appeal likelihood, and the outcome), built from the
+  de-identified snapshot stored with the outcome, never from case text; any record a PHI regex
+  validator matches is withheld.
 - How is manager approval captured and recorded?
+  Resolved (design decision 3): every export needs `{"approval": {"manager": "<name>", "approved":
+  true}}` (the dashboard's name field and approval tick, or `make outcomes-export MANAGER=…
+  CONFIRM=yes`); without it nothing is read or written (`export_not_approved`). Each approved
+  export is appended to the owner-only `fine-tune/approvals.jsonl`.
 
 # EPIC-9: Hermes Agent Integration
 

@@ -19,14 +19,20 @@
  * "Draft for human review", with the template and rule cards it came from, flagged when stale),
  * US-7.2 (the draft in an editor with Save draft, Export PDF, and Export DOCX; an export is saved
  * through the host's save dialog, where the biller picks the folder), US-7.3 (no contribution or
- * control sends, submits, faxes, e-mails, or uploads anything to a payer).
+ * control sends, submits, faxes, e-mails, or uploads anything to a payer), US-8.1 (an Outcome
+ * section marks the case overturned, upheld, or written off, which closes it after the biller
+ * confirms; the recorded outcome shows with the case, and a closed case's editing controls are
+ * disabled), US-8.2 (the manager dashboard shows the last completed week's de-identified outcome
+ * summary of the profiles that share their outcomes: counts and overturn rate per payer and denial
+ * reason), US-8.3 (the dashboard's fine-tune export runs only after the manager types their
+ * name and ticks the approval; it says where the de-identified file was written).
  * Rules: PC-1 (opt-in: `defaultEnabled: false`), PC-3 (imports only
  * `@hermes/plugin-sdk`, `react`, `react/jsx-runtime`; optional SDK calls are feature-detected),
  * PC-4, BR-2 (case data goes pane → `ctx.rest` → plugin_api → worker, never the agent transcript),
  * BR-4 (every draft is shown labeled "draft for human review"; there is no send or submit control
  * anywhere, and nothing is sent: an export is a file the biller saves), BR-14 (error text from the backend is never shown; a refusal shows a fixed message per code).
  *
- * The views are placeholders until EPIC-10 (US-10.1..US-10.3) builds them; they already show the
+ * EPIC-10 (US-10.1..US-10.3) builds the views out; the pane and settings page already show the
  * worker status so a user can tell whether the backend half is enabled.
  */
 import * as sdk from '@hermes/plugin-sdk';
@@ -63,9 +69,23 @@ export const SETTINGS_REFRESH_MS = 15_000;
  *   cards: RuleCardView[], payerRead: boolean }} DiagnosisView
  * @typedef {{ text: string, templateId: string, ruleCards: string[], stale: boolean,
  *   edited: boolean }} DraftView
+ * @typedef {keyof typeof OUTCOMES} Outcome
+ * @typedef {{ outcome: Outcome, recordedAt: string }} OutcomeView
+ * @typedef {{ overturned: number, upheld: number, writtenOff: number, total: number,
+ *   rate: number | null }} CountsView
+ * @typedef {CountsView & { payer: string | null, reason: DenialReason | null }} CategoryView
+ * @typedef {CountsView & { payer: string | null, code: string }} CodeView
+ * @typedef {{ week: string, timezone: string, profiles: string[], notShared: number,
+ *   unreadable: number, totals: CountsView, categories: CategoryView[],
+ *   codes: CodeView[] }} SummaryView
+ * @typedef {{ state: 'loading' } | { state: 'ok', summary: SummaryView }
+ *   | { state: 'unavailable' }} SummaryState
+ * @typedef {{ state: 'exporting' } | { state: 'written', path: string, records: number }
+ *   | { state: 'refused' } | { state: 'failed' }} FineTuneResult
  * @typedef {{ state: 'ready', caseId: string, documents: DocumentView[], fields: FieldView[],
  *   otherClaims?: number, unreadSources?: number, notice?: Refusal,
- *   diagnosis?: DiagnosisView, deadline?: DeadlineView, draft?: DraftView }} ReadyState
+ *   diagnosis?: DiagnosisView, deadline?: DeadlineView, draft?: DraftView,
+ *   outcome?: OutcomeView, closed?: true }} ReadyState
  * @typedef {'extract' | 'diagnose' | 'draft'} JobKind
  * @typedef {{ state: 'idle', notice?: Refusal } | { state: 'busy' } | ReadyState
  *   | { state: 'processing', caseId: string, progress: number, diagnosing?: true,
@@ -111,6 +131,14 @@ export const REFUSALS = Object.freeze({
     'The draft was edited while a new one was being drafted, so your edits were kept; draft ' +
     'again to replace them.',
   invalid_draft: 'The draft needs some text, and at most 20,000 characters.',
+  outcome_busy: 'The case is being processed; record its outcome when that finishes.',
+});
+
+/** How a case can end, as the pane names it (US-8.1: the backend's `CaseOutcome`). */
+export const OUTCOMES = Object.freeze({
+  overturned: 'Overturned',
+  upheld: 'Upheld',
+  written_off: 'Written off',
 });
 
 /** The label every draft carries (BR-4); a draft the backend sends without it is not shown. */
@@ -208,6 +236,12 @@ export function createCaseApi(rest) {
      */
     exportDraft: (caseId, format) =>
       rest(`${casePath(caseId)}/export`, { method: 'POST', body: { format } }),
+    /**
+     * @param {string} caseId
+     * @param {Outcome} outcome
+     */
+    recordOutcome: (caseId, outcome) =>
+      rest(`${casePath(caseId)}/outcome`, { method: 'POST', body: { outcome } }),
     /**
      * @param {string} caseId
      * @param {string} path
@@ -517,6 +551,21 @@ export function draftOf(body) {
 }
 
 /**
+ * A case body's recorded outcome, when it holds a well-formed one (US-8.1).
+ *
+ * @param {unknown} body
+ * @returns {OutcomeView | null}
+ */
+export function outcomeOf(body) {
+  const outcome = /** @type {{ outcome?: { outcome?: unknown, recorded_at?: unknown } | null }
+   *   | null} */ (body)?.outcome;
+  const value = outcome?.outcome;
+  if (typeof value !== 'string' || !Object.hasOwn(OUTCOMES, value)) return null;
+  if (typeof outcome?.recorded_at !== 'string') return null;
+  return { outcome: /** @type {Outcome} */ (value), recordedAt: outcome.recorded_at };
+}
+
+/**
  * The ready state for a case body.
  *
  * @param {string} caseId
@@ -544,6 +593,11 @@ function readyFrom(caseId, body) {
   if (deadline) ready.deadline = deadline;
   const draft = draftOf(body);
   if (draft) ready.draft = draft;
+  const outcome = outcomeOf(body);
+  if (outcome) ready.outcome = outcome;
+  if (typeof (/** @type {{ closed_at?: unknown } | null} */ (body)?.closed_at) === 'string') {
+    ready.closed = true;
+  }
   return ready;
 }
 
@@ -902,6 +956,26 @@ export async function confirmField(api, caseId, path, value) {
 }
 
 /**
+ * Record how the case ended, which closes it, and show the case again (US-8.1). A refusal
+ * because a job is running says to wait for it.
+ *
+ * @param {CaseApi} api
+ * @param {string} caseId
+ * @param {Outcome} outcome
+ * @returns {Promise<CaseState>}
+ */
+export async function recordOutcome(api, caseId, outcome) {
+  try {
+    const body = await api.recordOutcome(caseId, outcome);
+    return caseIdOf(body) === caseId ? readyFrom(caseId, body) : { state: 'unavailable' };
+  } catch (error) {
+    const code = codeOf(error);
+    const notice = code === 'model_busy' ? 'outcome_busy' : known(code);
+    return notice === null ? { state: 'unavailable' } : reopenWith(api, caseId, notice);
+  }
+}
+
+/**
  * @param {CaseState} current
  * @returns {string}
  */
@@ -930,7 +1004,10 @@ export function describeCase(current) {
       const stale = current.diagnosis?.stale
         ? ' The fields changed since the diagnosis; diagnose the case again.'
         : '';
-      return `${notice}Case ${current.caseId}${next}${unread}${others}${stale}`;
+      const closed = current.closed
+        ? ' This case is closed; start a new case for more documents.'
+        : '';
+      return `${notice}Case ${current.caseId}${next}${unread}${others}${stale}${closed}`;
     }
     case 'processing': {
       const verb = current.drafting
@@ -1162,11 +1239,22 @@ export function DiagnosisPanel(diagnosis, today = isoToday()) {
  * The appeal draft under its review label, in an editor, with Save draft and the exports (US-7.1,
  * US-7.2). Export is offered only for saved text, because the stored draft is what is exported.
  *
+ * A closed case (US-8.1) still exports, but its draft can no longer be edited.
+ *
  * @param {{ draft: DraftView | undefined, letter: string | null, result: ExportResult | null,
- *   disabled: boolean, onLetter: (text: string) => void, onSave: () => void,
+ *   disabled: boolean, closed?: boolean, onLetter: (text: string) => void, onSave: () => void,
  *   onExport: (format: ExportFormat) => void }} props
  */
-export function DraftPanel({ draft, letter, result, disabled, onLetter, onSave, onExport }) {
+export function DraftPanel({
+  draft,
+  letter,
+  result,
+  disabled,
+  closed = false,
+  onLetter,
+  onSave,
+  onExport,
+}) {
   if (!draft) return null;
   const text = letter ?? draft.text;
   const dirty = text !== draft.text;
@@ -1191,13 +1279,13 @@ export function DraftPanel({ draft, letter, result, disabled, onLetter, onSave, 
         'aria-label': 'Appeal letter (draft for human review)',
         value: text,
         maxLength: MAX_LETTER_CHARS,
-        disabled,
+        disabled: disabled || closed,
         /** @param {{ currentTarget: { value: string } }} event */
         onChange: (event) => onLetter(event.currentTarget.value),
       }),
       jsx('button', {
         type: 'button',
-        disabled: disabled || !dirty || !text.trim(),
+        disabled: disabled || closed || !dirty || !text.trim(),
         onClick: onSave,
         children: 'Save draft',
       }),
@@ -1216,6 +1304,61 @@ export function DraftPanel({ draft, letter, result, disabled, onLetter, onSave, 
       dirty ? jsx('p', { role: 'note', children: 'Save the draft before exporting it.' }) : null,
       result
         ? jsx('p', { role: 'status', 'aria-label': 'Export', children: describeExport(result) })
+        : null,
+    ],
+  });
+}
+
+/**
+ * How the case ended, with a Mark button per outcome (US-8.1). Marking closes the case, which
+ * cannot be undone, so on an open case Mark asks first (`pending`) and the outcome is recorded on
+ * Close the case; on a closed case Mark corrects the outcome at once.
+ *
+ * @param {{ outcome: OutcomeView | undefined, closed: boolean, disabled: boolean,
+ *   pending?: Outcome | null, onMark: (outcome: Outcome) => void,
+ *   onConfirm?: () => void, onCancel?: () => void }} props
+ */
+export function OutcomePanel({
+  outcome,
+  closed,
+  disabled,
+  pending = null,
+  onMark,
+  onConfirm = noop,
+  onCancel = noop,
+}) {
+  const recorded = outcome
+    ? `Outcome: ${OUTCOMES[outcome.outcome]} (recorded ${outcome.recordedAt.slice(0, 10)}).`
+    : 'No outcome recorded yet. Marking one closes the case.';
+  const asking = pending !== null && !closed && !disabled;
+  return jsxs('section', {
+    'aria-label': 'Case outcome',
+    children: [
+      jsx('h3', { children: 'Outcome' }),
+      jsx('p', { role: 'status', children: recorded }),
+      closed ? jsx('p', { children: 'Case closed.' }) : null,
+      ...Object.entries(OUTCOMES).map(([value, label]) =>
+        jsx('button', {
+          type: 'button',
+          disabled: disabled || asking || outcome?.outcome === value,
+          onClick: () => onMark(/** @type {Outcome} */ (value)),
+          children: `Mark ${label.toLowerCase()}`,
+        }),
+      ),
+      asking
+        ? jsxs('div', {
+            role: 'alertdialog',
+            'aria-label': 'Close the case',
+            children: [
+              jsx('p', {
+                children:
+                  `Mark the case ${OUTCOMES[pending].toLowerCase()}? This closes the case: it ` +
+                  'takes no more documents, fields, or edits, and cannot be reopened.',
+              }),
+              jsx('button', { type: 'button', onClick: onConfirm, children: 'Close the case' }),
+              jsx('button', { type: 'button', onClick: onCancel, children: 'Cancel' }),
+            ],
+          })
         : null,
     ],
   });
@@ -1293,6 +1436,10 @@ export function CasePane({ rest, subscribe = noEvents }) {
   // The appeal editor's unsaved text (null: the stored draft as it is) and the last export.
   const [letter, setLetter] = useState(/** @type {string | null} */ (null));
   const [exported, setExported] = useState(/** @type {ExportResult | null} */ (null));
+  // The outcome the biller chose for an open case, until they confirm that it closes the case.
+  const [pendingOutcome, setPendingOutcome] = useState(/** @type {Outcome | null} */ (null));
+  // A closed case (US-8.1) takes no documents, fields, jobs, or edits; it still exports.
+  const closed = current.state === 'ready' && current.closed === true;
   useEffect(() => {
     life.live = true;
     return () => {
@@ -1306,6 +1453,7 @@ export function CasePane({ rest, subscribe = noEvents }) {
     const action = life.action;
     setCurrent({ state: 'busy' });
     setExported(null);
+    setPendingOutcome(null);
     pending.then((next) => {
       if (!life.live || action !== life.action) return;
       // The last case this pane worked on stays open across failures, so the next document
@@ -1365,7 +1513,7 @@ export function CasePane({ rest, subscribe = noEvents }) {
   /** @param {ArrayLike<PickedFile> | null | undefined} files */
   const addPicked = (files) => {
     const picked = Array.from(files ?? []);
-    if (picked.length === 0 || current.state === 'busy') return;
+    if (picked.length === 0 || current.state === 'busy' || closed) return;
     settle(addFiles(api, life.caseId, picked));
   };
   /** @param {{ currentTarget: { files: ArrayLike<PickedFile> | null } }} event */
@@ -1412,6 +1560,19 @@ export function CasePane({ rest, subscribe = noEvents }) {
       if (life.live && life.caseId === caseId) setExported(result);
     });
   };
+  /** @param {Outcome} outcome */
+  const onOutcome = (outcome) => {
+    if (current.state !== 'ready') return;
+    // Closing cannot be undone, so an open case asks first; a closed one is only corrected.
+    if (current.closed) settle(recordOutcome(api, current.caseId, outcome));
+    else setPendingOutcome(outcome);
+  };
+  const onConfirmOutcome = () => {
+    if (current.state !== 'ready' || pendingOutcome === null) return;
+    setPendingOutcome(null);
+    settle(recordOutcome(api, current.caseId, pendingOutcome));
+  };
+  const onCancelOutcome = () => setPendingOutcome(null);
   const onRefresh = () => {
     if (life.caseId === null || current.state === 'busy') return;
     follow(null, 'extract');
@@ -1425,13 +1586,14 @@ export function CasePane({ rest, subscribe = noEvents }) {
     setEdits({});
     setLetter(null);
     setExported(null);
+    setPendingOutcome(null);
     setCurrent({ state: 'idle' });
   };
   /** @param {{ currentTarget: { value: string } }} event */
   const onDraft = (event) => setDraft(event.currentTarget.value);
   const onPaste = () => {
     const text = draft;
-    if (!text.trim() || current.state === 'busy') return;
+    if (!text.trim() || current.state === 'busy' || closed) return;
     setDraft('');
     settle(
       addText(api, life.caseId, text).then((next) => {
@@ -1467,13 +1629,13 @@ export function CasePane({ rest, subscribe = noEvents }) {
         type: 'file',
         'aria-label': 'Upload a denial document',
         accept: '.pdf,.png,.jpg,.jpeg,.txt,.835',
-        disabled: current.state === 'busy',
+        disabled: current.state === 'busy' || closed,
         onChange: onFile,
       }),
       jsx('p', { role: 'status', children: describeCase(current) }),
       jsx('button', {
         type: 'button',
-        disabled: current.state !== 'ready',
+        disabled: current.state !== 'ready' || closed,
         onClick: onProcess,
         children: 'Process case',
       }),
@@ -1486,12 +1648,12 @@ export function CasePane({ rest, subscribe = noEvents }) {
       jsx('textarea', {
         'aria-label': 'Paste 835 or letter text',
         value: draft,
-        disabled: current.state === 'busy',
+        disabled: current.state === 'busy' || closed,
         onChange: onDraft,
       }),
       jsx('button', {
         type: 'button',
-        disabled: current.state === 'busy' || !draft.trim(),
+        disabled: current.state === 'busy' || closed || !draft.trim(),
         onClick: onPaste,
         children: 'Attach pasted text',
       }),
@@ -1507,11 +1669,11 @@ export function CasePane({ rest, subscribe = noEvents }) {
         edits,
         onEdit,
         onConfirm,
-        disabled: current.state !== 'ready',
+        disabled: current.state !== 'ready' || closed,
       }),
       jsx('button', {
         type: 'button',
-        disabled: current.state !== 'ready' || !current.fields?.length,
+        disabled: current.state !== 'ready' || closed || !current.fields?.length,
         onClick: onDiagnose,
         children: 'Diagnose case',
       }),
@@ -1522,6 +1684,7 @@ export function CasePane({ rest, subscribe = noEvents }) {
         // Unsaved editor text would be lost to the new draft: save it first (US-7.2).
         disabled:
           current.state !== 'ready' ||
+          closed ||
           !current.diagnosis ||
           current.diagnosis.stale === true ||
           unsaved(current.draft, letter),
@@ -1533,20 +1696,318 @@ export function CasePane({ rest, subscribe = noEvents }) {
         letter,
         result: exported,
         disabled: current.state !== 'ready',
+        closed,
         onLetter: setLetter,
         onSave: onSaveDraft,
         onExport,
+      }),
+      jsx(OutcomePanel, {
+        outcome: current.state === 'ready' ? current.outcome : undefined,
+        closed,
+        // A closed case takes no edits, so unsaved editor text is saved first.
+        disabled: current.state !== 'ready' || unsaved(current.draft, letter),
+        pending: pendingOutcome,
+        onMark: onOutcome,
+        onConfirm: onConfirmOutcome,
+        onCancel: onCancelOutcome,
       }),
     ],
   });
 }
 
-export function DashboardPage() {
+/**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
+const isCount = (value) => Number.isInteger(value) && /** @type {number} */ (value) >= 0;
+
+/**
+ * Outcome counts, when well-formed (US-8.2).
+ *
+ * @param {unknown} value
+ * @returns {CountsView | null}
+ */
+function countsOf(value) {
+  const counts = /** @type {{ overturned?: unknown, upheld?: unknown, written_off?: unknown,
+   *   total?: unknown, overturn_rate?: unknown } | null | undefined} */ (value);
+  const { overturned, upheld, written_off: writtenOff, total } = counts ?? {};
+  if (!isCount(overturned) || !isCount(upheld) || !isCount(writtenOff) || !isCount(total)) {
+    return null;
+  }
+  const rate = typeof counts?.overturn_rate === 'number' ? counts.overturn_rate : null;
+  return { overturned, upheld, writtenOff, total, rate };
+}
+
+/**
+ * The weekly summary's body, when well-formed (US-8.2); malformed rows are left out.
+ *
+ * @param {unknown} body
+ * @returns {SummaryView | null}
+ */
+export function summaryOf(body) {
+  const summary = /** @type {{ week?: unknown, timezone?: unknown, profiles?: unknown,
+   *   not_shared?: unknown, unreadable?: unknown, totals?: unknown, by_category?: unknown,
+   *   by_code?: unknown } | null} */ (body);
+  const totals = countsOf(summary?.totals);
+  if (
+    typeof summary?.week !== 'string' ||
+    typeof summary.timezone !== 'string' ||
+    !isCount(summary.not_shared) ||
+    totals === null
+  ) {
+    return null;
+  }
+  const rows = Array.isArray(summary.by_category) ? summary.by_category : [];
+  const categories = rows.flatMap((entry) => {
+    const row = /** @type {{ payer?: unknown, denial_reason?: unknown } | null} */ (entry);
+    const counts = countsOf(row);
+    const reason = row?.denial_reason;
+    const listed = typeof reason === 'string' && Object.hasOwn(DENIAL_REASONS, reason);
+    if (counts === null || (reason !== null && !listed)) return [];
+    const payer = typeof row?.payer === 'string' ? row.payer : null;
+    return [{ ...counts, payer, reason: listed ? /** @type {DenialReason} */ (reason) : null }];
+  });
+  const codeRows = Array.isArray(summary.by_code) ? summary.by_code : [];
+  const codes = codeRows.flatMap((entry) => {
+    const row = /** @type {{ payer?: unknown, code?: unknown } | null} */ (entry);
+    const counts = countsOf(row);
+    if (counts === null || typeof row?.code !== 'string') return [];
+    const payer = typeof row.payer === 'string' ? row.payer : null;
+    return [{ ...counts, payer, code: row.code }];
+  });
+  return {
+    week: summary.week,
+    timezone: summary.timezone,
+    profiles: stringsOf(summary.profiles),
+    notShared: summary.not_shared,
+    unreadable: stringsOf(summary.unreadable).length,
+    totals,
+    categories,
+    codes,
+  };
+}
+
+/**
+ * Read the last completed week's summary; any failure reads as unavailable.
+ *
+ * @param {RestFn} rest
+ * @returns {Promise<SummaryState>}
+ */
+export async function loadSummary(rest) {
+  try {
+    const summary = summaryOf(await rest('/outcomes/summary'));
+    return summary === null ? { state: 'unavailable' } : { state: 'ok', summary };
+  } catch {
+    return { state: 'unavailable' };
+  }
+}
+
+/**
+ * Counts as one line: `3 outcomes: 2 overturned, 1 upheld, 0 written off (67% overturned).`
+ *
+ * @param {CountsView} counts
+ */
+export function describeCounts(counts) {
+  const rate = counts.rate === null ? '' : ` (${Math.round(counts.rate * 100)}% overturned)`;
+  return (
+    `${counts.total} outcome(s): ${counts.overturned} overturned, ${counts.upheld} upheld, ` +
+    `${counts.writtenOff} written off${rate}.`
+  );
+}
+
+/**
+ * Which profiles the summary read, and which it did not.
+ *
+ * @param {SummaryView} summary
+ */
+export function describeSharing(summary) {
+  const read = summary.profiles.length
+    ? `Profiles sharing their outcomes: ${summary.profiles.join(', ')}.`
+    : 'No profile shares its outcomes yet (Settings → Plugins → ClaimCoach).';
+  const others = summary.notShared ? ` ${summary.notShared} profile(s) do not share theirs.` : '';
+  const failed = summary.unreadable
+    ? ` ${summary.unreadable} profile(s) could not be read this time.`
+    : '';
+  return `${read}${others}${failed}`;
+}
+
+/**
+ * Ask for the fine-tune export with the manager's approval (US-8.3). A refusal or a malformed
+ * answer never reads as written.
+ *
+ * @param {RestFn} rest
+ * @param {string} manager
+ * @returns {Promise<FineTuneResult>}
+ */
+export async function exportFineTune(rest, manager) {
+  try {
+    const body = /** @type {{ ok?: unknown, path?: unknown, records?: unknown } | null} */ (
+      await rest('/outcomes/export', {
+        method: 'POST',
+        body: { approval: { manager, approved: true } },
+      })
+    );
+    if (body?.ok !== true || typeof body.path !== 'string' || !isCount(body.records)) {
+      return { state: 'failed' };
+    }
+    return { state: 'written', path: body.path, records: body.records };
+  } catch (error) {
+    const code = codeOf(error);
+    return code === 'export_not_approved' || code === 'invalid_request'
+      ? { state: 'refused' }
+      : { state: 'failed' };
+  }
+}
+
+/**
+ * @param {FineTuneResult} result
+ */
+export function describeFineTune(result) {
+  switch (result.state) {
+    case 'exporting':
+      return 'Exporting…';
+    case 'written':
+      return `${result.records} de-identified pair(s) written to ${result.path}.`;
+    case 'refused':
+      return 'The export needs your name and your approval; nothing was exported.';
+    default:
+      return 'The export could not be written; check that the ClaimCoach worker is running.';
+  }
+}
+
+/**
+ * The fine-tune export (US-8.3): explicit, approved by a named manager, never automatic.
+ *
+ * @param {{ manager: string, approved: boolean, result: FineTuneResult | null,
+ *   onManager: (name: string) => void, onApproved: (approved: boolean) => void,
+ *   onExport: () => void }} props
+ */
+export function FineTunePanel({ manager, approved, result, onManager, onApproved, onExport }) {
+  const exporting = result?.state === 'exporting';
+  return jsxs('section', {
+    'aria-label': 'Fine-tune export',
+    children: [
+      jsx('h2', { children: 'Fine-tune export' }),
+      jsx('p', {
+        children:
+          'Writes the de-identified case/outcome pairs of the profiles that share their outcomes ' +
+          'to a file on this Mac. Nothing is exported without your approval.',
+      }),
+      jsx('input', {
+        type: 'text',
+        'aria-label': 'Approving manager',
+        value: manager,
+        maxLength: 80,
+        disabled: exporting,
+        /** @param {{ currentTarget: { value: string } }} event */
+        onChange: (event) => onManager(event.currentTarget.value),
+      }),
+      jsx('input', {
+        type: 'checkbox',
+        'aria-label': 'I approve this de-identified export',
+        checked: approved,
+        disabled: exporting,
+        /** @param {{ currentTarget: { checked: boolean } }} event */
+        onChange: (event) => onApproved(event.currentTarget.checked),
+      }),
+      jsx('button', {
+        type: 'button',
+        disabled: exporting || !approved || !manager.trim(),
+        onClick: onExport,
+        children: 'Export fine-tune set',
+      }),
+      result ? jsx('p', { role: 'status', children: describeFineTune(result) }) : null,
+    ],
+  });
+}
+
+/**
+ * The manager dashboard (US-8.2): the last completed week's denial patterns per payer and denial
+ * reason, from de-identified outcomes of the profiles that share them, and the fine-tune export
+ * (US-8.3). No case is shown.
+ *
+ * @param {{ rest: RestFn }} props
+ */
+export function DashboardPage({ rest }) {
+  const [loaded, setLoaded] = useState(/** @type {SummaryState} */ ({ state: 'loading' }));
+  const [manager, setManager] = useState('');
+  const [approved, setApproved] = useState(false);
+  const [fineTune, setFineTune] = useState(/** @type {FineTuneResult | null} */ (null));
+  const [life] = useState({ live: true });
+  useEffect(() => {
+    let current = true;
+    life.live = true;
+    loadSummary(rest).then((next) => {
+      if (current) setLoaded(next);
+    });
+    return () => {
+      current = false;
+      life.live = false;
+    };
+  }, [rest, life]);
+  const onExport = () => {
+    const name = manager.trim();
+    if (!approved || !name || fineTune?.state === 'exporting') return;
+    setFineTune({ state: 'exporting' });
+    exportFineTune(rest, name).then((result) => {
+      if (life.live) setFineTune(result);
+    });
+    setApproved(false); // each export is approved on its own
+  };
+  const heading = jsx('h1', { children: 'ClaimCoach dashboard' });
+  if (loaded.state !== 'ok') {
+    const text =
+      loaded.state === 'loading'
+        ? 'Loading the weekly outcome summary…'
+        : 'The weekly outcome summary is unavailable; check that the ClaimCoach worker is running.';
+    return jsxs('section', {
+      'aria-label': 'ClaimCoach manager dashboard',
+      children: [heading, jsx('p', { role: 'status', children: text })],
+    });
+  }
+  const { summary } = loaded;
   return jsxs('section', {
     'aria-label': 'ClaimCoach manager dashboard',
     children: [
-      jsx('h1', { children: 'ClaimCoach dashboard' }),
-      jsx('p', { children: 'De-identified outcome statistics appear here.' }),
+      heading,
+      jsx('h2', { children: `Week ${summary.week} (${summary.timezone})` }),
+      jsx('p', { role: 'status', children: describeSharing(summary) }),
+      jsx('p', { children: `All payers: ${describeCounts(summary.totals)}` }),
+      jsx('ul', {
+        'aria-label': 'Outcomes per payer and denial reason',
+        children: summary.categories.map((row) =>
+          jsx(
+            'li',
+            {
+              children:
+                `${row.payer ?? 'Payer without rule cards'} · ` +
+                `${row.reason ? DENIAL_REASONS[row.reason] : 'Not diagnosed'}: ` +
+                describeCounts(row),
+            },
+            `${row.payer}/${row.reason}`,
+          ),
+        ),
+      }),
+      jsx('ul', {
+        'aria-label': 'Outcomes per payer and code',
+        children: summary.codes.map((row) =>
+          jsx(
+            'li',
+            {
+              children: `${row.payer ?? 'Payer without rule cards'} · ${row.code}: ${describeCounts(row)}`,
+            },
+            `${row.payer}/${row.code}`,
+          ),
+        ),
+      }),
+      jsx(FineTunePanel, {
+        manager,
+        approved,
+        result: fineTune,
+        onManager: setManager,
+        onApproved: setApproved,
+        onExport,
+      }),
     ],
   });
 }
@@ -1633,7 +2094,7 @@ const plugin = {
         area: sdk.ROUTES_AREA,
         title: 'ClaimCoach dashboard',
         data: { path: DASHBOARD_PATH },
-        render: () => jsx(DashboardPage, {}),
+        render: () => jsx(DashboardPage, { rest }),
       },
       {
         id: 'nav',

@@ -8,7 +8,10 @@ records its embedding model and refuses searches and inserts once that model cha
 ``audit_log``; ``open_case`` audits), US-5.1 (``case_items``: a case's attached source files and
 derived items, sealed per row, refused once the case is closed, deleted by the purge), US-6.1 (the
 ``case_items`` CHECK lists every ``CaseItemKind``, and an older table is rebuilt once to match;
-``documents`` filters by kind). Rules: BR-5, BR-6, BR-7, BR-13, BR-14.
+``documents`` filters by kind), US-8.1 (``record_outcome`` closes the case in the same transaction),
+US-8.2 (an outcome's de-identified ``features``, added once to an older table; ``read_outcomes``
+opens the database read-only and can read the ``outcomes`` table and nothing else). Rules: BR-5,
+BR-6, BR-7, BR-13, BR-14.
 
 Both files use ``secure_delete`` so deleted PHI pages are zeroed, and a purge truncates the WAL.
 Vectors are float32, normalized to unit length, so cosine similarity is a dot product.
@@ -40,6 +43,7 @@ from claimcoach.corpus.errors import (
 )
 from claimcoach.corpus.paths import DATABASE, INDEX
 from claimcoach.corpus.types import (
+    MAX_FEATURES_CHARS,
     AuditAction,
     AuditEntry,
     CaseItem,
@@ -52,12 +56,13 @@ from claimcoach.corpus.types import (
     DocumentKind,
     IndexInfo,
     OutcomeRecord,
+    OutcomeRow,
     ScopeStatus,
     utc_now,
 )
 from claimcoach.logs import get_logger
 
-__all__ = ["CorpusStore", "Vectors", "split_text"]
+__all__ = ["CorpusStore", "Vectors", "read_outcomes", "split_text"]
 
 CHUNK_CHARS: Final = 1200
 """Characters per chunk (~300 tokens), cut at paragraph, then line, then word boundaries."""
@@ -100,7 +105,7 @@ CREATE INDEX IF NOT EXISTS main.chunks_doc ON chunks(doc_id);
 CREATE TABLE IF NOT EXISTS main.outcomes (
     case_id TEXT PRIMARY KEY REFERENCES cases(case_id),
     outcome TEXT NOT NULL CHECK (outcome IN ('overturned', 'upheld', 'written_off')),
-    recorded_at TEXT NOT NULL
+    recorded_at TEXT NOT NULL, features TEXT
 ) STRICT;
 CREATE TABLE IF NOT EXISTS main.audit_log (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, action TEXT NOT NULL,
@@ -181,6 +186,64 @@ def _ctx(table: str, case_id: str | None, row_id: str) -> str:
     return f"{table}:{case_id or ''}:{row_id}"
 
 
+def _outcomes_only(action: int, table: str | None, *_: str | None) -> int:
+    """SQLite authorizer of ``read_outcomes``: read the ``outcomes`` table, nothing else."""
+    if action == sqlite3.SQLITE_SELECT:
+        return sqlite3.SQLITE_OK
+    if action == sqlite3.SQLITE_READ and table == "outcomes":
+        return sqlite3.SQLITE_OK
+    return sqlite3.SQLITE_DENY
+
+
+def read_outcomes(directory: Path, since: datetime, until: datetime) -> list[OutcomeRow]:
+    """Return a user scope's outcomes recorded in ``[since, until)``, oldest first (US-8.2).
+
+    The database is opened read-only, without the profile's key, and an authorizer denies every
+    statement but a read of the ``outcomes`` table, so this cannot open a source document, a case
+    item, or anything sealed. A table made before US-8.2 reads as having no features.
+
+    Args:
+        directory: The user scope directory.
+        since: First instant included.
+        until: First instant excluded.
+
+    Raises:
+        CorpusError: The database is missing or cannot be read.
+    """
+    try:
+        db = sqlite3.connect(f"{(directory / DATABASE).as_uri()}?mode=ro", uri=True)
+    except sqlite3.Error as exc:
+        raise CorpusError from exc
+    try:
+        db.set_authorizer(_outcomes_only)
+        columns = [
+            column[0] for column in db.execute("SELECT * FROM main.outcomes LIMIT 0").description
+        ]
+        features = "features" if "features" in columns else "NULL"
+        rows = db.execute(
+            f"SELECT outcome, recorded_at, {features} FROM main.outcomes "  # noqa: S608 - fixed
+            "WHERE recorded_at >= ? AND recorded_at < ? ORDER BY recorded_at, rowid",
+            (_iso(since), _iso(until)),
+        ).fetchall()
+        return [_outcome_row(*row) for row in rows]
+    except (sqlite3.Error, ValueError) as exc:  # ValueError: a row no current version wrote
+        raise CorpusError from exc
+    finally:
+        db.close()
+
+
+def _outcome_row(outcome: str, recorded_at: str, snapshot: str | None) -> OutcomeRow:
+    """One outcome; a snapshot too long to be one this version wrote is read as none."""
+    if snapshot is not None and len(snapshot) > MAX_FEATURES_CHARS:
+        _log.warning("an outcome's stored features are too long; it is counted as unclassified")
+        snapshot = None
+    return OutcomeRow(
+        outcome=CaseOutcome(outcome),
+        recorded_at=datetime.fromisoformat(recorded_at),
+        features=snapshot,
+    )
+
+
 class CorpusStore:
     """A scope's database and vector index.
 
@@ -235,6 +298,7 @@ class CorpusStore:
             db.executescript(_SCHEMA)
             db.execute(_case_items_table("case_items"))
             self._migrate_case_items()
+            self._migrate_outcomes()
             self._init_meta()
         except (sqlite3.Error, OSError, CorpusError) as exc:
             if db is not None:
@@ -291,6 +355,16 @@ class CorpusStore:
             db.execute("INSERT INTO main.case_items_next SELECT * FROM main.case_items")
             db.execute("DROP TABLE main.case_items")
             db.execute("ALTER TABLE main.case_items_next RENAME TO case_items")
+
+    def _migrate_outcomes(self) -> None:
+        """Add the ``features`` column to an ``outcomes`` table made before US-8.2.
+
+        Existing rows keep ``NULL``: their snapshot was never taken, and the cases may be purged.
+        """
+        with self._tx() as db:
+            columns = {row[1] for row in db.execute("PRAGMA main.table_info(outcomes)")}
+            if "features" not in columns:
+                db.execute("ALTER TABLE main.outcomes ADD COLUMN features TEXT")
 
     def _init_meta(self) -> None:
         with self._tx() as db:
@@ -682,21 +756,41 @@ class CorpusStore:
             return self._case_row(db, case_id)
 
     def record_outcome(
-        self, case_id: str, outcome: CaseOutcome, *, at: datetime | None = None
+        self,
+        case_id: str,
+        outcome: CaseOutcome,
+        *,
+        features: str | None = None,
+        at: datetime | None = None,
     ) -> OutcomeRecord:
-        """Store the case's outcome: an enum and a date, nothing free-text (BR-7).
+        """Store the case's outcome and close the case (US-8.1).
+
+        The row holds an enum, a date, and ``features``, the caller's de-identified snapshot
+        (US-8.2), nothing free-text (BR-7). Both happen in one transaction. A later outcome
+        replaces the stored one; without ``features`` (the case's content was purged) the stored
+        snapshot is kept. The case keeps the close date it first got, so a correction never
+        restarts the retention clock. ``case_closed`` is audited only when this call closed it.
 
         Raises:
             CaseNotFoundError: No such case.
         """
         record = OutcomeRecord(case_id=case_id, outcome=outcome, recorded_at=at or utc_now())
+        recorded_at = _iso(record.recorded_at)
         with self._tx() as db:
-            self._case_row(db, case_id)
+            case = self._case_row(db, case_id)
             db.execute(
-                "INSERT OR REPLACE INTO main.outcomes VALUES (?, ?, ?)",
-                (case_id, outcome.value, _iso(record.recorded_at)),
+                "INSERT INTO main.outcomes (case_id, outcome, recorded_at, features) "
+                "VALUES (?, ?, ?, ?) ON CONFLICT (case_id) DO UPDATE SET "
+                "outcome = excluded.outcome, recorded_at = excluded.recorded_at, "
+                "features = COALESCE(excluded.features, outcomes.features)",
+                (case_id, outcome.value, recorded_at, features),
             )
             self._audit(db, AuditAction.OUTCOME_RECORDED, case_id)
+            if case.closed_at is None:
+                db.execute(
+                    "UPDATE main.cases SET closed_at = ? WHERE case_id = ?", (recorded_at, case_id)
+                )
+                self._audit(db, AuditAction.CASE_CLOSED, case_id)
         return record
 
     def outcome(self, case_id: str) -> OutcomeRecord | None:

@@ -1,20 +1,22 @@
 """Routes mounted by Hermes at ``/api/plugins/claimcoach/``.
 
-Implements: US-1.3 (``router``; every route returns a typed model or the error envelope), US-2.2
-and US-2.3 (``GET /models/status``, polled by the settings page), US-2.4 (``POST /models/download``
-and ``POST /models/convert``, which run only with ``confirm: true``), US-3.5 (``GET /settings``
-for the statusbar), US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST
-/cases/{case_id}/documents`` forwarding the raw upload body, ``POST /cases/{case_id}/paste``; the
-active profile is passed to the worker), US-5.2 (``POST /cases/{case_id}/process`` starts
-extraction and relays its progress events; ``POST /cases/{case_id}/fields`` confirms a value),
-US-6.1 (``POST /cases/{case_id}/diagnose`` starts a diagnosis and relays its events), US-7.1
-(``POST /cases/{case_id}/draft`` starts a draft and relays its events), US-7.2 (``POST
-/cases/{case_id}/draft/text`` saves the biller's edits; ``POST /cases/{case_id}/export`` answers
-where the exported file is, for the host's save dialog). Rules: ES-8, PC-2, PC-4 (runs inside the
-gateway; proxies to the worker), BR-1, BR-2 (PHI flows go desktop pane → ``plugin_api.py`` →
-worker), BR-4 (no route sends, submits, or transmits a draft or case content; every route here
-proxies to the loopback worker, and ``test_us_7_3_no_transmitting_route`` pins the route set),
-BR-14.
+Implements: US-1.3 (``router``; every route returns a typed model or the error envelope), US-2.2 and
+US-2.3 (``GET /models/status``, polled by the settings page), US-2.4 (``POST /models/download`` and
+``POST /models/convert``, which run only with ``confirm: true``), US-3.5 (``GET /settings`` for the
+statusbar), US-5.1 (``POST /cases``, ``GET /cases/{case_id}``, ``POST /cases/{case_id}/documents``
+forwarding the raw upload body, ``POST /cases/{case_id}/paste``; the active profile is passed to the
+worker), US-5.2 (``POST /cases/{case_id}/process`` starts extraction and relays its progress events;
+``POST /cases/{case_id}/fields`` confirms a value), US-6.1 (``POST /cases/{case_id}/diagnose``
+starts a diagnosis and relays its events), US-7.1 (``POST /cases/{case_id}/draft`` starts a draft
+and relays its events), US-7.2 (``POST /cases/{case_id}/draft/text`` saves the biller's edits;
+``POST /cases/{case_id}/export`` answers where the exported file is, for the host's save dialog),
+US-8.1 (``POST /cases/{case_id}/outcome`` records how the case ended, which closes it), US-8.2
+(``GET /outcomes/summary`` is the manager's weekly summary of opted-in profiles' de-identified
+outcomes), US-8.3 (``POST /outcomes/export`` writes the manager-approved fine-tune export). Rules:
+ES-8, PC-2, PC-4 (runs inside the gateway; proxies to the worker), BR-1, BR-2 (PHI flows go desktop
+pane → ``plugin_api.py`` → worker), BR-4 (no route sends, submits, or transmits a draft or case
+content; every route here proxies to the loopback worker, and ``test_us_7_3_no_transmitting_route``
+pins the route set), BR-14.
 
 Hermes owns the FastAPI app, so its default 422 body (which echoes the rejected input) cannot be
 replaced here; routes with a body read it raw and answer bad input with the envelope.
@@ -48,6 +50,7 @@ from claimcoach.cases.models import (
     Case,
     CaseCreate,
     DocumentAdded,
+    OutcomeRequest,
     PastedText,
 )
 from claimcoach.corpus.paths import active_profile
@@ -65,6 +68,7 @@ from claimcoach.models.types import (
     DownloadRequest,
     ModelsStatusResponse,
 )
+from claimcoach.outcomes.types import FineTuneExport, FineTuneExportRequest, WeeklySummary
 from claimcoach.paths import app_data_dir
 from claimcoach.settings import load_settings
 from claimcoach.worker.config import WorkerConfig
@@ -73,9 +77,11 @@ from claimcoach.worker.token import read_token
 __all__ = ["get_event_sink", "get_worker_client", "router"]
 
 _ERRORS: dict[int | str, dict[str, Any]] = {
-    status: {"model": ErrorEnvelope} for status in (401, 404, 409, 413, 415, 422, 502, 503)
+    status: {"model": ErrorEnvelope} for status in (401, 403, 404, 409, 413, 415, 422, 502, 503)
 }
 _CASE_ID: Final = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_WEEK: Final = re.compile(r"^[0-9]{4}-W[0-9]{2}$")
+"""The shape of an ISO week; the worker checks that the week exists."""
 SMALL_BODY: Final = 64 * 1024
 """Largest JSON body of a case action other than a paste or a draft (an empty object, a field)."""
 MAX_DRAFT_BODY: Final = 12 * MAX_LETTER_CHARS + 1024
@@ -351,6 +357,22 @@ async def export_draft(
         return _error_response(exc)
 
 
+@router.post("/cases/{case_id}/outcome", response_model=Case, responses=_ERRORS)
+async def record_outcome(
+    case_id: str,
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> Case | JSONResponse:
+    """Store how the case ended (overturned, upheld, or written off); the case closes."""
+    try:
+        body = await _body(request, OutcomeRequest, SMALL_BODY)
+        if not _CASE_ID.fullmatch(case_id) or body is None:
+            return _invalid()
+        return await client.record_outcome(active_profile(), case_id, body)
+    except (CaseError, WorkerError) as exc:
+        return _error_response(exc)
+
+
 @router.post("/cases/{case_id}/fields", response_model=Case, responses=_ERRORS)
 async def confirm_field(
     case_id: str,
@@ -363,5 +385,40 @@ async def confirm_field(
         if not _CASE_ID.fullmatch(case_id) or body is None:
             return _invalid()
         return await client.confirm_field(active_profile(), case_id, body)
+    except (CaseError, WorkerError) as exc:
+        return _error_response(exc)
+
+
+@router.get("/outcomes/summary", response_model=WeeklySummary, responses=_ERRORS)
+async def weekly_summary(
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+    week: str | None = None,
+) -> WeeklySummary | JSONResponse:
+    """The manager's weekly summary: de-identified outcomes of opted-in profiles only (US-8.2).
+
+    ``week`` is an ISO week (``2026-W44``); the last completed week by default.
+    """
+    if week is not None and not _WEEK.fullmatch(week):
+        return _invalid()
+    try:
+        return await client.weekly_summary(week)
+    except WorkerError as exc:
+        return _error_response(exc)
+
+
+@router.post("/outcomes/export", response_model=FineTuneExport, responses=_ERRORS)
+async def export_fine_tune(
+    request: Request,
+    client: Annotated[WorkerClient, Depends(get_worker_client)],
+) -> FineTuneExport | JSONResponse:
+    """Write the de-identified fine-tune export; refused without the manager's approval (US-8.3).
+
+    The body is ``{"approval": {"manager": "<name>", "approved": true}}``.
+    """
+    try:
+        body = await _body(request, FineTuneExportRequest, SMALL_BODY)
+        if body is None:
+            return _invalid()
+        return await client.export_fine_tune(body)
     except (CaseError, WorkerError) as exc:
         return _error_response(exc)

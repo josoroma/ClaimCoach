@@ -34,3 +34,9 @@ config_schema:
     default: false
     description: 'Richer agent access when your Hermes model is local. Off by default and shown in
       the statusbar. Reserved: until its scope is decided, agent tool results stay redacted.'
+  share_outcome_stats:
+    type: bool
+    default: false
+    description: Share this profile's de-identified case outcomes (no documents, names, or IDs) with
+      the manager's weekly summary and the manager-approved fine-tune export. Off by default; turn
+      it off to stop sharing.

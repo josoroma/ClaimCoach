@@ -238,9 +238,11 @@ class Diagnoser:
                 stored.
             ModelUnavailableError: A model is missing or stopped answering.
             ModelBusyError: The memory guard kept a model queued too long.
+            CaseClosedError: The case was closed before the job ran (checked before any model).
             CorpusError: The case store failed (for example the case was closed meanwhile).
         """
         report("classifying", 0.0)
+        await asyncio.to_thread(self.cases.check_open, profile, case_id)
         extraction = await asyncio.to_thread(self.cases.extraction_of, profile, case_id)
         notes, cards = await asyncio.to_thread(
             _references, self.cases.corpus.global_store(), extraction
