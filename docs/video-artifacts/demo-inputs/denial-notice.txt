@@ -1,0 +1,18 @@
+FICTIONAL TRAINING SAMPLE — NOT A REAL CLAIM OR INSURER NOTICE
+
+Northstar Demo Health
+Denial date: October 15, 2026
+Claim: DEMO-CLAIM-001
+Practice: Fictional Demo Clinic
+Patient: Fictional Sample
+Date of service: September 1, 2026
+Procedure: 99213
+Billed: $250.00
+Paid: $0.00
+Adjustment: CO-197, $250.00
+
+Demo scenario: The remittance reports an authorization-related denial.
+The case does not establish that authorization exists. A biller must check
+source records and obtain supporting evidence before finalizing any appeal.
+The fictional local rule card used in this video provides a 180-day appeal
+period; it is not a real payer policy.

@@ -1,0 +1,445 @@
+uv run ruff check .
+   Building claimcoach @ file:///Users/josoroma/sites/ycombinator/claimcoach
+      Built claimcoach @ file:///Users/josoroma/sites/ycombinator/claimcoach
+Uninstalled 1 package in 1ms
+Installed 1 package in 1ms
+All checks passed!
+uv run ruff format --check .
+288 files already formatted
+npm exec --no -- biome check .
+Checked 25 files in 52ms. No fixes applied.
+uv run mypy plugin/claimcoach tests tools
+Success: no issues found in 198 source files
+uv run mypy --no-explicit-package-bases plugin/__init__.py plugin/_bootstrap.py plugin/dashboard/plugin_api.py
+Success: no issues found in 3 source files
+npm exec --no -- tsc --noEmit -p tsconfig.json
+uv run pytest -m "not models and not gate" --cov --cov-report=term-missing
+============================= test session starts ==============================
+platform darwin -- Python 3.12.9, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/josoroma/sites/ycombinator/claimcoach
+configfile: pyproject.toml
+testpaths: tests
+plugins: asyncio-1.4.1, cov-7.1.0, platformdirs-4.14.0, anyio-4.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 1891 items / 14 deselected / 1877 selected
+
+tests/test_us_10_1_case_list.py ......                                   [  0%]
+tests/test_us_10_2_local_only_indicator.py ......                        [  0%]
+tests/test_us_10_3_settings_page.py ...........................          [  2%]
+tests/test_us_10_4_corpus_import.py .........................            [  3%]
+tests/test_us_11_1_payer_calls.py ...................................... [  5%]
+..........................................................               [  8%]
+tests/test_us_12_1_redaction_recall.py .................                 [  9%]
+tests/test_us_12_2_quality_gates.py ...................                  [ 10%]
+tests/test_us_12_3_latency.py ....................                       [ 11%]
+tests/test_us_12_4_egress.py ........................................... [ 13%]
+                                                                         [ 13%]
+tests/test_us_13_1_shared_logo.py ..................                     [ 14%]
+tests/test_us_13_2_dev_guide.py ...........                              [ 15%]
+tests/test_us_13_3_reference.py .....                                    [ 15%]
+tests/test_us_13_4_flow_diagrams.py ....                                 [ 15%]
+tests/test_us_13_5_product_readme.py .......                             [ 16%]
+tests/test_us_13_6_text_fit.py .....................                     [ 17%]
+tests/test_us_13_7_diagram_design.py ........................            [ 18%]
+tests/test_us_13_8_theme.py .....................                        [ 19%]
+tests/test_us_14_1_remove_retrieval.py .......                           [ 20%]
+tests/test_us_14_2_models_home_setting.py ...                            [ 20%]
+tests/test_us_1_1_plugin_package.py ...................                  [ 21%]
+tests/test_us_1_2_worker.py ............................................ [ 23%]
+..                                                                       [ 23%]
+tests/test_us_1_3_plugin_api.py ..........................               [ 25%]
+tests/test_us_1_4_quality_gate.py ...............                        [ 25%]
+tests/test_us_1_5_evidence_docs.py ....................................  [ 27%]
+tests/test_us_2_1_model_registry.py .................................... [ 29%]
+                                                                         [ 29%]
+tests/test_us_2_2_model_lifecycle.py ................................... [ 31%]
+....                                                                     [ 31%]
+tests/test_us_2_3_memory_guard.py ..................                     [ 32%]
+tests/test_us_2_4_model_acquisition.py ................................. [ 34%]
+..............                                                           [ 35%]
+tests/test_us_3_1_phi_detector.py ...................................... [ 37%]
+........................................................................ [ 41%]
+...................                                                      [ 42%]
+tests/test_us_3_2_tool_guard.py ....................s                    [ 43%]
+tests/test_us_3_3_phi_flow.py .......................................... [ 45%]
+........................................................................ [ 49%]
+......                                                                   [ 49%]
+tests/test_us_3_4_logs_events.py ....................................... [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+................................................                         [ 61%]
+tests/test_us_3_5_richer_access.py ..............                        [ 62%]
+tests/test_us_3_6_prompt_builder.py ..............                       [ 63%]
+tests/test_us_4_1_scope_stores.py ...................................... [ 65%]
+.                                                                        [ 65%]
+tests/test_us_4_2_user_scope_encryption.py ...................           [ 66%]
+tests/test_us_4_3_global_corpus_import.py ............................   [ 68%]
+tests/test_us_4_4_scoped_retrieval.py .........                          [ 68%]
+tests/test_us_4_5_retention_purge.py ....................                [ 69%]
+tests/test_us_4_6_case_access_audit.py .......                           [ 69%]
+tests/test_us_5_1_case_intake.py ....................................... [ 72%]
+..............                                                           [ 72%]
+tests/test_us_5_2_extraction.py ........................................ [ 74%]
+.....................                                                    [ 76%]
+tests/test_us_6_1_diagnosis.py ....................................      [ 77%]
+tests/test_us_6_2_explanation.py ...........................             [ 79%]
+tests/test_us_6_3_deadline.py .........................                  [ 80%]
+tests/test_us_7_1_appeal_draft.py .....................................  [ 82%]
+tests/test_us_7_2_edit_export.py ........................                [ 83%]
+tests/test_us_7_3_no_send_submit.py ..........................           [ 85%]
+tests/test_us_7_4_corrected_claim.py ................................... [ 87%]
+..........................................                               [ 89%]
+tests/test_us_8_1_case_outcome.py ...................                    [ 90%]
+tests/test_us_8_2_weekly_summary.py .................................... [ 92%]
+..................                                                       [ 93%]
+tests/test_us_8_3_fine_tune_export.py .................................. [ 95%]
+.......                                                                  [ 95%]
+tests/test_us_9_1_reference_tools.py ................................... [ 97%]
+.............                                                            [ 98%]
+tests/test_us_9_2_case_summary.py ..............                         [ 98%]
+tests/test_us_9_3_skill.py .........                                     [ 99%]
+tests/test_us_9_4_denial_command.py .............                        [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.12.9-final-0 _______________
+
+Name    Stmts   Miss Branch BrPart  Cover   Missing
+---------------------------------------------------
+TOTAL    8551      0   1414      0   100%
+
+115 files skipped due to complete coverage.
+Required test coverage of 100.0% reached. Total coverage: 100.00%
+=========================== short test summary info ============================
+SKIPPED [1] tests/conftest.py:95: no free port in 18200-18200
+========== 1876 passed, 1 skipped, 14 deselected in 263.67s (0:04:23) ==========
+npm test --silent
+▶ US-7.1 draft is generated from rule card and template
+  ✔ test_us_7_1_pane_draft_from_rule_card_and_template (28.458583ms)
+  ✔ the Draft appeal button needs a current diagnosis and says when it replaces edits (1.326458ms)
+  ✔ Draft again waits for unsaved editor text; a refused start follows no job (2.190833ms)
+  ✔ a failed or refused draft reopens the case with its fixed explanation (1.977334ms)
+  ✔ a stale draft, a draft without rule cards, and malformed drafts (0.514125ms)
+✔ US-7.1 draft is generated from rule card and template (36.406875ms)
+▶ US-7.1 draft carries the human-review label
+  ✔ test_us_7_1_pane_draft_carries_review_label (0.171584ms)
+✔ US-7.1 draft carries the human-review label (0.240541ms)
+▶ US-7.2 edits are saved to the draft
+  ✔ test_us_7_2_pane_edits_saved (1.160584ms)
+  ✔ a refused save keeps the text and explains; blank text is not sent (36.763042ms)
+✔ US-7.2 edits are saved to the draft (38.29975ms)
+▶ US-7.2 export produces PDF and DOCX through the save dialog
+  ✔ test_us_7_2_pane_export_pdf (5.4675ms)
+  ✔ test_us_7_2_pane_export_docx (1.820291ms)
+  ✔ test_us_7_2_pane_without_save_dialog_shows_where_the_file_is (0.394958ms)
+  ✔ refused, failed, and malformed exports; a late answer for another case is dropped (8.660125ms)
+  ✔ Export does nothing without a ready case holding a draft (1.750958ms)
+  ✔ one export at a time: the buttons wait for the answer (3.148834ms)
+  ✔ New case clears the editor and the export result (0.261416ms)
+✔ US-7.2 export produces PDF and DOCX through the save dialog (21.921292ms)
+▶ US-7.3 no contribution offers send or submit
+  ✔ test_us_7_3_no_send_contribution (12.683959ms)
+  ✔ the check catches a send control (4.089209ms)
+✔ US-7.3 no contribution offers send or submit (17.402291ms)
+▶ US-6.1 appeal likelihood includes reasons
+  ✔ test_us_6_1_pane_likelihood_includes_reasons (5.553167ms)
+  ✔ every backend label has a name; a case without diagnosis shows none (0.8095ms)
+  ✔ diagnosisOf keeps only well-formed diagnoses (0.566041ms)
+✔ US-6.1 appeal likelihood includes reasons (8.359792ms)
+▶ US-6.1 the pane diagnoses after extraction
+  ✔ test_us_6_1_pane_diagnoses_after_extraction (80.771583ms)
+  ✔ fields left to confirm wait for the biller before any diagnosis (8.495125ms)
+  ✔ Diagnose case starts a diagnosis and explains a refusal (3.019833ms)
+  ✔ Diagnose case is off without fields or an open case (5.475166ms)
+  ✔ a diagnosis joining a running extraction follows it as an extraction (0.179042ms)
+  ✔ a failed diagnosis reopens the case with its fixed explanation (8.336125ms)
+✔ US-6.1 the pane diagnoses after extraction (107.09425ms)
+▶ US-6.1 a confirmed field makes the diagnosis stale
+  ✔ test_us_6_1_pane_flags_stale_diagnosis (0.253833ms)
+✔ US-6.1 a confirmed field makes the diagnosis stale (0.29325ms)
+▶ US-6.2 explanation and root cause are shown
+  ✔ test_us_6_2_pane_explanation_and_root_cause_shown (0.659167ms)
+  ✔ a diagnosis whose explanation did not run shows no explanation or checklist (0.149125ms)
+✔ US-6.2 explanation and root cause are shown (0.875375ms)
+▶ US-6.2 checklist lists missing documentation
+  ✔ test_us_6_2_pane_checklist_lists_missing_docs (0.519ms)
+  ✔ cards without required documents say so; malformed entries are dropped (1.039667ms)
+✔ US-6.2 checklist lists missing documentation (1.7565ms)
+▶ US-6.2 no rule card for the payer
+  ✔ test_us_6_2_pane_says_no_rule_card (0.537125ms)
+✔ US-6.2 no rule card for the payer (0.665875ms)
+▶ US-6.1 review regressions
+  ✔ a chained diagnosis that ends before its start is answered still ends the wait (9.794875ms)
+  ✔ Diagnose case follows its own job before the start is answered (4.178625ms)
+  ✔ Process after a Refresh during a diagnosis follows an extraction (3.607667ms)
+  ✔ New case before the chained diagnosis starts it nowhere (2.25275ms)
+✔ US-6.1 review regressions (20.235584ms)
+✔ afterExtraction alone diagnoses a fully read case (0.178959ms)
+▶ US-6.3 deadline is computed from the rule card
+  ✔ test_us_6_3_pane_deadline_from_rule_card (0.675792ms)
+  ✔ the denial date is a field the biller confirms (0.057959ms)
+  ✔ isoToday reads this Mac's calendar date (0.083708ms)
+✔ US-6.3 deadline is computed from the rule card (0.884083ms)
+▶ US-6.3 the deadline has passed
+  ✔ test_us_6_3_pane_flags_passed_deadline (0.105333ms)
+✔ US-6.3 the deadline has passed (0.135041ms)
+▶ US-6.3 an unknown deadline says why
+  ✔ test_us_6_3_pane_unknown_deadline_says_why (0.608416ms)
+  ✔ malformed deadlines are dropped (0.476334ms)
+✔ US-6.3 an unknown deadline says why (1.234042ms)
+▶ US-6.2 review regressions
+  ✔ an unreadable payer asks the biller to confirm it, not the manager to add a card (0.661583ms)
+  ✔ a card that became stale after the diagnosis is flagged today (0.140917ms)
+✔ US-6.2 review regressions (0.906125ms)
+▶ US-5.2 unreadable fields are highlighted
+  ✔ test_us_5_2_pane_unreadable_fields_highlighted (4.3325ms)
+  ✔ fields are flattened in document order with readable labels (0.262959ms)
+  ✔ an 835 with more claims says so (0.199667ms)
+✔ US-5.2 unreadable fields are highlighted (5.484875ms)
+▶ US-5.2 confirmed fields are stored as confirmed
+  ✔ test_us_5_2_pane_confirmed_fields_stored (3.396042ms)
+  ✔ a refused value keeps the case and explains it with fixed text (0.420208ms)
+  ✔ Confirm does nothing without a value or an open case (1.802041ms)
+✔ US-5.2 confirmed fields are stored as confirmed (5.857333ms)
+▶ US-5.2 extraction progress is pushed as events
+  ✔ test_us_5_2_pane_receives_progress_events (1.608208ms)
+  ✔ a failed job reopens the case with its fixed explanation (2.313084ms)
+  ✔ events after unmount are ignored; hosts without onEvent still load (1.676625ms)
+  ✔ Refresh while processing stops listening for that job and reopens the case (0.817083ms)
+  ✔ progressOf keeps only well-formed payloads (0.305209ms)
+  ✔ Process explains a refusal and describes progress without a value (0.474208ms)
+✔ US-5.2 extraction progress is pushed as events (7.701084ms)
+▶ US-5.2 review regressions
+  ✔ values typed for one case never show in another (1.715041ms)
+  ✔ a finished run replaces anything typed before it (0.441958ms)
+  ✔ documents that could not be read are named in the status (0.373667ms)
+✔ US-5.2 review regressions (2.700333ms)
+▶ US-5.1 a PDF or image is attached to a new case
+  ✔ test_us_5_1_pane_drop_attaches_pdf_or_image_to_new_case (22.691542ms)
+  ✔ test_us_5_1_pane_drop_adds_to_the_open_case (2.632166ms)
+  ✔ a refused upload keeps the case open and explains the refusal with fixed text (1.084875ms)
+  ✔ a refusal whose case cannot be reopened, or an unknown code, reads as unavailable (0.714709ms)
+  ✔ refusalOf reads only known codes from a Hermes rejection (0.281042ms)
+✔ US-5.1 a PDF or image is attached to a new case (33.198125ms)
+▶ US-5.1 pasted 835 text is attached to a case
+  ✔ test_us_5_1_pane_pasted_835_attached (8.485208ms)
+  ✔ pasting with no case open creates one; a blank draft sends nothing (1.306709ms)
+✔ US-5.1 pasted 835 text is attached to a case (12.273833ms)
+▶ case pane controls
+  ✔ New case returns to the drop prompt and drops a late answer (1.55125ms)
+  ✔ a drop without files, or while busy, does nothing (1.930791ms)
+  ✔ documentsOf keeps only well-formed entries (0.251584ms)
+  ✔ DocumentList renders one item per document (0.318625ms)
+✔ case pane controls (4.569209ms)
+▶ US-5.1 review regressions
+  ✔ a case whose reopen fails stays the open case for the next drop (3.0245ms)
+  ✔ two files dropped together go into one case, in order (0.465042ms)
+  ✔ a refused file stops the rest of a multi-file drop (0.521625ms)
+  ✔ a file over 16 MiB is refused before it is read (0.440083ms)
+  ✔ a paste that is not attached goes back into the box (2.032375ms)
+  ✔ Refresh reopens the remembered case and is off without one (1.300375ms)
+✔ US-5.1 review regressions (8.282167ms)
+▶ US-8.1 outcome is recorded on the case
+  ✔ test_us_8_1_pane_outcome_recorded (8.229334ms)
+  ✔ a closed case keeps only Refresh, New case, the exports, and the outcome (0.53675ms)
+  ✔ every outcome has a label and a Mark button (0.134875ms)
+  ✔ malformed outcomes are not shown (0.113458ms)
+  ✔ the Mark buttons wait for a ready case and for unsaved editor text (0.372083ms)
+✔ US-8.1 outcome is recorded on the case (10.17025ms)
+▶ US-8.1 a later outcome corrects the first
+  ✔ test_us_8_1_pane_outcome_corrected (1.495583ms)
+✔ US-8.1 a later outcome corrects the first (1.761625ms)
+▶ US-8.1 an outcome while a job runs
+  ✔ test_us_8_1_pane_outcome_refused_while_a_job_runs (0.822208ms)
+  ✔ other refusals and failures (0.61575ms)
+✔ US-8.1 an outcome while a job runs (1.67175ms)
+▶ US-3.3 pane case actions use only plugin REST calls
+  ✔ test_us_3_3_pane_uses_only_plugin_rest (61.149458ms)
+  ✔ test_us_3_3_plugin_js_never_references_agent_surfaces (6.299708ms)
+✔ US-3.3 pane case actions use only plugin REST calls (69.31125ms)
+▶ US-3.3 case processing adds nothing to agent sessions
+  ✔ test_us_3_3_case_processing_adds_nothing_to_sessions (2.1375ms)
+✔ US-3.3 case processing adds nothing to agent sessions (2.344ms)
+▶ case API and pane states
+  ✔ a second pick while uploading is ignored and late answers are dropped (24.934208ms)
+  ✔ only the latest action updates the pane (5.386292ms)
+  ✔ uploadCase reports unavailable when the backend has no case routes yet (1.845834ms)
+  ✔ uploadCase rejects a malformed case id and openCase a mismatched one (1.800416ms)
+  ✔ uploadCase defaults the content type and encodes the case id (0.224041ms)
+  ✔ the pane ignores an empty file pick and Process before a case is ready (4.734583ms)
+  ✔ describeCase covers every state (2.887583ms)
+✔ case API and pane states (43.200916ms)
+▶ US-10.4 a bundle is previewed before it is imported
+  ✔ test_us_10_4_pane_bundle_previewed (5.648458ms)
+  ✔ a new bundle with no payers and nothing stale (0.231709ms)
+  ✔ cancel forgets the file and drops a late preview (0.800416ms)
+  ✔ picking nothing, or picking while an import runs, does nothing (0.410375ms)
+  ✔ the file input hands its files to the page (0.329584ms)
+✔ US-10.4 a bundle is previewed before it is imported (8.816834ms)
+▶ US-10.4 the import runs only after confirmation
+  ✔ test_us_10_4_pane_import_after_confirmation (51.664375ms)
+  ✔ import does nothing without a preview (0.190125ms)
+  ✔ a refused or failed import explains itself with fixed text (5.252542ms)
+  ✔ an answer after the page closes is dropped (2.334208ms)
+✔ US-10.4 the import runs only after confirmation (59.712291ms)
+▶ US-10.4 an invalid bundle is refused
+  ✔ test_us_10_4_pane_invalid_bundle_refused (0.162333ms)
+  ✔ a file over the limit is refused before it is read (0.085958ms)
+  ✔ previews are read defensively (0.171833ms)
+✔ US-10.4 an invalid bundle is refused (0.484875ms)
+▶ US-10.4 review regressions
+  ✔ the replaced items are named, kind by kind (4.989208ms)
+  ✔ picking the same file again is a change (1.677166ms)
+  ✔ a failed import keeps the file for Try again and refreshes the corpus (16.361833ms)
+  ✔ a failed preview offers no Try again (2.1485ms)
+  ✔ the pane waits longer than the gateway (0.315625ms)
+✔ US-10.4 review regressions (25.92725ms)
+▶ US-7.4 an appeal-only denial gets a recommendation, not a corrected-claim draft
+  ✔ test_us_7_4_pane_appeal_only_denial_gets_a_recommendation (4.980875ms)
+  ✔ the recommendation says what decided it; malformed ones are not shown (0.537792ms)
+✔ US-7.4 an appeal-only denial gets a recommendation, not a corrected-claim draft (6.707959ms)
+▶ US-7.4 a correctable denial gets a list of changes for human review
+  ✔ test_us_7_4_pane_correctable_denial_gets_a_list_of_changes (3.982208ms)
+  ✔ the Draft corrected claim button needs a current, open, diagnosed case (1.373958ms)
+  ✔ a failed or refused corrected-claim draft reopens the case with its fixed explanation (2.71375ms)
+✔ US-7.4 a correctable denial gets a list of changes for human review (8.531375ms)
+▶ US-7.4 a value missing from the documents is never invented
+  ✔ test_us_7_4_pane_value_missing_from_documents_is_never_invented (0.428833ms)
+✔ US-7.4 a value missing from the documents is never invented (0.557416ms)
+▶ US-7.4 a draft goes stale after re-extraction
+  ✔ test_us_7_4_pane_draft_goes_stale_after_re_extraction (0.404875ms)
+  ✔ changed fields: re-diagnose first, then Draft corrected claim again is offered (0.275791ms)
+  ✔ changes the draft does not list are counted, so every line is checked (0.129125ms)
+✔ US-7.4 a draft goes stale after re-extraction (0.956292ms)
+▶ US-7.4 the label is always present
+  ✔ test_us_7_4_pane_label_is_always_present (0.193417ms)
+✔ US-7.4 the label is always present (0.225333ms)
+▶ US-7.4 the corrected-claim draft exports as PDF or DOCX
+  ✔ test_us_7_4_pane_export_pdf_and_docx (22.223834ms)
+  ✔ refused, failed, and unsaved exports; one at a time; a late answer is dropped (8.961167ms)
+  ✔ New case and a new action clear the corrected-claim export (2.372666ms)
+✔ US-7.4 the corrected-claim draft exports as PDF or DOCX (33.785667ms)
+▶ US-7.4 no submit control
+  ✔ test_us_7_4_pane_no_submit_control (7.225917ms)
+✔ US-7.4 no submit control (7.353125ms)
+▶ US-8.2 only opted-in profiles are aggregated
+  ✔ test_us_8_2_dashboard_shows_the_weekly_summary (4.707375ms)
+  ✔ an unavailable summary, and an answer after unmount (0.684875ms)
+  ✔ sharing lines and malformed summaries (0.299125ms)
+✔ US-8.2 only opted-in profiles are aggregated (6.767167ms)
+▶ US-8.3 export requires manager approval
+  ✔ test_us_8_3_pane_export_requires_approval (2.52125ms)
+  ✔ refusals, failures, and an answer after unmount (26.080958ms)
+✔ US-8.3 export requires manager approval (29.317333ms)
+▶ US-10.1 the case pane is registered
+  ✔ test_us_10_1_case_pane_registered (1.283208ms)
+  ✔ test_us_10_1_listed_case_opens (7.389ms)
+  ✔ the detail view reloads the list when it moves to another case (1.556875ms)
+  ✔ the list waits while the detail view is busy (0.218791ms)
+  ✔ the list loads, refreshes, and drops a late or stale answer (1.853375ms)
+  ✔ an empty list says how to start (0.573541ms)
+  ✔ case rows are read defensively and hold no case content (0.490916ms)
+✔ US-10.1 the case pane is registered (14.558292ms)
+▶ US-10.1 the dashboard route is registered
+  ✔ test_us_10_1_dashboard_route_registered (0.168208ms)
+✔ US-10.1 the dashboard route is registered (0.211917ms)
+▶ US-10.1 backend errors render as an error state
+  ✔ test_us_10_1_backend_errors_render_error_state (1.154833ms)
+✔ US-10.1 backend errors render as an error state (1.235375ms)
+▶ US-10.2 local-only statusbar indicator
+  ✔ test_us_10_2_indicator_local_only_default (2.304417ms)
+  ✔ every indicator state names local models (0.205667ms)
+✔ US-10.2 local-only statusbar indicator (2.612ms)
+▶ US-10.3 settings page
+  ✔ a first read that answers after a save does not undo it (2.144167ms)
+  ✔ test_us_10_3_settings_registers_when_supported (1.066292ms)
+  ✔ test_us_10_3_settings_degrade_when_unsupported (0.238125ms)
+  ✔ test_us_10_3_pane_retention_saved (2.25975ms)
+  ✔ saving waits for a valid, changed value and drops a late answer (1.012292ms)
+  ✔ a refused save keeps the typed value (0.905417ms)
+  ✔ saveRetention and describeSave cover every answer (0.244708ms)
+  ✔ parseDays accepts whole days from 1 to 3650 only (0.272916ms)
+  ✔ the retention section before the period loads (0.162583ms)
+  ✔ model and corpus sections show status or a fixed error (1.001167ms)
+✔ US-10.3 settings page (9.966375ms)
+▶ EPIC-10 review regressions
+  ✔ a case that fails to open stays selected, so the next document goes to it (3.690875ms)
+  ✔ opening another case waits for unsaved draft edits (0.476583ms)
+  ✔ a file dropped anywhere on the pane joins the open case (0.527833ms)
+  ✔ case rows show the open date on this Mac (0.495ms)
+  ✔ an invalid stored period says purges are skipped and takes a new one (0.336166ms)
+  ✔ the detail view also renders under a rejecting backend (0.256ms)
+✔ EPIC-10 review regressions (6.185041ms)
+▶ US-11.1 an attached call is queued for transcription
+  ✔ test_us_11_1_pane_attached_call_queued (9.749459ms)
+  ✔ queueing refusals and failures (0.44325ms)
+  ✔ the pane ignores call actions without a ready, open case (0.19575ms)
+✔ US-11.1 an attached call is queued for transcription (11.677416ms)
+▶ US-11.1 a recording is attached
+  ✔ test_us_11_1_pane_recording_refused (0.220458ms)
+  ✔ a recording without a type is sent as octet-stream (0.092541ms)
+✔ US-11.1 a recording is attached (0.375584ms)
+▶ US-11.1 the transcript's notes are shown with the case
+  ✔ test_us_11_1_pane_transcript_notes_shown (0.232834ms)
+  ✔ a transcript without notes says so (0.100791ms)
+✔ US-11.1 the transcript's notes are shown with the case (0.395791ms)
+▶ US-11.1 review regressions
+  ✔ a transcript cut off at the length limit says so (0.094292ms)
+  ✔ a call whose finished job was forgotten still reads as transcribed (0.076333ms)
+✔ US-11.1 review regressions (0.219625ms)
+▶ US-11.1 call states and malformed bodies
+  ✔ describeCall covers every state (0.102084ms)
+  ✔ a running call cannot be queued again (0.065125ms)
+  ✔ malformed calls are skipped or read safely (0.09725ms)
+✔ US-11.1 call states and malformed bodies (0.315083ms)
+▶ US-1.4 registration contract
+  ✔ test_us_1_4_plugin_js_registers_contributions (3.603625ms)
+  ✔ registers without a settings page on hosts that lack registerSettingsPage (0.370125ms)
+  ✔ pane and settings renders reach the backend through ctx.rest (10.659083ms)
+✔ US-1.4 registration contract (15.79875ms)
+▶ US-1.4 allowed imports (PC-3)
+  ✔ test_us_1_4_plugin_js_allowed_imports (3.139625ms)
+✔ US-1.4 allowed imports (PC-3) (3.302542ms)
+▶ worker status
+  ✔ loadWorkerState reports a healthy worker (0.123042ms)
+  ✔ loadWorkerState treats a rejected request as unavailable (0.119458ms)
+  ✔ loadWorkerState treats an unexpected body as unavailable (0.080542ms)
+  ✔ describeWorker covers every state (0.135958ms)
+  ✔ WorkerStatus starts loading and updates when health arrives (1.462958ms)
+  ✔ WorkerStatus ignores a response that arrives after unmount (1.262417ms)
+✔ worker status (3.446ms)
+▶ views
+  ✔ CasePane and SettingsPage embed the worker status (0.450834ms)
+  ✔ DashboardPage renders static content and the indicator starts local-only (1.545667ms)
+✔ views (2.201709ms)
+▶ US-13.1 shared logo
+  ✔ test_us_13_1_pages_show_logo (5.8965ms)
+  ✔ test_us_13_1_logo_matches_file (9.738666ms)
+  ✔ test_us_13_1_logo_match_refuses_extra_content (2.576458ms)
+  ✔ test_us_13_1_logo_hidden_from_screen_readers (0.593417ms)
+✔ US-13.1 shared logo (20.14375ms)
+▶ US-3.5 statusbar
+  ✔ test_us_3_5_statusbar_reflects_richer_access (7.886167ms)
+  ✔ test_us_3_5_richer_access_off_by_default_in_statusbar (1.094541ms)
+  ✔ anything but an explicit true reads as off (0.497458ms)
+  ✔ test_us_3_5_statusbar_follows_a_changed_setting (3.105417ms)
+  ✔ a settings answer after unmount is ignored (1.10375ms)
+✔ US-3.5 statusbar (15.270584ms)
+ℹ tests 191
+ℹ suites 60
+ℹ pass 191
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 672.518667
+ℹ start of coverage report
+ℹ ------------------------------------------------------------
+ℹ file        | line % | branch % | funcs % | uncovered lines
+ℹ ------------------------------------------------------------
+ℹ plugin      |        |          |         |
+ℹ  desktop    |        |          |         |
+ℹ   plugin.js | 100.00 |   100.00 |  100.00 |
+ℹ ------------------------------------------------------------
+ℹ all files   | 100.00 |   100.00 |  100.00 |
+ℹ ------------------------------------------------------------
+ℹ end of coverage report

@@ -1,0 +1,26 @@
+FICTIONAL TRAINING SAMPLE — DRAFT FOR HUMAN REVIEW
+Not for submission. No real patient or payer is represented.
+
+NORTHSTAR DEMO HEALTH
+Claims Appeal Department
+[Payer mailing address to be verified]
+
+[Date]
+
+Re: Claim DEMO-CLAIM-001 — denial dated 2026-10-15
+
+Dear Claims Reviewer,
+
+We request review of the CO-197 denial for the service dated 2026-09-01, procedure code 99213. The fictional remittance shows $250 billed, $0 paid and a $250 contractual adjustment.
+
+The remittance reports an authorization-related denial. The supplied evidence does not establish whether authorization was requested, obtained or submitted. [Authorization evidence required.] The biller must verify the authorization record and the applicable payer policy before completing this draft. No assertion of retroactive authorization acceptance is made.
+
+Documents to obtain and review before any submission:
+1. The complete denial notice.
+2. The authorization record, if one exists.
+3. Documentation supporting the billed service.
+
+No supporting documents are represented as attached to this draft. The sample's 180-day deadline is a fictional training rule; the actual payer's deadline must be verified in a real case.
+
+[Reviewer name, practice contact, provider NPI and signature after review]
+[Patient/member identifiers — not supplied in this training sample]

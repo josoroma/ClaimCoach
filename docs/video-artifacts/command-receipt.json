@@ -1,0 +1,13 @@
+{
+  "runtime": "installed Hermes plugin command registry",
+  "case_id": "case_ef4492f90f971935",
+  "skill": {
+    "success": true,
+    "name": "claimcoach:denial-triage",
+    "readiness_status": "available"
+  },
+  "command": "/denial",
+  "guide": "/denial: start denial work with ClaimCoach.\n1. Open the ClaimCoach pane, create a case, and add the EOB, 835, or denial letter there. Never paste claim documents or patient details into this chat.\n2. Run /denial <case ID> for the case's redacted summary: status, codes, payer, denial reason.\n3. Ask about a code (CO-197) or a payer's rules; answers come from the ClaimCoach global corpus and the claimcoach:denial-triage playbook.",
+  "case_summary": "ClaimCoach case case_ef4492f90f971935: open, drafted\nPayer: Northstar Demo Health\nCodes: CO-197\nDenial reason: prior_authorization; appeal likelihood: medium\nAppeal deadline: known (see the pane)\nDocuments: 1; fields to confirm: 0\nNext: Review the draft in the pane, then export it for human review.",
+  "note": "The slash command returns a guarded summary; the separate agent-loop receipt proves model/tool iteration."
+}

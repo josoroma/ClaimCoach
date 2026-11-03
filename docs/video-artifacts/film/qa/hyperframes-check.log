@@ -1,0 +1,26 @@
+◆  Checking composition
+[INFO] [Compiler] Fetched 11 font face(s) for "Inter" from Google Fonts (cached to /Users/josoroma/.cache/hyperframes/fonts/inter)
+[INFO] [Compiler] Injected deterministic @font-face rules for 1 requested font families
+[hyperframes] browserGpuMode probe → hardware (WebGL renderer vendor="Google Inc. (Apple)" renderer="ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)")
+
+Lint
+  ◇ 0 errors, 0 warnings
+
+Runtime
+  ◇ 0 errors, 0 warnings
+
+Layout
+  ◇ 0 issues across 9 sample(s)
+
+Motion
+  ◇ 0 errors, 0 warnings
+
+Contrast
+  ◇ 61/61 text checks pass WCAG AA
+
+Snapshots
+  ◇ disabled
+
+◇  Check passed
+Report: /Users/josoroma/sites/ycombinator/claimcoach/docs/video-artifacts/film/composition/.hyperframes/artifacts/checks/750f1b8b-34c7-4d2d-bb4a-23c9a6f8cee0.json
+Revision: 2078b9bc-7142-4f05-9d91-03dc1842646a (recorded-revision)

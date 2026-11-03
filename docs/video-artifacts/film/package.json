@@ -1,0 +1,15 @@
+{
+  "name": "claimcoach-english-walkthrough",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node serve.mjs",
+    "check": "node render.mjs check",
+    "render": "node render.mjs render",
+    "verify": "node verify.mjs",
+    "verify:video": "node verify-video.mjs"
+  },
+  "engines": {"node": ">=22.12.0"},
+  "devDependencies": {"puppeteer": "25.16.0"}
+}

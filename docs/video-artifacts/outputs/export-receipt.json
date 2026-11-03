@@ -1,0 +1,29 @@
+{
+  "case_id": "case_ef4492f90f971935",
+  "method": "actual ClaimCoach worker export endpoint via workspace.py make case-export",
+  "source_text": "docs/video-artifacts/outputs/appeal-reviewed-demo.txt",
+  "source_text_sha256": "c987fec44f17b292ed9a67b909ef4bd5a1e3b297b48776c84906a78af9a00c8e",
+  "files": [
+    {
+      "file": "docs/video-artifacts/outputs/claimcoach-demo-appeal.pdf",
+      "bytes": 35476,
+      "sha256": "b1404ce1b4baa64e26e66868dff9a3cfcdbd84bb78e689ea8a5a6c7a3affbed1",
+      "content_matches_operator_edited_text": true
+    },
+    {
+      "file": "docs/video-artifacts/outputs/claimcoach-demo-appeal.docx",
+      "bytes": 2239,
+      "sha256": "e83aff241b4bd55372af96bbfbff0abf0312df077a8847a2db48ed5c9c5913b9",
+      "content_matches_operator_edited_text": true
+    }
+  ],
+  "pdf_pages": 1,
+  "docx_render_pages": 1,
+  "visual_inspection": {
+    "pdf": "pass: one page, legible, no clipping, no orphan signature",
+    "docx": "pass: one page, legible, no clipping or overlap"
+  },
+  "docx_renderer": "packaged render_docx.py with bundled LibreOffice at ~/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/soffice",
+  "case_outcome": "not recorded; draft remains for human review",
+  "initial_exports": "qa/initial-export preserves the first exported revision with orphan signature pagination"
+}

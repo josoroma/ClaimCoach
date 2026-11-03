@@ -1,0 +1,143 @@
+1
+00:00:00,500 --> 00:00:03,860
+A denied claim should not leave an entry-level biller guessing.
+
+2
+00:00:03,980 --> 00:00:08,016
+Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models
+
+3
+00:00:08,016 --> 00:00:11,380
+and a clear path from evidence to a reviewable draft.
+
+4
+00:00:12,600 --> 00:00:16,655
+Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim
+
+5
+00:00:16,655 --> 00:00:20,710
+Coach. Open the Claim Coach pane. This is where you create cases
+
+6
+00:00:20,710 --> 00:00:22,400
+and work through each denial.
+
+7
+00:00:23,600 --> 00:00:26,773
+Configure Hermes to use a model server on this Mac. The model
+
+8
+00:00:26,773 --> 00:00:28,360
+weights live in your Models folder.
+
+9
+00:00:28,480 --> 00:00:32,380
+Claim Coach has its own local worker, which routes document processing and
+
+10
+00:00:32,380 --> 00:00:33,680
+drafting to local models.
+
+11
+00:00:34,900 --> 00:00:39,202
+Create a case and add the denial letter, an explanation of benefits,
+
+12
+00:00:39,202 --> 00:00:43,503
+or pasted eight thirty-five text. Our example uses fictional data from Northstar
+
+13
+00:00:43,503 --> 00:00:44,220
+Demo Health.
+
+14
+00:00:44,340 --> 00:00:46,500
+Process the case to read its fields.
+
+15
+00:00:47,700 --> 00:00:52,347
+Review the payer, service dates, amounts, and denial codes. Confirm any fields
+
+16
+00:00:52,347 --> 00:00:56,220
+the software could not read. The example denial concerns authorization.
+
+17
+00:00:56,340 --> 00:01:00,220
+Keep the original evidence beside the structured fields while checking them.
+
+18
+00:01:01,433 --> 00:01:05,513
+Run diagnosis to get a plain-language explanation and a checklist of missing
+
+19
+00:01:05,513 --> 00:01:08,233
+documents. Review the rule card and appeal deadline.
+
+20
+00:01:08,353 --> 00:01:11,585
+These are decision aids: the biller checks the evidence and decides what
+
+21
+00:01:11,585 --> 00:01:12,393
+to do next.
+
+22
+00:01:13,600 --> 00:01:17,700
+Request an appeal draft, or a corrected-claim checklist when that is the
+
+23
+00:01:17,700 --> 00:01:21,800
+right remedy. Edit and save the result, then export it for review.
+
+24
+00:01:21,920 --> 00:01:24,960
+Claim Coach does not send appeals or submit claims.
+
+25
+00:01:26,167 --> 00:01:30,487
+In Hermes chat, use the denial command with a case identifier. The
+
+26
+00:01:30,487 --> 00:01:32,287
+denial-triage skill guides the agent.
+
+27
+00:01:32,407 --> 00:01:36,807
+Its tools retrieve code explanations, payer rules, and a redacted case summary,
+
+28
+00:01:36,807 --> 00:01:39,007
+without handing over the source documents.
+
+29
+00:01:40,233 --> 00:01:44,896
+The Hermes loop reads your request, chooses a tool, inspects the result,
+
+30
+00:01:44,896 --> 00:01:48,393
+and continues. Skills supply the playbook. Commands provide shortcuts.
+
+31
+00:01:48,513 --> 00:01:52,575
+Local models do the inference, while the plugin keeps the case workflow
+
+32
+00:01:52,575 --> 00:01:52,913
+organized.
+
+33
+00:01:54,133 --> 00:01:58,333
+Record the final outcome when it is known. Claim Coach turns specialist
+
+34
+00:01:58,333 --> 00:02:01,133
+workflow into practical guidance on a consumer laptop.
+
+35
+00:02:01,253 --> 00:02:05,470
+Private evidence, useful next steps, and a person in control of every
+
+36
+00:02:05,470 --> 00:02:06,173
+final decision.

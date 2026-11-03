@@ -1,0 +1,167 @@
+{
+  "ok": true,
+  "case_id": "case_ef4492f90f971935",
+  "opened_at": "2026-11-03T01:45:58.068966Z",
+  "closed_at": null,
+  "documents": [
+    {
+      "doc_id": "src_3e4f7878195340d2",
+      "kind": "edi_835",
+      "filename": null,
+      "content_type": "text/plain; charset=utf-8",
+      "size_bytes": 470,
+      "added_at": "2026-11-03T01:45:58.098953Z"
+    }
+  ],
+  "extraction": {
+    "payer_name": {
+      "value": "NORTHSTAR DEMO HEALTH",
+      "status": "extracted"
+    },
+    "claim_id": {
+      "value": "DEMO-CLAIM-001",
+      "status": "extracted"
+    },
+    "billed_amount": {
+      "value": "250",
+      "status": "extracted"
+    },
+    "paid_amount": {
+      "value": "0",
+      "status": "extracted"
+    },
+    "denial_date": {
+      "value": "2026-10-15",
+      "status": "extracted"
+    },
+    "adjustments": [],
+    "rarc_codes": [],
+    "lines": [
+      {
+        "procedure_code": {
+          "value": "99213",
+          "status": "extracted"
+        },
+        "service_date": {
+          "value": "2026-09-01",
+          "status": "extracted"
+        },
+        "billed_amount": {
+          "value": "250",
+          "status": "extracted"
+        },
+        "paid_amount": {
+          "value": "0",
+          "status": "extracted"
+        },
+        "adjustments": [
+          {
+            "group_code": {
+              "value": "CO",
+              "status": "extracted"
+            },
+            "carc": {
+              "value": "197",
+              "status": "extracted"
+            },
+            "amount": {
+              "value": "250",
+              "status": "extracted"
+            }
+          }
+        ],
+        "rarc_codes": []
+      }
+    ],
+    "other_claims": 0,
+    "sources": [
+      "src_3e4f7878195340d2"
+    ],
+    "itemized_by": "src_3e4f7878195340d2",
+    "unread_sources": []
+  },
+  "needs_confirmation": [],
+  "diagnosis": {
+    "denial_reason": "prior_authorization",
+    "appeal_likelihood": "medium",
+    "likelihood_reasons": [
+      "The claim was denied because the required prior authorization or precertification was missing.",
+      "This type of denial is often correctable if the provider can submit the missing authorization documentation.",
+      "The appeal is medium because the payer may accept the authorization if it was completed after the service but before the appeal."
+    ],
+    "codes": [
+      "CO-197"
+    ],
+    "extraction_digest": "8c87f8be703051e3b4713c0e3fde7f991425ef6c4a996b9ed3ff2103a9b93e87",
+    "diagnosed_at": "2026-11-03T01:46:37.055349Z",
+    "explanation": {
+      "explanation": "The payer denied the claim because the required prior authorization or precertification was missing before the service was provided. The billed code 99213 is for an office visit, and the denial code 197 indicates that the payer did not have the necessary approval on file. The biller can appeal by submitting the missing authorization documentation if it was completed after the service but before the appeal. The payer may accept the authorization if it was completed after the service but before the appeal.",
+      "root_cause": "The provider failed to obtain or submit the required prior authorization or precertification before the service was rendered."
+    },
+    "checklist": [
+      {
+        "document": "Copy of the denial notice",
+        "why": null
+      },
+      {
+        "document": "Authorization record, if available",
+        "why": null
+      },
+      {
+        "document": "Documentation supporting the billed service",
+        "why": null
+      }
+    ],
+    "rule_cards": [
+      {
+        "key": "Northstar Demo Health/appeal_levels",
+        "payer": "Northstar Demo Health",
+        "topic": "appeal_levels",
+        "source": "Fictional ClaimCoach video fixture; not an insurer policy",
+        "verified_on": "2026-11-02",
+        "stale": false
+      },
+      {
+        "key": "Northstar Demo Health/required_docs",
+        "payer": "Northstar Demo Health",
+        "topic": "required_docs",
+        "source": "Fictional ClaimCoach video fixture; not an insurer policy",
+        "verified_on": "2026-11-02",
+        "stale": false
+      }
+    ]
+  },
+  "diagnosis_stale": false,
+  "deadline": {
+    "status": "computed",
+    "due": "2027-04-13",
+    "denial_date": "2026-10-15",
+    "limit_days": 180,
+    "rule_card": "Northstar Demo Health/appeal_levels"
+  },
+  "draft": {
+    "label": "draft for human review",
+    "text": "NORTHSTAR DEMO HEALTH\nClaims Appeal Department\n[Practice address]\n\n[Date]\n\nRe: Claim DEMO-CLAIM-001, denial dated 2026-10-15\n\nDear Claims Reviewer,\n\nWe are writing to appeal the denial of claim DEMO-CLAIM-001, which was denied on 2026-10-15. The service was provided on 2026-09-01, and the procedure code billed was 99213. The claim was adjusted with group code CO and CARC 197 for an amount of 250, with no payment made.\n\nThe denial reason is prior authorization. The payer indicates that the required prior authorization or precertification was missing before the service was provided. We request reconsideration of this denial based on the supporting documentation attached to this letter. If authorization evidence is absent, mark [Authorization evidence required] rather than assert authorization existed.\n\nEnclosures:\n1. Copy of the denial notice\n2. Authorization record, if available\n3. Documentation supporting the billed service\n\nSincerely,\n\n[Signature]\n[Reviewer name and practice contact]\n[Patient name]\n[Member ID]\n[Provider name and NPI]",
+    "template_id": "appeal-video-demo",
+    "rule_cards": [
+      "Northstar Demo Health/appeal_levels",
+      "Northstar Demo Health/required_docs"
+    ],
+    "extraction_digest": "8c87f8be703051e3b4713c0e3fde7f991425ef6c4a996b9ed3ff2103a9b93e87",
+    "diagnosed_at": "2026-11-03T01:46:37.055349Z",
+    "drafted_at": "2026-11-03T01:48:35.907303Z",
+    "edited_at": null
+  },
+  "draft_stale": false,
+  "remedy": {
+    "remedy": "appeal",
+    "basis": "table",
+    "denial_reason": "prior_authorization",
+    "codes": [],
+    "rule_card": null
+  },
+  "correction": null,
+  "correction_stale": false,
+  "outcome": null,
+  "calls": []
+}

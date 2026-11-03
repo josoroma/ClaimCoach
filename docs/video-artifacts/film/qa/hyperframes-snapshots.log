@@ -1,0 +1,24 @@
+◆  Capturing 10 frames at [4s, 16.1s, 27.1s, 38.4s, 51.2s, 64.933s, 77.1s, 89.667s, 103.733s, 117.633s] from composition
+[INFO] [Compiler] Fetched 11 font face(s) for "Inter" from Google Fonts (cached to /Users/josoroma/.cache/hyperframes/fonts/inter)
+[INFO] [Compiler] Injected deterministic @font-face rules for 1 requested font families
+[hyperframes] browserGpuMode probe → hardware (WebGL renderer vendor="Google Inc. (Apple)" renderer="ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)")
+
+   Fonts: 4 loaded, 3 unused
+   Note: added an end-of-timeline frame at 123.09s. Short beats between your --at times may still be skipped — pass them explicitly.
+   Revision: 2feaa64b-8cf5-452e-adbf-33f0463db2fa (recorded-revision)
+   State: /Users/josoroma/sites/ycombinator/claimcoach/docs/video-artifacts/film/composition/.hyperframes/video-state.json
+
+◇  11 snapshots saved to /Users/josoroma/sites/ycombinator/claimcoach/docs/video-artifacts/film/composition/.hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-00-at-4s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-01-at-16.1s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-02-at-27.1s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-03-at-38.4s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-04-at-51.2s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-05-at-64.933s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-06-at-77.1s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-07-at-89.667s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-08-at-103.733s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-09-at-117.633s.png
+   .hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/frame-10-at-123.093s.png
+   /Users/josoroma/sites/ycombinator/claimcoach/docs/video-artifacts/film/composition/.hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/contact-sheet-1.jpg (grid view for AI review)
+   /Users/josoroma/sites/ycombinator/claimcoach/docs/video-artifacts/film/composition/.hyperframes/artifacts/snapshots/c13f4190-e158-4ebf-ad7a-32bca935a5d8/contact-sheet-2.jpg (grid view for AI review)

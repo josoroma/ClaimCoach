@@ -1,0 +1,35 @@
+{
+  "video": "docs/video-artifacts/film/claimcoach-walkthrough.en.mp4",
+  "language": "en",
+  "duration_seconds": 126.9,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": 30,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "bytes": 17092738,
+  "sha256": "a9d9f0bda83447b32219f70c24f7c8cc3c0151df7cb8f63513a68212b8fd0ae5",
+  "narration_model": "~/Models/chatterbox-multilingual-v3",
+  "composition_workflow": "/Users/josoroma/sites/taster",
+  "desktop_version": "0.22.6",
+  "application_check": {
+    "exit_code": 0,
+    "python_passed": 1876,
+    "python_skipped": 1,
+    "python_deselected": 14,
+    "javascript_passed": 191,
+    "coverage_percent": 100,
+    "skip_reason": "Test requires port18200, occupied by actual demo worker"
+  },
+  "root_visual_review": [
+    "decoded corrected intake instruction",
+    "draft and export controls",
+    "actual completed agent response",
+    "loop diagram"
+  ],
+  "human_approval": false,
+  "appeal_submitted": false,
+  "notes": "Actual desktop screenshots, edited as guided stills; fictional case; operator-edited draft requires human review."
+}

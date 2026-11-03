@@ -1,0 +1,82 @@
+{
+  "title": "ClaimCoach \u2014 A denial specialist on your laptop",
+  "language": "en",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "audience": "Prospective users and Y Combinator reviewers",
+  "scenes": [
+    {
+      "id": "01-intro",
+      "type": "intro",
+      "title": "A denial specialist\non your laptop.",
+      "kicker": "CLAIMCOACH / PRODUCT WALKTHROUGH",
+      "narration": "A denied claim should not leave an entry-level biller guessing. Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models and a clear path from evidence to a reviewable draft."
+    },
+    {
+      "id": "02-enable",
+      "type": "capture",
+      "title": "Enable ClaimCoach",
+      "kicker": "01 / OPEN THE WORKSPACE",
+      "screenshot": "02-enable.png",
+      "tag": "HERMES DESKTOP",
+      "instruction": "Capabilities \u2192 Plugins \u2192 Rescan \u2192 ClaimCoach",
+      "narration": "Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim Coach. Open the Claim Coach pane. This is where you create cases and work through each denial."
+    },
+    {
+      "id": "03-local",
+      "type": "local",
+      "title": "Connect a model on this Mac",
+      "kicker": "02 / LOCAL INFERENCE",
+      "screenshot": "03-local.png",
+      "tag": "127.0.0.1",
+      "instruction": "Hermes chat \u2192 local model server \u00b7 ClaimCoach \u2192 local worker",
+      "narration": "Configure Hermes to use a model server on this Mac. The model weights live in your Models folder. Claim Coach has its own local worker, which routes document processing and drafting to local models."
+    },
+    {
+      "id": "04-intake",
+      "type": "capture",
+      "title": "Add the denial evidence",
+      "kicker": "03 / CREATE A CASE",
+      "screenshot": "04-intake.png",
+      "tag": "FICTIONAL DEMO CASE",
+      "instruction": "New case \u2192 paste 835 text \u2192 Process case",
+      "narration": "Create a case and add the denial letter, an explanation of benefits, or pasted eight thirty-five text. Our example uses fictional data from Northstar Demo Health. Process the case to read its fields."
+    },
+    {
+      "id": "05-review",
+      "type": "capture",
+      "title": "Check the facts first",
+      "kicker": "04 / REVIEW THE EXTRACTION",
+      "screenshot": "05-review.png",
+      "tag": "HUMAN CONFIRMATION",
+      "instruction": "Review payer, codes, dates and amounts \u00b7 Confirm unreadable fields",
+      "narration": "Review the payer, service dates, amounts, and denial codes. Confirm any fields the software could not read. The example denial concerns authorization. Keep the original evidence beside the structured fields while checking them."
+    },
+    {
+      "id": "08-agent",
+      "type": "capture",
+      "title": "Ask the Hermes agent",
+      "kicker": "07 / COMMANDS, SKILLS AND TOOLS",
+      "screenshot": "08-agent.png",
+      "tag": "/denial",
+      "instruction": "/denial <case ID> \u00b7 claimcoach:denial-triage",
+      "narration": "In Hermes chat, use the denial command with a case identifier. The denial-triage skill guides the agent. Its tools retrieve code explanations, payer rules, and a redacted case summary, without handing over the source documents."
+    },
+    {
+      "id": "09-loop",
+      "type": "loop",
+      "title": "The Hermes loop, made useful",
+      "kicker": "08 / HOW IT WORKS",
+      "tag": "LOCAL MODEL + PLUGIN TOOLS",
+      "narration": "The Hermes loop reads your request, chooses a tool, inspects the result, and continues. Skills supply the playbook. Commands provide shortcuts. Local models do the inference, while the plugin keeps the case workflow organized."
+    },
+    {
+      "id": "10-close",
+      "type": "close",
+      "title": "Give every biller\na clearer next step.",
+      "kicker": "CLAIMCOACH / BUILT FOR EVERYDAY BILLERS",
+      "narration": "Record the final outcome when it is known. Claim Coach turns specialist workflow into practical guidance on a consumer laptop. Private evidence, useful next steps, and a person in control of every final decision."
+    }
+  ]
+}

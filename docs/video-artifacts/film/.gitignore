@@ -1,0 +1,4 @@
+node_modules/
+composition/.hyperframes/
+render.log
+qa/preview.log

@@ -1,0 +1,177 @@
+{
+  "configuration": "dedicated ClaimCoach demo workspace",
+  "all_routes_loopback": true,
+  "fallback_providers": [],
+  "fallback_model": [],
+  "routes": [
+    {
+      "role": "main",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "delegation",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "compression",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "vision",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "approval",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "title_generation",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "skills_hub",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "mcp",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "curator",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "background_review",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "triage_specifier",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "tts_audio_tags",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "review",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "memory_query_rewrite",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "voice_chat",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "kanban_decomposer",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "profile_describer",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "goal_judge",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "monitor",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "moa_reference",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    },
+    {
+      "role": "moa_aggregator",
+      "provider": "custom",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+      "fallback_chain": [],
+      "fallback_providers": []
+    }
+  ],
+  "note": "Configuration audit only, not packet capture or zero-egress certification."
+}

@@ -1,0 +1,42 @@
+{
+  "engine": "Chatterbox Multilingual V3",
+  "model": "/Users/josoroma/Models/chatterbox-multilingual-v3",
+  "revision": "ResembleAI/chatterbox\n5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+  "runtime": {
+    "torch": "2.6.0",
+    "torchaudio": "2.6.0",
+    "numpy": "1.26.4",
+    "chatterbox-tts": "0.1.7"
+  },
+  "voice": "Bundled conds.pt default voice; no reference audio or voice cloning",
+  "language": "en",
+  "device": "cpu",
+  "seed": 42,
+  "parameters": {
+    "exaggeration": 0.5,
+    "cfg_weight": 0.0,
+    "temperature": 0.8
+  },
+  "watermark": "PerTh watermark retained from model output",
+  "sample_rate": 24000,
+  "scenes": {
+    "smoke-en": {
+      "file": "smoke-en.wav",
+      "text": "Claim Coach helps billers understand claim denials, with private artificial intelligence running on the laptop.",
+      "text_sha256": "19b48cc1673ce3a29f7c1a5c5d87b2dd3e97ebde1f3460a884ba593438bf169a",
+      "generation_key": "4d2a83f1f0c61d63c7084f79db9399bf1b8323ec9aa0c1c17066703daaf633e0",
+      "sha256": "18ce05ba12f44bc0d9128642adbd0af7b9679cd4d6a0cff471ae80b972b8486d",
+      "duration": 5.84,
+      "rms": 0.14352035522460938,
+      "peak": 0.9780161380767822,
+      "scene_seed": 1511414,
+      "segments": [
+        {
+          "text": "Claim Coach helps billers understand claim denials, with private artificial intelligence running on the laptop.",
+          "duration": 5.84
+        }
+      ],
+      "generation_seconds": 24.23
+    }
+  }
+}

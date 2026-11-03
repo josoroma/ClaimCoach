@@ -1,0 +1,203 @@
+{
+  "session_id": "local-35a3152815d0ee1f753e05fde211ad1b91e714c4febbc9483e59b131a94b751a",
+  "case_id": "case_ef4492f90f971935",
+  "data": "fictional training sample",
+  "runtime": "actual Hermes Agent gateway session initiated by CLI; recovered from canonical session messages",
+  "endpoint": "http://127.0.0.1:8080/v1",
+  "model": "Ternary-Bonsai-2-27B-MTPLX-Optimized-Speed",
+  "running": false,
+  "pending": [],
+  "message_count": 11,
+  "tools": [
+    {
+      "name": "skill_view",
+      "arguments": "{\"name\":\"claimcoach:denial-triage\"}",
+      "id": "call_0e2ec696451f495ea3dc1aee"
+    },
+    {
+      "name": "tool_search",
+      "arguments": "{\"queries\":[\"ClaimCoach case summary case\",\"explain denial code\",\"payer rules filing limits\"]}",
+      "id": "call_21b969e7"
+    },
+    {
+      "name": "tool_call",
+      "arguments": "{\"calls\":[{\"name\":\"claimcoach_case_summary\",\"arguments\":{\"case_id\":\"case_ef4492f90f971935\"}}]}",
+      "id": "call_4c305aaf"
+    },
+    {
+      "name": "tool_call",
+      "arguments": "{\"calls\": [{\"name\": \"claimcoach_explain_code\", \"arguments\": {\"code\": \"CO-197\"}}]}",
+      "id": "call_26256910"
+    },
+    {
+      "name": "tool_call",
+      "arguments": "{\"calls\": [{\"name\": \"claimcoach_payer_rules\", \"arguments\": {\"payer\": \"Northstar Demo Health\"}}]}",
+      "id": "call_4c72ff6d55be"
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "skill_view",
+      "output": "{\"success\": true, \"name\": \"claimcoach:denial-triage\", \"content\": \"[Bundle context: This skill is part of the 'claimcoach' plugin.]\\n\\n---\\nname: denial-triage\\ndescription: Triage a denied medical claim and explain it to a biller with ClaimCoach's PHI-free tools (case IDs, codes, and payer names only).\\nversion: 1.0.0\\nmetadata:\\n  hermes:\\n    tags: [medical-billing, denials, claimcoach]\\n    related_skills: []\\n---\\n\\n# Denial triage\\n\\nUse this playbook when a biller asks why a claim was denied, what a denial code means, what a\\npayer requires, or what to do next on a ClaimCoach case.\\n\\n## Ground rules\\n\\n- Work only with case IDs, codes, and payer names. Never ask for, repeat, or guess a patient's\\n  name, date of birth, member ID, address, phone number, or any other patient detail.\\n- Never ask the biller to paste an EOB, an 835, a denial letter, or medical records into the chat.\\n  Documents go into the ClaimCoach pane, which keeps them on this Mac.\\n- Answer from the ClaimCoach tools. If a tool returns an error, say what the error says and what\\n  the biller can do; do not fill the gap with a guess about the payer's rules.\\n- ClaimCoach never sends, submits, faxes, or files anything. Appeals are drafts for human review.\\n\\n## Tools\\n\\n| Tool | Ask it for | Argument |\\n| --- | --- | --- |\\n| `claimcoach_case_summary` | A case's status, stage, codes, payer, denial reason, appeal likelihood | `case_id` |\\n| `claimcoach_explain_code` | What a group, reason (CARC), or remark (RARC) code means | `code`, e.g. `CO-197`, `N286` |\\n| `claimcoach_payer_rules` | The payer's filing limit, appeal levels, required documents | `payer` |\\n\\n## Triage steps\\n\\n1. **Find the case.** If the biller names a case ID, call `claimcoach_case_summary`. Without one,\\n   ask for the case ID shown in the ClaimCoach pane, or suggest `/denial` to get started.\\n2. **Read the codes.** For each code in the summary, call `claimcoach_explain_code`. The group\\n   code says who is responsible: `CO` contractual obligation (the provider may not bill the\\n   patient), `PR` patient responsibility, `OA` other adjustment, `PI` payer initiated, `CR`\\n   correction or reversal. Remark codes (`N\u2026`, `M\u2026`, `MA\u2026`) add the detail.\\n3. **Name the denial family.** Use the summary's denial reason when the case was diagnosed. If the\\n   diagnosis is out of date, say so and suggest diagnosing again in the pane. Common families:\\n   eligibility, prior authorization, medical necessity, coding error, missing information,\\n   duplicate claim, timely filing, non-covered service, bundling, coordination of benefits.\\n4. **Check the payer's rules.** Call `claimcoach_payer_rules` with the summary's payer. Quote the\\n   appeal limit and the required documents from the cards. Flag a card marked `stale`: the\\n   manager should verify it before the biller relies on it.\\n5. **Decide the path.**\\n   - A front-end error (coding, missing information, eligibility fixed after the fact): fix the\\n     claim and send a corrected claim through the usual channel.\\n   - A clinical or authorization denial with support on file: appeal, with the payer's required\\n     documents.\\n   - A duplicate, or a write-off the contract requires: no appeal; explain why.\\n6. **Say what is next in the pane.** Confirm highlighted fields, diagnose, draft the appeal, then\\n   review and export the draft. Remind the biller that the appeal deadline in the pane is\\n   computed from the payer's card and the denial date.\\n\\n## Explaining to the biller\\n\\n- Lead with one sentence: what the payer decided and why, in plain words.\\n- Then the fix: the steps and the documents, in the order the payer's card lists them.\\n- Then the risk: the appeal likelihood and anything that is unknown (no rule card, an unread\\n  denial date, a stale card).\\n- Keep codes as codes (`CO-197`); do not invent descriptions that the tools did not return.\\n\", \"description\": \"Triage a denied medical claim and explain it to a biller with ClaimCoach's PHI-free tools (case IDs, codes, and payer names only).\", \"linked_files\": null, \"readiness_status\": \"available\", \"skill_dir\": \"/Users/josoroma/sites/ycombinator/claimcoach/plugin/skills/denial-triage\"}",
+      "tool_call_id": "call_0e2ec696451f495ea3dc1aee"
+    },
+    {
+      "name": "tool_search",
+      "output": "{\"queries\": [\"ClaimCoach case summary case\", \"explain denial code\", \"payer rules filing limits\"], \"total_available\": 3, \"results\": [{\"query\": \"ClaimCoach case summary case\", \"matches\": [\"claimcoach_case_summary\"]}, {\"query\": \"explain denial code\", \"matches\": [\"claimcoach_explain_code\"]}, {\"query\": \"payer rules filing limits\", \"matches\": [\"claimcoach_payer_rules\"]}], \"tools\": {\"claimcoach_case_summary\": {\"source\": \"plugin\", \"source_name\": \"claimcoach\", \"description\": \"Return a redacted summary of a ClaimCoach case by case ID: its status, stage, codes, payer (as the rule cards name it), denial reason, and appeal likelihood. No case text or PHI.\", \"required\": [\"case_id\"]}, \"claimcoach_explain_code\": {\"source\": \"plugin\", \"source_name\": \"claimcoach\", \"description\": \"Explain a denial code (CARC/RARC/group, e.g. CO-197) from the ClaimCoach global corpus.\", \"required\": [\"code\"]}, \"claimcoach_payer_rules\": {\"source\": \"plugin\", \"source_name\": \"claimcoach\", \"description\": \"Return the payer rule cards (filing limits, appeal levels, required documents) from the ClaimCoach global corpus.\", \"required\": [\"payer\"]}}}",
+      "tool_call_id": "call_21b969e7"
+    },
+    {
+      "name": "claimcoach_case_summary",
+      "output": "{\"ok\": true, \"case_id\": \"case_ef4492f90f971935\", \"status\": \"open\", \"stage\": \"drafted\", \"outcome\": null, \"payer\": \"Northstar Demo Health\", \"codes\": [\"CO-197\"], \"denial_reason\": \"prior_authorization\", \"appeal_likelihood\": \"medium\", \"diagnosis_stale\": false, \"deadline\": \"computed\", \"documents\": 1, \"needs_confirmation\": 0}",
+      "tool_call_id": "call_4c305aaf"
+    },
+    {
+      "name": "claimcoach_explain_code",
+      "output": "{\"ok\": true, \"code\": \"CO-197\", \"entries\": [{\"code_set\": \"GROUP\", \"code\": \"CO\", \"title\": \"Contractual obligation\", \"explanation\": \"Contractual obligation.\", \"truncated\": false, \"source\": \"X12 Claim Adjustment Group Codes: https://x12.org/codes/claim-adjustment-group-codes\", \"verified_on\": \"2026-11-02\", \"stale\": false}, {\"code_set\": \"CARC\", \"code\": \"197\", \"title\": \"Authorization-related denial\", \"explanation\": \"Precertification/authorization/notification/pre-treatment absent.\", \"truncated\": false, \"source\": \"X12 CARC 197: https://x12.org/codes/claim-adjustment-reason-codes\", \"verified_on\": \"2026-11-02\", \"stale\": false}]}",
+      "tool_call_id": "call_26256910"
+    },
+    {
+      "name": "claimcoach_payer_rules",
+      "output": "{\"ok\": true, \"payer\": \"Northstar Demo Health\", \"cards\": [{\"payer\": \"Northstar Demo Health\", \"topic\": \"appeal_levels\", \"title\": \"Demo first-level appeal\", \"body\": \"FICTIONAL DEMO POLICY. First-level appeals may be prepared within 180 calendar days of the denial notice. This sample is for product demonstration only.\", \"truncated\": false, \"required_documents\": [], \"appeal_limit_days\": 180, \"source\": \"Fictional ClaimCoach video fixture; not an insurer policy\", \"verified_on\": \"2026-11-02\", \"stale\": false}, {\"payer\": \"Northstar Demo Health\", \"topic\": \"required_docs\", \"title\": \"Demo authorization-denial documentation\", \"body\": \"FICTIONAL DEMO POLICY. An authorization-denial appeal packet includes the denial notice, evidence of authorization if available, and the relevant service documentation. Missing evidence must be requested; never invent it.\", \"truncated\": false, \"required_documents\": [\"Copy of the denial notice\", \"Authorization record, if available\", \"Documentation supporting the billed service\"], \"appeal_limit_days\": null, \"source\": \"Fictional ClaimCoach video fixture; not an insurer policy\", \"verified_on\": \"2026-11-02\", \"stale\": false}]}",
+      "tool_call_id": "call_4c72ff6d55be"
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "Use the ClaimCoach plugin to triage fictional training case case_ef4492f90f971935. First call skill_view for claimcoach:denial-triage. Then call claimcoach_case_summary for that case. Use claimcoach_explain_code for CO-197 and claimcoach_payer_rules for Northstar Demo Health. Read the actual tool outputs and give a concise next-step checklist for the ClaimCoach pane. Clearly label the payer policy as fictional. Do not invent missing authorization evidence. Do not use any other tools or alter the case. There is no need to send or submit anything.",
+      "timestamp": 1793670496.431277
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "timestamp": 1793670586.7966762,
+      "tool_calls": [
+        {
+          "id": "call_0e2ec696451f495ea3dc1aee",
+          "call_id": "call_0e2ec696451f495ea3dc1aee",
+          "response_item_id": "fc_0e2ec696451f495ea3dc1aee",
+          "type": "function",
+          "function": {
+            "name": "skill_view",
+            "arguments": "{\"name\":\"claimcoach:denial-triage\"}"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "role": "tool",
+      "content": "{\"success\": true, \"name\": \"claimcoach:denial-triage\", \"content\": \"[Bundle context: This skill is part of the 'claimcoach' plugin.]\\n\\n---\\nname: denial-triage\\ndescription: Triage a denied medical claim and explain it to a biller with ClaimCoach's PHI-free tools (case IDs, codes, and payer names only).\\nversion: 1.0.0\\nmetadata:\\n  hermes:\\n    tags: [medical-billing, denials, claimcoach]\\n    related_skills: []\\n---\\n\\n# Denial triage\\n\\nUse this playbook when a biller asks why a claim was denied, what a denial code means, what a\\npayer requires, or what to do next on a ClaimCoach case.\\n\\n## Ground rules\\n\\n- Work only with case IDs, codes, and payer names. Never ask for, repeat, or guess a patient's\\n  name, date of birth, member ID, address, phone number, or any other patient detail.\\n- Never ask the biller to paste an EOB, an 835, a denial letter, or medical records into the chat.\\n  Documents go into the ClaimCoach pane, which keeps them on this Mac.\\n- Answer from the ClaimCoach tools. If a tool returns an error, say what the error says and what\\n  the biller can do; do not fill the gap with a guess about the payer's rules.\\n- ClaimCoach never sends, submits, faxes, or files anything. Appeals are drafts for human review.\\n\\n## Tools\\n\\n| Tool | Ask it for | Argument |\\n| --- | --- | --- |\\n| `claimcoach_case_summary` | A case's status, stage, codes, payer, denial reason, appeal likelihood | `case_id` |\\n| `claimcoach_explain_code` | What a group, reason (CARC), or remark (RARC) code means | `code`, e.g. `CO-197`, `N286` |\\n| `claimcoach_payer_rules` | The payer's filing limit, appeal levels, required documents | `payer` |\\n\\n## Triage steps\\n\\n1. **Find the case.** If the biller names a case ID, call `claimcoach_case_summary`. Without one,\\n   ask for the case ID shown in the ClaimCoach pane, or suggest `/denial` to get started.\\n2. **Read the codes.** For each code in the summary, call `claimcoach_explain_code`. The group\\n   code says who is responsible: `CO` contractual obligation (the provider may not bill the\\n   patient), `PR` patient responsibility, `OA` other adjustment, `PI` payer initiated, `CR`\\n   correction or reversal. Remark codes (`N\u2026`, `M\u2026`, `MA\u2026`) add the detail.\\n3. **Name the denial family.** Use the summary's denial reason when the case was diagnosed. If the\\n   diagnosis is out of date, say so and suggest diagnosing again in the pane. Common families:\\n   eligibility, prior authorization, medical necessity, coding error, missing information,\\n   duplicate claim, timely filing, non-covered service, bundling, coordination of benefits.\\n4. **Check the payer's rules.** Call `claimcoach_payer_rules` with the summary's payer. Quote the\\n   appeal limit and the required documents from the cards. Flag a card marked `stale`: the\\n   manager should verify it before the biller relies on it.\\n5. **Decide the path.**\\n   - A front-end error (coding, missing information, eligibility fixed after the fact): fix the\\n     claim and send a corrected claim through the usual channel.\\n   - A clinical or authorization denial with support on file: appeal, with the payer's required\\n     documents.\\n   - A duplicate, or a write-off the contract requires: no appeal; explain why.\\n6. **Say what is next in the pane.** Confirm highlighted fields, diagnose, draft the appeal, then\\n   review and export the draft. Remind the biller that the appeal deadline in the pane is\\n   computed from the payer's card and the denial date.\\n\\n## Explaining to the biller\\n\\n- Lead with one sentence: what the payer decided and why, in plain words.\\n- Then the fix: the steps and the documents, in the order the payer's card lists them.\\n- Then the risk: the appeal likelihood and anything that is unknown (no rule card, an unread\\n  denial date, a stale card).\\n- Keep codes as codes (`CO-197`); do not invent descriptions that the tools did not return.\\n\", \"description\": \"Triage a denied medical claim and explain it to a biller with ClaimCoach's PHI-free tools (case IDs, codes, and payer names only).\", \"linked_files\": null, \"readiness_status\": \"available\", \"skill_dir\": \"/Users/josoroma/sites/ycombinator/claimcoach/plugin/skills/denial-triage\"}",
+      "timestamp": 1793670586.86292,
+      "tool_call_id": "call_0e2ec696451f495ea3dc1aee",
+      "tool_name": "skill_view"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "timestamp": 1793670603.483818,
+      "tool_calls": [
+        {
+          "id": "call_21b969e7",
+          "call_id": "call_21b969e7",
+          "response_item_id": "fc_21b969e7",
+          "type": "function",
+          "function": {
+            "name": "tool_search",
+            "arguments": "{\"queries\":[\"ClaimCoach case summary case\",\"explain denial code\",\"payer rules filing limits\"]}"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "role": "tool",
+      "content": "{\"queries\": [\"ClaimCoach case summary case\", \"explain denial code\", \"payer rules filing limits\"], \"total_available\": 3, \"results\": [{\"query\": \"ClaimCoach case summary case\", \"matches\": [\"claimcoach_case_summary\"]}, {\"query\": \"explain denial code\", \"matches\": [\"claimcoach_explain_code\"]}, {\"query\": \"payer rules filing limits\", \"matches\": [\"claimcoach_payer_rules\"]}], \"tools\": {\"claimcoach_case_summary\": {\"source\": \"plugin\", \"source_name\": \"claimcoach\", \"description\": \"Return a redacted summary of a ClaimCoach case by case ID: its status, stage, codes, payer (as the rule cards name it), denial reason, and appeal likelihood. No case text or PHI.\", \"required\": [\"case_id\"]}, \"claimcoach_explain_code\": {\"source\": \"plugin\", \"source_name\": \"claimcoach\", \"description\": \"Explain a denial code (CARC/RARC/group, e.g. CO-197) from the ClaimCoach global corpus.\", \"required\": [\"code\"]}, \"claimcoach_payer_rules\": {\"source\": \"plugin\", \"source_name\": \"claimcoach\", \"description\": \"Return the payer rule cards (filing limits, appeal levels, required documents) from the ClaimCoach global corpus.\", \"required\": [\"payer\"]}}}",
+      "timestamp": 1793670603.491002,
+      "tool_call_id": "call_21b969e7",
+      "tool_name": "tool_search"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "timestamp": 1793670611.5537212,
+      "tool_calls": [
+        {
+          "id": "call_4c305aaf",
+          "call_id": "call_4c305aaf",
+          "response_item_id": "fc_4c305aaf",
+          "type": "function",
+          "function": {
+            "name": "tool_call",
+            "arguments": "{\"calls\":[{\"name\":\"claimcoach_case_summary\",\"arguments\":{\"case_id\":\"case_ef4492f90f971935\"}}]}"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "role": "tool",
+      "content": "{\"ok\": true, \"case_id\": \"case_ef4492f90f971935\", \"status\": \"open\", \"stage\": \"drafted\", \"outcome\": null, \"payer\": \"Northstar Demo Health\", \"codes\": [\"CO-197\"], \"denial_reason\": \"prior_authorization\", \"appeal_likelihood\": \"medium\", \"diagnosis_stale\": false, \"deadline\": \"computed\", \"documents\": 1, \"needs_confirmation\": 0}",
+      "timestamp": 1793670625.9874198,
+      "tool_call_id": "call_4c305aaf",
+      "tool_name": "claimcoach_case_summary"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "timestamp": 1793670635.406954,
+      "tool_calls": [
+        {
+          "id": "call_26256910",
+          "call_id": "call_26256910",
+          "response_item_id": "fc_26256910",
+          "type": "function",
+          "function": {
+            "name": "tool_call",
+            "arguments": "{\"calls\": [{\"name\": \"claimcoach_explain_code\", \"arguments\": {\"code\": \"CO-197\"}}]}"
+          }
+        },
+        {
+          "id": "call_4c72ff6d55be",
+          "call_id": "call_4c72ff6d55be",
+          "response_item_id": "fc_4c72ff6d55be",
+          "type": "function",
+          "function": {
+            "name": "tool_call",
+            "arguments": "{\"calls\": [{\"name\": \"claimcoach_payer_rules\", \"arguments\": {\"payer\": \"Northstar Demo Health\"}}]}"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "role": "tool",
+      "content": "{\"ok\": true, \"code\": \"CO-197\", \"entries\": [{\"code_set\": \"GROUP\", \"code\": \"CO\", \"title\": \"Contractual obligation\", \"explanation\": \"Contractual obligation.\", \"truncated\": false, \"source\": \"X12 Claim Adjustment Group Codes: https://x12.org/codes/claim-adjustment-group-codes\", \"verified_on\": \"2026-11-02\", \"stale\": false}, {\"code_set\": \"CARC\", \"code\": \"197\", \"title\": \"Authorization-related denial\", \"explanation\": \"Precertification/authorization/notification/pre-treatment absent.\", \"truncated\": false, \"source\": \"X12 CARC 197: https://x12.org/codes/claim-adjustment-reason-codes\", \"verified_on\": \"2026-11-02\", \"stale\": false}]}",
+      "timestamp": 1793670654.2723148,
+      "tool_call_id": "call_26256910",
+      "tool_name": "claimcoach_explain_code"
+    },
+    {
+      "role": "tool",
+      "content": "{\"ok\": true, \"payer\": \"Northstar Demo Health\", \"cards\": [{\"payer\": \"Northstar Demo Health\", \"topic\": \"appeal_levels\", \"title\": \"Demo first-level appeal\", \"body\": \"FICTIONAL DEMO POLICY. First-level appeals may be prepared within 180 calendar days of the denial notice. This sample is for product demonstration only.\", \"truncated\": false, \"required_documents\": [], \"appeal_limit_days\": 180, \"source\": \"Fictional ClaimCoach video fixture; not an insurer policy\", \"verified_on\": \"2026-11-02\", \"stale\": false}, {\"payer\": \"Northstar Demo Health\", \"topic\": \"required_docs\", \"title\": \"Demo authorization-denial documentation\", \"body\": \"FICTIONAL DEMO POLICY. An authorization-denial appeal packet includes the denial notice, evidence of authorization if available, and the relevant service documentation. Missing evidence must be requested; never invent it.\", \"truncated\": false, \"required_documents\": [\"Copy of the denial notice\", \"Authorization record, if available\", \"Documentation supporting the billed service\"], \"appeal_limit_days\": null, \"source\": \"Fictional ClaimCoach video fixture; not an insurer policy\", \"verified_on\": \"2026-11-02\", \"stale\": false}]}",
+      "timestamp": 1793670676.107008,
+      "tool_call_id": "call_4c72ff6d55be",
+      "tool_name": "claimcoach_payer_rules"
+    },
+    {
+      "role": "assistant",
+      "content": "All tools returned data for case case_ef4492f90f971935.\n\nCase summary (redacted):\n- Status: open, stage: drafted, outcome: none yet\n- Payer: Northstar Demo Health\n- Codes: CO-197\n- Denial reason: prior_authorization\n- Appeal likelihood: medium\n- Diagnosis stale: false\n- Documents on file: 1\n- Needs confirmation: 0\n\nCode meaning:\n- Group CO: contractual obligation.\n- CARC 197: authorization-related denial (precertification/authorization/notification/pre-treatment absent).\n\nPayer policy cards: labeled FICTIONAL DEMO POLICY; source states \"Fictional ClaimCoach video fixture; not an insurer policy.\"\n\nClaimCoach pane next-step checklist:\n1. Confirm the highlighted fields and the denial notice in the pane.\n2. Verify the single attached document against the required appeal packet: denial notice, authorization record if available, and service documentation.\n3. Do not invent or assume authorization evidence; if the authorization record is missing, request it from the provider or client first.\n4. Draft the appeal using only the documentation that actually exists.\n5. Remind the biller the 180-day first-level appeal window is a fictional demonstration value, not a real insurer deadline.\n6. Review and export the appeal draft for human review; ClaimCoach does not send or submit it.",
+      "timestamp": 1793670712.909964,
+      "finish_reason": "stop"
+    }
+  ],
+  "completed": true,
+  "required_tool_results_ok": {
+    "claimcoach_case_summary": true,
+    "claimcoach_explain_code": true,
+    "claimcoach_payer_rules": true
+  },
+  "all_required_tools_succeeded": true,
+  "final_answer": "All tools returned data for case case_ef4492f90f971935.\n\nCase summary (redacted):\n- Status: open, stage: drafted, outcome: none yet\n- Payer: Northstar Demo Health\n- Codes: CO-197\n- Denial reason: prior_authorization\n- Appeal likelihood: medium\n- Diagnosis stale: false\n- Documents on file: 1\n- Needs confirmation: 0\n\nCode meaning:\n- Group CO: contractual obligation.\n- CARC 197: authorization-related denial (precertification/authorization/notification/pre-treatment absent).\n\nPayer policy cards: labeled FICTIONAL DEMO POLICY; source states \"Fictional ClaimCoach video fixture; not an insurer policy.\"\n\nClaimCoach pane next-step checklist:\n1. Confirm the highlighted fields and the denial notice in the pane.\n2. Verify the single attached document against the required appeal packet: denial notice, authorization record if available, and service documentation.\n3. Do not invent or assume authorization evidence; if the authorization record is missing, request it from the provider or client first.\n4. Draft the appeal using only the documentation that actually exists.\n5. Remind the biller the 180-day first-level appeal window is a fictional demonstration value, not a real insurer deadline.\n6. Review and export the appeal draft for human review; ClaimCoach does not send or submit it."
+}

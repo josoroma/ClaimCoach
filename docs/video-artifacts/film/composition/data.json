@@ -1,0 +1,417 @@
+{
+  "title": "ClaimCoach — A denial specialist on your laptop",
+  "language": "en",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "audience": "Prospective users and Y Combinator reviewers",
+  "scenes": [
+    {
+      "id": "01-intro",
+      "type": "intro",
+      "title": "A denial specialist\non your laptop.",
+      "kicker": "CLAIMCOACH / PRODUCT WALKTHROUGH",
+      "narration": "A denied claim should not leave an entry-level biller guessing. Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models and a clear path from evidence to a reviewable draft.",
+      "start": 0,
+      "duration": 12.1,
+      "audioDuration": 10.88,
+      "audio": true,
+      "hasScreen": false
+    },
+    {
+      "id": "02-enable",
+      "type": "capture",
+      "title": "Enable ClaimCoach",
+      "kicker": "01 / OPEN THE WORKSPACE",
+      "screenshot": "02-enable.png",
+      "tag": "HERMES DESKTOP",
+      "instruction": "Capabilities → Plugins → Rescan → ClaimCoach",
+      "narration": "Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim Coach. Open the Claim Coach pane. This is where you create cases and work through each denial.",
+      "focus": [
+        0,
+        90,
+        2100,
+        765
+      ],
+      "start": 12.1,
+      "duration": 11,
+      "audioDuration": 9.8,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "03-local",
+      "type": "local",
+      "title": "Connect a model on this Mac",
+      "kicker": "02 / LOCAL INFERENCE",
+      "screenshot": "03-local.png",
+      "tag": "127.0.0.1",
+      "instruction": "Hermes chat → local model server · ClaimCoach → local worker",
+      "narration": "Configure Hermes to use a model server on this Mac. The model weights live in your Models folder. Claim Coach has its own local worker, which routes document processing and drafting to local models.",
+      "focus": [
+        1770,
+        250,
+        740,
+        430
+      ],
+      "start": 23.1,
+      "duration": 11.3,
+      "audioDuration": 10.08,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "04-intake",
+      "type": "capture",
+      "title": "Add the denial evidence",
+      "kicker": "03 / CREATE A CASE",
+      "screenshot": "04-intake.png",
+      "tag": "FICTIONAL TRAINING SAMPLE",
+      "instruction": "Paste 835 text → Attach pasted text → Process case",
+      "narration": "Create a case and add the denial letter, an explanation of benefits, or pasted eight thirty-five text. Our example uses fictional data from Northstar Demo Health. Process the case to read its fields.",
+      "focus": [
+        1080,
+        430,
+        1540,
+        560
+      ],
+      "panFocus": [
+        1080,
+        740,
+        1540,
+        560
+      ],
+      "panAt": 5.8,
+      "start": 34.400000000000006,
+      "duration": 12.8,
+      "audioDuration": 11.6,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "05-review",
+      "type": "capture",
+      "title": "Check the facts first",
+      "kicker": "04 / REVIEW THE EXTRACTION",
+      "screenshot": "05-review.png",
+      "tag": "FICTIONAL TRAINING SAMPLE",
+      "instruction": "Review payer, codes, dates and amounts · Confirm unreadable fields",
+      "narration": "Review the payer, service dates, amounts, and denial codes. Confirm any fields the software could not read. The example denial concerns authorization. Keep the original evidence beside the structured fields while checking them.",
+      "focus": [
+        1080,
+        280,
+        1540,
+        560
+      ],
+      "panFocus": [
+        1080,
+        920,
+        1540,
+        560
+      ],
+      "panAt": 6.8,
+      "start": 47.2,
+      "duration": 13.733333333333333,
+      "audioDuration": 12.52,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "06-diagnose",
+      "type": "capture",
+      "title": "Understand the next step",
+      "kicker": "05 / DIAGNOSE THE DENIAL",
+      "screenshot": "06-diagnose.png",
+      "tag": "FICTIONAL TRAINING SAMPLE",
+      "instruction": "Read the explanation, deadline and missing-document checklist",
+      "narration": "Run diagnosis to get a plain-language explanation and a checklist of missing documents. Review the rule card and appeal deadline. These are decision aids: the biller checks the evidence and decides what to do next.",
+      "note": "Verify against the payer rule card",
+      "focus": [
+        1080,
+        140,
+        1540,
+        560
+      ],
+      "altScreenshot": "06-rules.png",
+      "altAt": 5.4,
+      "altFocus": [
+        1100,
+        740,
+        1520,
+        554
+      ],
+      "start": 60.93333333333334,
+      "duration": 12.166666666666666,
+      "audioDuration": 10.96,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "07-draft",
+      "type": "capture",
+      "title": "Turn evidence into a draft",
+      "kicker": "06 / REVIEW AND EXPORT",
+      "screenshot": "07-draft.png",
+      "tag": "FICTIONAL TRAINING SAMPLE",
+      "instruction": "Draft appeal → edit → save → export PDF or DOCX",
+      "narration": "Request an appeal draft, or a corrected-claim checklist when that is the right remedy. Edit and save the result, then export it for review. Claim Coach does not send appeals or submit claims.",
+      "note": "Operator-edited example · human review required",
+      "focus": [
+        1100,
+        190,
+        1520,
+        554
+      ],
+      "panFocus": [
+        1100,
+        770,
+        1520,
+        554
+      ],
+      "panAt": 6.5,
+      "start": 73.10000000000001,
+      "duration": 12.566666666666666,
+      "audioDuration": 11.36,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "08-agent",
+      "type": "capture",
+      "title": "Ask the Hermes agent",
+      "kicker": "07 / COMMANDS, SKILLS AND TOOLS",
+      "screenshot": "08-agent-running.png",
+      "tag": "FICTIONAL TRAINING SAMPLE",
+      "instruction": "/denial <case ID> · claimcoach:denial-triage",
+      "narration": "In Hermes chat, use the denial command with a case identifier. The denial-triage skill guides the agent. Its tools retrieve code explanations, payer rules, and a redacted case summary, without handing over the source documents.",
+      "focus": [
+        500,
+        80,
+        2120,
+        773
+      ],
+      "altScreenshot": "08-agent.png",
+      "altAt": 5.8,
+      "altFocus": [
+        515,
+        540,
+        2120,
+        773
+      ],
+      "start": 85.66666666666667,
+      "duration": 14.066666666666666,
+      "audioDuration": 12.84,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "09-loop",
+      "type": "loop",
+      "title": "The Hermes loop, made useful",
+      "kicker": "08 / HOW IT WORKS",
+      "tag": "LOCAL MODEL + PLUGIN TOOLS",
+      "narration": "The Hermes loop reads your request, chooses a tool, inspects the result, and continues. Skills supply the playbook. Commands provide shortcuts. Local models do the inference, while the plugin keeps the case workflow organized.",
+      "start": 99.73333333333333,
+      "duration": 13.9,
+      "audioDuration": 12.68,
+      "audio": true,
+      "hasScreen": false
+    },
+    {
+      "id": "10-close",
+      "type": "close",
+      "title": "Give every biller\na clearer next step.",
+      "kicker": "CLAIMCOACH / BUILT FOR EVERYDAY BILLERS",
+      "narration": "Record the final outcome when it is known. Claim Coach turns specialist workflow into practical guidance on a consumer laptop. Private evidence, useful next steps, and a person in control of every final decision.",
+      "start": 113.63333333333334,
+      "duration": 13.266666666666667,
+      "audioDuration": 12.04,
+      "audio": true,
+      "hasScreen": false
+    }
+  ],
+  "duration": 126.9,
+  "draft": false,
+  "captions": [
+    {
+      "start": 0.5,
+      "end": 3.8600000000000003,
+      "text": "A denied claim should not leave an entry-level biller guessing."
+    },
+    {
+      "start": 3.9800000000000004,
+      "end": 8.016363636363637,
+      "text": "Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models"
+    },
+    {
+      "start": 8.016363636363637,
+      "end": 11.38,
+      "text": "and a clear path from evidence to a reviewable draft."
+    },
+    {
+      "start": 12.6,
+      "end": 16.655172413793103,
+      "text": "Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim"
+    },
+    {
+      "start": 16.655172413793103,
+      "end": 20.710344827586205,
+      "text": "Coach. Open the Claim Coach pane. This is where you create cases"
+    },
+    {
+      "start": 20.710344827586205,
+      "end": 22.4,
+      "text": "and work through each denial."
+    },
+    {
+      "start": 23.6,
+      "end": 26.773333333333333,
+      "text": "Configure Hermes to use a model server on this Mac. The model"
+    },
+    {
+      "start": 26.773333333333333,
+      "end": 28.36,
+      "text": "weights live in your Models folder."
+    },
+    {
+      "start": 28.48,
+      "end": 32.38,
+      "text": "Claim Coach has its own local worker, which routes document processing and"
+    },
+    {
+      "start": 32.38,
+      "end": 33.68,
+      "text": "drafting to local models."
+    },
+    {
+      "start": 34.900000000000006,
+      "end": 39.20153846153847,
+      "text": "Create a case and add the denial letter, an explanation of benefits,"
+    },
+    {
+      "start": 39.20153846153847,
+      "end": 43.50307692307693,
+      "text": "or pasted eight thirty-five text. Our example uses fictional data from Northstar"
+    },
+    {
+      "start": 43.50307692307693,
+      "end": 44.220000000000006,
+      "text": "Demo Health."
+    },
+    {
+      "start": 44.34,
+      "end": 46.5,
+      "text": "Process the case to read its fields."
+    },
+    {
+      "start": 47.7,
+      "end": 52.34727272727273,
+      "text": "Review the payer, service dates, amounts, and denial codes. Confirm any fields"
+    },
+    {
+      "start": 52.34727272727273,
+      "end": 56.220000000000006,
+      "text": "the software could not read. The example denial concerns authorization."
+    },
+    {
+      "start": 56.34,
+      "end": 60.220000000000006,
+      "text": "Keep the original evidence beside the structured fields while checking them."
+    },
+    {
+      "start": 61.43333333333334,
+      "end": 65.51333333333334,
+      "text": "Run diagnosis to get a plain-language explanation and a checklist of missing"
+    },
+    {
+      "start": 65.51333333333334,
+      "end": 68.23333333333333,
+      "text": "documents. Review the rule card and appeal deadline."
+    },
+    {
+      "start": 68.35333333333334,
+      "end": 71.58533333333334,
+      "text": "These are decision aids: the biller checks the evidence and decides what"
+    },
+    {
+      "start": 71.58533333333334,
+      "end": 72.39333333333335,
+      "text": "to do next."
+    },
+    {
+      "start": 73.60000000000001,
+      "end": 77.7,
+      "text": "Request an appeal draft, or a corrected-claim checklist when that is the"
+    },
+    {
+      "start": 77.7,
+      "end": 81.8,
+      "text": "right remedy. Edit and save the result, then export it for review."
+    },
+    {
+      "start": 81.92,
+      "end": 84.96000000000001,
+      "text": "Claim Coach does not send appeals or submit claims."
+    },
+    {
+      "start": 86.16666666666667,
+      "end": 90.48666666666668,
+      "text": "In Hermes chat, use the denial command with a case identifier. The"
+    },
+    {
+      "start": 90.48666666666668,
+      "end": 92.28666666666668,
+      "text": "denial-triage skill guides the agent."
+    },
+    {
+      "start": 92.40666666666668,
+      "end": 96.80666666666669,
+      "text": "Its tools retrieve code explanations, payer rules, and a redacted case summary,"
+    },
+    {
+      "start": 96.80666666666669,
+      "end": 99.00666666666669,
+      "text": "without handing over the source documents."
+    },
+    {
+      "start": 100.23333333333333,
+      "end": 104.89619047619048,
+      "text": "The Hermes loop reads your request, chooses a tool, inspects the result,"
+    },
+    {
+      "start": 104.89619047619048,
+      "end": 108.39333333333335,
+      "text": "and continues. Skills supply the playbook. Commands provide shortcuts."
+    },
+    {
+      "start": 108.51333333333335,
+      "end": 112.57487179487181,
+      "text": "Local models do the inference, while the plugin keeps the case workflow"
+    },
+    {
+      "start": 112.57487179487181,
+      "end": 112.91333333333336,
+      "text": "organized."
+    },
+    {
+      "start": 114.13333333333334,
+      "end": 118.33333333333334,
+      "text": "Record the final outcome when it is known. Claim Coach turns specialist"
+    },
+    {
+      "start": 118.33333333333334,
+      "end": 121.13333333333334,
+      "text": "workflow into practical guidance on a consumer laptop."
+    },
+    {
+      "start": 121.25333333333334,
+      "end": 125.4704761904762,
+      "text": "Private evidence, useful next steps, and a person in control of every"
+    },
+    {
+      "start": 125.4704761904762,
+      "end": 126.17333333333335,
+      "text": "final decision."
+    }
+  ]
+}

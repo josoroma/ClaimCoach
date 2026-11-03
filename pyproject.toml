@@ -39,7 +39,8 @@ packages = ["plugin/claimcoach"]
 line-length = 100
 target-version = "py311"
 src = ["plugin", "."]
-extend-exclude = ["node_modules", "openspec"]
+# Video production is a standalone artifact project with its own validation scripts.
+extend-exclude = ["node_modules", "openspec", "docs/video-artifacts"]
 
 [tool.ruff.lint]
 select = [

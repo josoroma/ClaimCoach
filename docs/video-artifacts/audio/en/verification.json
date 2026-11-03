@@ -1,0 +1,328 @@
+{
+  "scenes": {
+    "01-intro": {
+      "file": "01-intro.wav",
+      "sha256": "8bdd1f8b489fd21396ac78c2c2d7813cfb1d0445d84c244dcbc78d8b9a4500e5",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 10.88,
+      "rms": 0.1265976379207358,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "A denied claim should not leave an entry-level biller guessing. Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models and a clear path from evidence to a reviewable draft.",
+      "transcript": "A deny claim should not leave an entry-level bill or guessing. Claim Coach brings denial management guidance into Hermes Desktop, with private local models and a clear path from evidence to a reviewable draft.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 3.52,
+          "text": "A deny claim should not leave an entry-level bill or guessing."
+        },
+        {
+          "start": 3.52,
+          "end": 8.08,
+          "text": "Claim Coach brings denial management guidance into Hermes Desktop, with private local models"
+        },
+        {
+          "start": 8.08,
+          "end": 10.52,
+          "text": "and a clear path from evidence to a reviewable draft."
+        }
+      ],
+      "word_error_rate": 0.08823529411764706
+    },
+    "02-enable": {
+      "file": "02-enable.wav",
+      "sha256": "78ca12c165d14715de0ab34e5f465af91b2a9bc541b97281eaf86bd43618d44c",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 9.8,
+      "rms": 0.13153025837719204,
+      "peak": 0.9473876953125,
+      "clip_fraction": 0.0,
+      "expected": "Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim Coach. Open the Claim Coach pane. This is where you create cases and work through each denial.",
+      "transcript": "Start in Hermes Desktop, open capabilities, choose plugins, reskin, and enable Claim Coach. Open the Claim Coach pane. This is where you create cases and work through each denial.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 3.34,
+          "text": "Start in Hermes Desktop, open capabilities, choose plugins,"
+        },
+        {
+          "start": 3.34,
+          "end": 5.36,
+          "text": "reskin, and enable Claim Coach."
+        },
+        {
+          "start": 5.36,
+          "end": 6.92,
+          "text": "Open the Claim Coach pane."
+        },
+        {
+          "start": 6.92,
+          "end": 9.64,
+          "text": "This is where you create cases and work through each denial."
+        }
+      ],
+      "word_error_rate": 0.034482758620689655
+    },
+    "03-local": {
+      "file": "03-local.wav",
+      "sha256": "97b100251a71d8beaa5d14b6806b9fe67f62047f8991f1e0096791938bd16497",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 10.08,
+      "rms": 0.121860438216507,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "Configure Hermes to use a model server on this Mac. The model weights live in your Models folder. Claim Coach has its own local worker, which routes document processing and drafting to local models.",
+      "transcript": "Configure Hermes to use a model server on this Mac. The model weights live in your models folder. Claim Coach has its own local worker, which routes document processing and drafting to local models.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 2.68,
+          "text": "Configure Hermes to use a model server on this Mac."
+        },
+        {
+          "start": 2.68,
+          "end": 4.92,
+          "text": "The model weights live in your models folder."
+        },
+        {
+          "start": 4.92,
+          "end": 6.84,
+          "text": "Claim Coach has its own local worker,"
+        },
+        {
+          "start": 6.84,
+          "end": 8.24,
+          "text": "which routes document processing"
+        },
+        {
+          "start": 8.24,
+          "end": 9.92,
+          "text": "and drafting to local models."
+        }
+      ],
+      "word_error_rate": 0.0
+    },
+    "04-intake": {
+      "file": "04-intake.wav",
+      "sha256": "38e870981f69330f25271ebfd24b936273ce49697b083e54c4cfd20306b43aa4",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 11.6,
+      "rms": 0.12706587977690512,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "Create a case and add the denial letter, an explanation of benefits, or pasted eight thirty-five text. Our example uses fictional data from Northstar Demo Health. Process the case to read its fields.",
+      "transcript": "Create a case and add the denial letter, an explanation of benefits, or pasted 835 text. Our example uses fictional data from Northstar demo health. Process the case to read its fields.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 6.0,
+          "text": "Create a case and add the denial letter, an explanation of benefits, or pasted 835 text."
+        },
+        {
+          "start": 6.0,
+          "end": 9.72,
+          "text": "Our example uses fictional data from Northstar demo health."
+        },
+        {
+          "start": 9.72,
+          "end": 11.28,
+          "text": "Process the case to read its fields."
+        }
+      ],
+      "word_error_rate": 0.08823529411764706
+    },
+    "05-review": {
+      "file": "05-review.wav",
+      "sha256": "af02d7c8d445c71d01eaa0b8023dfd0670762b8bf909e1e0d2a6c31109d5aa63",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 12.52,
+      "rms": 0.12551004697347176,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "Review the payer, service dates, amounts, and denial codes. Confirm any fields the software could not read. The example denial concerns authorization. Keep the original evidence beside the structured fields while checking them.",
+      "transcript": "Review the pair, service dates, amounts, and denial codes. Confirm any fields the software could not read. The example denial concerns authorization. Heat the original evidence beside the structured fields while checking them.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 3.36,
+          "text": "Review the pair, service dates, amounts, and denial codes."
+        },
+        {
+          "start": 3.36,
+          "end": 5.96,
+          "text": "Confirm any fields the software could not read."
+        },
+        {
+          "start": 5.96,
+          "end": 8.66,
+          "text": "The example denial concerns authorization."
+        },
+        {
+          "start": 8.66,
+          "end": 11.36,
+          "text": "Heat the original evidence beside the structured fields"
+        },
+        {
+          "start": 11.36,
+          "end": 12.36,
+          "text": "while checking them."
+        }
+      ],
+      "word_error_rate": 0.06060606060606061
+    },
+    "08-agent": {
+      "file": "08-agent.wav",
+      "sha256": "1bf6f2100868aeba1bda37b1c4bdf0999d0b49370df43993b4ac8a33e99459bc",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 12.84,
+      "rms": 0.127428398165197,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "In Hermes chat, use the denial command with a case identifier. The denial-triage skill guides the agent. Its tools retrieve code explanations, payer rules, and a redacted case summary, without handing over the source documents.",
+      "transcript": "In Hermes Chat, use the Denial command with a case identifier. The Denial Triog skill guides the agent. Its tools retrieve code explanations, payer rules, and a redacted case summary without handing over the source documents.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 3.52,
+          "text": "In Hermes Chat, use the Denial command with a case identifier."
+        },
+        {
+          "start": 3.52,
+          "end": 6.36,
+          "text": "The Denial Triog skill guides the agent."
+        },
+        {
+          "start": 6.36,
+          "end": 11.08,
+          "text": "Its tools retrieve code explanations, payer rules, and a redacted case summary without"
+        },
+        {
+          "start": 11.08,
+          "end": 12.52,
+          "text": "handing over the source documents."
+        }
+      ],
+      "word_error_rate": 0.027777777777777776
+    },
+    "09-loop": {
+      "file": "09-loop.wav",
+      "sha256": "c537ffccf3e34ccfe91ce3a505a069148ab4b402567e3c761886ab7bbcae91b6",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 12.68,
+      "rms": 0.1202673055940923,
+      "peak": 0.915496826171875,
+      "clip_fraction": 0.0,
+      "expected": "The Hermes loop reads your request, chooses a tool, inspects the result, and continues. Skills supply the playbook. Commands provide shortcuts. Local models do the inference, while the plugin keeps the case workflow organized.",
+      "transcript": "The Hermes loop reads a request, chooses a tool, inspects the result, and continues. Scales supply the playbook, commands provide shortcuts. Boca models do the inference, while the plug-in keeps the case workflow organized.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 4.96,
+          "text": "The Hermes loop reads a request, chooses a tool, inspects the result, and continues."
+        },
+        {
+          "start": 4.96,
+          "end": 8.36,
+          "text": "Scales supply the playbook, commands provide shortcuts."
+        },
+        {
+          "start": 8.36,
+          "end": 12.24,
+          "text": "Boca models do the inference, while the plug-in keeps the case workflow organized."
+        }
+      ],
+      "word_error_rate": 0.14705882352941177
+    },
+    "10-close": {
+      "file": "10-close.wav",
+      "sha256": "9f4b3a1622df50f32d614a9587198cee62279b2f389a5fc51ab557731a87e8b2",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 12.04,
+      "rms": 0.12820892732928466,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "Record the final outcome when it is known. Claim Coach turns specialist workflow into practical guidance on a consumer laptop. Private evidence, useful next steps, and a person in control of every final decision.",
+      "transcript": "Record the final outcome when it is known. Claim Coach turns specialist workflow into practical guidance on a consumer laptop. Private evidence, useful next steps, and a person in control of every final decision.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 2.44,
+          "text": "Record the final outcome when it is known."
+        },
+        {
+          "start": 2.44,
+          "end": 7.12,
+          "text": "Claim Coach turns specialist workflow into practical guidance on a consumer laptop."
+        },
+        {
+          "start": 7.12,
+          "end": 11.76,
+          "text": "Private evidence, useful next steps, and a person in control of every final decision."
+        }
+      ],
+      "word_error_rate": 0.0
+    },
+    "06-diagnose": {
+      "file": "06-diagnose.wav",
+      "sha256": "a1def90075232e08df9f9fac43a6a9db6da186d736ceaaad23bb72c49b56b93e",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 10.96,
+      "rms": 0.12541275304372898,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "Run diagnosis to get a plain-language explanation and a checklist of missing documents. Review the rule card and appeal deadline. These are decision aids: the biller checks the evidence and decides what to do next.",
+      "transcript": "Run Diagnosis to get a plain language explanation and a checklist of missing documents. Review the rule card and appeal deadline. Knees our decision aids, the biller checks the evidence and decides what to do next.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 4.4,
+          "text": "Run Diagnosis to get a plain language explanation and a checklist of missing documents."
+        },
+        {
+          "start": 4.4,
+          "end": 6.24,
+          "text": "Review the rule card and appeal deadline."
+        },
+        {
+          "start": 6.8,
+          "end": 11.040000000000001,
+          "text": "Knees our decision aids, the biller checks the evidence and decides what to do next."
+        }
+      ],
+      "word_error_rate": 0.05555555555555555
+    },
+    "07-draft": {
+      "file": "07-draft.wav",
+      "sha256": "e42f504b5cd75ceefe39cbe30670c7e884de6935038d4be134f39349355309b9",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 11.36,
+      "rms": 0.11980172823526067,
+      "peak": 0.969970703125,
+      "clip_fraction": 0.0,
+      "expected": "Request an appeal draft, or a corrected-claim checklist when that is the right remedy. Edit and save the result, then export it for review. Claim Coach does not send appeals or submit claims.",
+      "transcript": "Request an appeal draft or a corrected claim checklist when that is the right remedy. Edit and save the result, then export it for review. Claim Coach does not send appeals or submit claims.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 4.72,
+          "text": "Request an appeal draft or a corrected claim checklist when that is the right remedy."
+        },
+        {
+          "start": 4.72,
+          "end": 8.16,
+          "text": "Edit and save the result, then export it for review."
+        },
+        {
+          "start": 8.16,
+          "end": 11.36,
+          "text": "Claim Coach does not send appeals or submit claims."
+        }
+      ],
+      "word_error_rate": 0.0
+    }
+  },
+  "engine": "faster-whisper",
+  "model": "/Users/josoroma/Models/faster-whisper-base.en",
+  "language": "en",
+  "purpose": "Offline ASR round-trip and waveform validation"
+}

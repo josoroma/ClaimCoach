@@ -399,10 +399,13 @@ describe('US-10.3 settings page', () => {
     const [page] = ctx.recorded.settingsPages;
     assert.deepEqual([page.id, page.title, page.icon], ['settings', 'ClaimCoach', 'gear']);
     const rendered = page.render().type(page.render().props);
-    const labels = rendered.props.children.slice(2).map((section) => {
-      const shown = typeof section.type === 'function' ? section.type(section.props) : section;
-      return shown.props['aria-label'];
-    });
+    const labels = rendered.props.children
+      .slice(2)
+      .filter((child) => child.type !== 'style')
+      .map((section) => {
+        const shown = typeof section.type === 'function' ? section.type(section.props) : section;
+        return shown.props['aria-label'];
+      });
     assert.deepEqual(labels, ['Models', 'Corpus', 'Retention', 'Global corpus import']);
   });
 

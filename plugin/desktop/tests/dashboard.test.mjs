@@ -13,6 +13,7 @@ import plugin, {
   describeFineTune,
   describeSharing,
   exportFineTune,
+  FineTunePanel,
   loadSummary,
   summaryOf,
 } from '../plugin.js';
@@ -215,7 +216,7 @@ describe('US-8.3 export requires manager approval', () => {
   const ok = { state: 'ok', summary: summaryOf(SUMMARY) };
   const page = (rest) => ({ type: DashboardPage, props: { rest } });
   const panelOf = (rendered) => {
-    const element = rendered.props.children.at(-1);
+    const element = rendered.props.children.find((child) => child.type === FineTunePanel);
     return element.type(element.props);
   };
   const exportButton = (panel) => panel.props.children[4];

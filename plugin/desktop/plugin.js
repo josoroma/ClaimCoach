@@ -58,6 +58,48 @@ export const DASHBOARD_PATH = '/claimcoach/dashboard';
 /** How often the statusbar re-reads `/settings` (US-3.5). */
 export const SETTINGS_REFRESH_MS = 15_000;
 
+// The host resets native element styles. Keep this stylesheet scoped to ClaimCoach so the pane,
+// dashboard and settings remain readable without changing any host controls or plugin behavior.
+const surfaceStyle = jsx('style', {
+  children: `
+.claimcoach-surface{box-sizing:border-box;min-width:0;max-width:100%;height:100%;overflow:auto;overscroll-behavior:contain;padding:20px;background:#101a19;color:#e1eee8;font:13px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;scrollbar-color:#43695e #101a19}
+.claimcoach-surface *{box-sizing:border-box;min-width:0}
+.claimcoach-surface h1,.claimcoach-surface h2,.claimcoach-surface h3,.claimcoach-surface h4{color:#effaf4;font-weight:650;line-height:1.3;margin:0 0 14px;letter-spacing:-.02em}
+.claimcoach-surface h1{font-size:26px}.claimcoach-surface h2{font-size:21px}.claimcoach-surface h3{font-size:16px}.claimcoach-surface h4{font-size:14px;margin-top:18px}
+.claimcoach-surface h1 svg,.claimcoach-surface h2 svg{display:inline-block;vertical-align:middle}
+.claimcoach-surface p{margin:10px 0 15px;overflow-wrap:anywhere;color:#bfd1c8}
+.claimcoach-surface section section,.claimcoach-surface>section[aria-label="Models"],.claimcoach-surface>section[aria-label="Corpus"],.claimcoach-surface>section[aria-label="Retention"],.claimcoach-surface>section[aria-label="Global corpus import"]{margin:22px 0;padding:18px;background:#172724;border:1px solid #2b4940;border-radius:12px}
+.claimcoach-surface [aria-label="Case list"]{border-bottom:1px solid #2b4940;margin:0 0 24px;padding-bottom:18px}
+.claimcoach-surface [aria-label="Case list"] h3{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:#8cb5a4}
+.claimcoach-surface ul{list-style:none;padding:0;margin:12px 0 18px;overflow-wrap:anywhere}
+.claimcoach-surface li{margin:8px 0;padding:10px 12px;border-radius:8px;background:#192c26;border:1px solid #2c463c}
+.claimcoach-surface [aria-label="Cases"] li{padding:0;background:transparent;border:0}
+.claimcoach-surface [aria-label="Cases"] button{width:100%;margin:0;text-align:left;line-height:1.65;white-space:normal;font-size:12px;background:#1a3029;border-color:#365d4d;color:#cde9db}
+.claimcoach-surface button{display:inline-flex;align-items:center;justify-content:center;min-height:35px;padding:7px 12px;margin:4px 7px 5px 0;border:1px solid #41765f;border-radius:7px;background:#245c48;color:#f0fff6;font-family:inherit;font-size:12px;font-weight:600;line-height:1.45;cursor:pointer;white-space:normal;vertical-align:middle;transition:background .12s,border-color .12s}
+.claimcoach-surface button:hover:not(:disabled){background:#337557;border-color:#81c6a3}
+.claimcoach-surface button:disabled{cursor:default;opacity:.4}
+.claimcoach-surface button:focus-visible,.claimcoach-surface input:focus-visible,.claimcoach-surface textarea:focus-visible{outline:2px solid #f4b14a;outline-offset:3px}
+.claimcoach-surface input:not([type="checkbox"]),.claimcoach-surface textarea{display:block;width:100%;max-width:100%;border:1px solid #3b5b4c;border-radius:8px;background:#0e1814;color:#e8f8ef;padding:10px 12px;font:inherit;line-height:1.6;margin:7px 0 11px;outline:none}
+.claimcoach-surface input[type="file"]{padding:14px;background:#14291f;border:1px dashed #5b806d;font-size:11px}
+.claimcoach-surface input::file-selector-button{border:0;border-radius:5px;padding:7px 9px;margin-right:8px;background:#2d5743;color:#e5f5ec;font:inherit;cursor:pointer}
+.claimcoach-surface textarea{min-height:120px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.claimcoach-surface textarea[aria-label="Appeal letter (draft for human review)"]{min-height:390px;font-family:inherit;font-size:13px;line-height:1.85;background:#f2f5eb;color:#17372b;border-color:#8ba28f}
+.claimcoach-surface label{display:block;font-size:12px;font-weight:600;color:#a7c9b7;margin:6px 0}
+.claimcoach-surface input[type="checkbox"]{accent-color:#77c39b;margin-right:9px;width:15px;height:15px;vertical-align:middle}
+.claimcoach-surface [aria-label="Extracted fields"]{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+.claimcoach-surface [aria-label="Extracted fields"] li{margin:0;padding:12px}
+.claimcoach-surface [aria-label="Extracted fields"] input{margin-bottom:5px}
+.claimcoach-surface [data-status="unreadable"]{color:#382a0e}.claimcoach-surface [data-status="unreadable"] label{color:#674317}
+.claimcoach-surface [role="alert"],.claimcoach-surface [role="note"]{padding:12px 14px;background:#352e1c;color:#f0d9a2;border:1px solid #645330;border-radius:8px}
+.claimcoach-surface [aria-label="Appeal deadline"]{padding:14px;border-left:3px solid #eeb153;background:#29291b;color:#f5dfb8;border-radius:0 8px 8px 0}
+.claimcoach-surface [aria-label="Rule cards"]{font-size:11px;color:#a4bcaf}
+.claimcoach-surface [aria-label="Source documents"]:empty,.claimcoach-surface [aria-label="Extracted fields"]:empty{display:none}
+.claimcoach-dashboard{padding:32px;max-width:1180px;margin:0 auto}
+.claimcoach-dashboard>h1{margin-bottom:24px}.claimcoach-dashboard>h2{font-size:17px;color:#9fc2af}
+@media(prefers-reduced-motion:reduce){.claimcoach-surface button{transition:none}}
+`,
+});
+
 /**
  * The shapes of `plugin/assets/claimcoach-logo.svg` (US-13.1), with the file's attribute names.
  * PC-3 leaves no way to load the file at run time, so the pages draw these and a test fails when
@@ -2739,12 +2781,14 @@ export function DashboardPage({ rest }) {
         : 'The weekly outcome summary is unavailable; check that the ClaimCoach worker is running.';
     return jsxs('section', {
       'aria-label': 'ClaimCoach manager dashboard',
-      children: [heading, jsx('p', { role: 'status', children: text })],
+      className: 'claimcoach-surface claimcoach-dashboard',
+      children: [heading, jsx('p', { role: 'status', children: text }), surfaceStyle],
     });
   }
   const { summary } = loaded;
   return jsxs('section', {
     'aria-label': 'ClaimCoach manager dashboard',
+    className: 'claimcoach-surface claimcoach-dashboard',
     children: [
       heading,
       jsx('h2', { children: `Week ${summary.week} (${summary.timezone})` }),
@@ -2785,6 +2829,7 @@ export function DashboardPage({ rest }) {
         onApproved: setApproved,
         onExport,
       }),
+      surfaceStyle,
     ],
   });
 }
@@ -3257,6 +3302,7 @@ export function SettingsPage({ rest }) {
   };
   return jsxs('section', {
     'aria-label': 'ClaimCoach settings',
+    className: 'claimcoach-surface',
     children: [
       brandHeading('h2', 'ClaimCoach'),
       jsx(WorkerStatus, { rest }),
@@ -3264,6 +3310,7 @@ export function SettingsPage({ rest }) {
       CorpusSection(corpus),
       jsx(RetentionSection, { retention, draft, result, onDraft: setDraft, onSave }),
       jsx(CorpusImportSection, { state: corpusImport, onPick, onImport, onCancel }),
+      surfaceStyle,
     ],
   });
 }
@@ -3684,6 +3731,7 @@ export function ClaimCoachPane({ rest, subscribe = noEvents }) {
   const [link] = useState(/** @type {PaneLink} */ ({ open: noop, changed: noop, drop: noop }));
   return jsxs('div', {
     'aria-label': 'ClaimCoach',
+    className: 'claimcoach-surface',
     // The whole pane is the drop zone: a file dropped on the list must never open in the webview.
     onDragOver: (/** @type {{ preventDefault: () => void }} */ event) => event.preventDefault(),
     onDrop: (
@@ -3693,7 +3741,11 @@ export function ClaimCoachPane({ rest, subscribe = noEvents }) {
       event.preventDefault();
       link.drop(event.dataTransfer?.files);
     },
-    children: [jsx(CaseListView, { rest, link }), jsx(CasePane, { rest, subscribe, link })],
+    children: [
+      jsx(CaseListView, { rest, link }),
+      jsx(CasePane, { rest, subscribe, link }),
+      surfaceStyle,
+    ],
   });
 }
 

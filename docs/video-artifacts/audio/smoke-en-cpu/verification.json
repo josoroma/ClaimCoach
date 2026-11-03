@@ -1,0 +1,32 @@
+{
+  "scenes": {
+    "smoke-en": {
+      "file": "smoke-en.wav",
+      "sha256": "18ce05ba12f44bc0d9128642adbd0af7b9679cd4d6a0cff471ae80b972b8486d",
+      "format": "PCM signed 16-bit mono 24 kHz",
+      "duration": 5.84,
+      "rms": 0.1435159704417807,
+      "peak": 0.977996826171875,
+      "clip_fraction": 0.0,
+      "expected": "Claim Coach helps billers understand claim denials, with private artificial intelligence running on the laptop.",
+      "transcript": "Clean Coach Health Spillers understand claimed denials, with private artificial intelligence running on the laptop.",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 4.48,
+          "text": "Clean Coach Health Spillers understand claimed denials, with private artificial intelligence"
+        },
+        {
+          "start": 4.48,
+          "end": 5.5200000000000005,
+          "text": "running on the laptop."
+        }
+      ],
+      "word_error_rate": 0.26666666666666666
+    }
+  },
+  "engine": "faster-whisper",
+  "model": "/Users/josoroma/Models/faster-whisper-base.en",
+  "language": "en",
+  "purpose": "Offline ASR round-trip and waveform validation"
+}

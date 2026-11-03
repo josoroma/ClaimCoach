@@ -1,0 +1,25 @@
+{
+  "model": "Qwen3-Embedding-8B-4bit-DWQ",
+  "count": 4,
+  "dimensions": [
+    4096,
+    4096,
+    4096,
+    4096
+  ],
+  "norms": [
+    0.9999999650533171,
+    1.0000000455862876,
+    0.9999999968882541,
+    0.9999999650533171
+  ],
+  "same_text_similarity": 0.9999999301066356,
+  "related_text_similarity": 0.7066453236430821,
+  "unrelated_text_similarity": 0.3114819630741545,
+  "elapsed_seconds": 1.422,
+  "usage": {
+    "prompt_tokens": 44,
+    "total_tokens": 44
+  },
+  "inference": "real local MLX weights; last-token hidden-state pooling; L2-normalized"
+}

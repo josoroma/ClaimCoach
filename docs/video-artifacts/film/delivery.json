@@ -1,0 +1,21 @@
+{
+  "file": "claimcoach-walkthrough.en.mp4",
+  "duration_seconds": 126.9,
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "bytes": 17092738,
+  "sha256": "a9d9f0bda83447b32219f70c24f7c8cc3c0151df7cb8f63513a68212b8fd0ae5",
+  "language": "en",
+  "narration_model": "chatterbox-multilingual-v3",
+  "render_engine": "hyperframes@0.8.171",
+  "source_script_sha256": "415bcac1769d52b53a502ccd9397470bbf67e7530b0e0ff684de830df179aaed",
+  "composition_sha256": "c6757e604a4077eac68c51b85c397ef1fca3ccfe4ce605e05568664f8b5fd1cc",
+  "decoded_frames_checked": 40,
+  "audio_mean_db": -20.0,
+  "audio_max_db": -1.5,
+  "preview_url": "http://127.0.0.1:4189",
+  "published": false
+}

@@ -1,0 +1,25 @@
+{
+  "payer_name": "NORTHSTAR DEMO HEALTH",
+  "claim_id": "DEMO-CLAIM-001",
+  "billed_amount": "250",
+  "paid_amount": "0",
+  "denial_date": "2026-10-15",
+  "adjustments": [],
+  "rarc_codes": [],
+  "lines": [
+    {
+      "procedure_code": "99213",
+      "service_date": "2026-09-01",
+      "billed_amount": "250",
+      "paid_amount": "0",
+      "adjustments": [
+        {
+          "group_code": "CO",
+          "carc": "197",
+          "amount": "250"
+        }
+      ],
+      "rarc_codes": []
+    }
+  ]
+}

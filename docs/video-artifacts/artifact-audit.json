@@ -1,0 +1,72 @@
+{
+  "scope": "standalone runtime/audio Python and artifact text outside dependencies",
+  "python_syntax": [
+    {
+      "path": "runtime/run_agent_loop.py",
+      "status": "pass",
+      "sha256": "21949a7d8f1947dc124ccc7df5335f06742192e72c45d4357fd3243d3d19d2b0"
+    },
+    {
+      "path": "runtime/verify_command.py",
+      "status": "pass",
+      "sha256": "5f4feafd930f8f1c4a97a98c893667e1f5c986f9e232c3114418492bfa55384c"
+    },
+    {
+      "path": "runtime/verify_exports.py",
+      "status": "pass",
+      "sha256": "ff29fbdd75e4c6eb610deeb91f9162a8f5c0741043171578cef2b43b1b78bf7a"
+    },
+    {
+      "path": "runtime/collect_agent_loop.py",
+      "status": "pass",
+      "sha256": "7b962727eead7139d2795b97bec4971863c380a0520e128524ff198249814318"
+    },
+    {
+      "path": "runtime/verify_embeddings.py",
+      "status": "pass",
+      "sha256": "1110dbff0c5431b85bff1f7fd3226688d2a0ef4918459a2832372445433f8672"
+    },
+    {
+      "path": "runtime/embedding_server.py",
+      "status": "pass",
+      "sha256": "9d4d6ae2bdca7f1a6ceea84b83509620c02243e190b29880e469703b93ab4fac"
+    },
+    {
+      "path": "runtime/local_model_bridge.py",
+      "status": "pass",
+      "sha256": "3d6d731e75b14dccc5a77caaaa3f5f62fcbdde75ea843218a3c9253f2813b87b"
+    },
+    {
+      "path": "runtime/workspace.py",
+      "status": "pass",
+      "sha256": "ac30ba71b710763ad8d4c5a74ed9bf9d612206ede792a10f78a2d5d97f16e09a"
+    },
+    {
+      "path": "runtime/hermes_python.py",
+      "status": "pass",
+      "sha256": "29068ad1fc3e19cb687f85f00ded12402a99097a0307324b87b28a17c460ab3c"
+    },
+    {
+      "path": "audio/normalize_audio.py",
+      "status": "pass",
+      "sha256": "38a2a7a7641873eefa77433bf568f3a92133d499e5934474ba1792decbd55575"
+    },
+    {
+      "path": "audio/generate_narration.py",
+      "status": "pass",
+      "sha256": "c871f14cbbf358aa9cd0ecfead7cb3470f430a2b8bffd80401e09d910e0e83c1"
+    },
+    {
+      "path": "audio/verify_audio.py",
+      "status": "pass",
+      "sha256": "b4568d8ea69bbc3236ed9a877850227d2ec2e74f3f6e4c7ce2beaef124f07946"
+    }
+  ],
+  "credential_scan": {
+    "method": "exact match against existing local model key; key never emitted",
+    "text_files_scanned": 79,
+    "leaked_key_files": []
+  },
+  "evidence_review": "No unqualified accuracy, appeal-success, compliance-certification, human-approval or zero-egress claims found in final README, quality review or film script. Runtime model limitations and Desktop argument-validation recovery are explicitly recorded.",
+  "limitations": "This exact-match scan is not a general secret-detector or image OCR scan."
+}

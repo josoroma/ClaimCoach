@@ -1,0 +1,18 @@
+{
+  "file": "/Users/josoroma/sites/ycombinator/claimcoach/docs/video-artifacts/film/claimcoach-walkthrough.en.mp4",
+  "duration": "126.900000",
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": "30/1",
+  "videoCodec": "h264",
+  "audioCodec": "aac",
+  "volume": [
+    "[Parsed_volumedetect_0 @ 0x7605004cc0] n_samples: 0",
+    "[Parsed_volumedetect_0 @ 0x7605005140] n_samples: 12182400",
+    "[Parsed_volumedetect_0 @ 0x7605005140] mean_volume: -20.0 dB",
+    "[Parsed_volumedetect_0 @ 0x7605005140] max_volume: -1.5 dB"
+  ],
+  "decodedFrames": 40
+}

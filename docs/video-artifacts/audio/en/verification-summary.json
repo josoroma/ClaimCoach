@@ -1,0 +1,142 @@
+{
+  "engine": "Chatterbox Multilingual V3",
+  "language": "en",
+  "voice": "Bundled conds.pt default voice; no reference audio or voice cloning",
+  "model_revision": "ResembleAI/chatterbox\n5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+  "sample_rate": 24000,
+  "scenes": [
+    {
+      "id": "01-intro",
+      "file": "01-intro.wav",
+      "duration": 10.88,
+      "sha256": "8bdd1f8b489fd21396ac78c2c2d7813cfb1d0445d84c244dcbc78d8b9a4500e5",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9549016270394323
+      }
+    },
+    {
+      "id": "02-enable",
+      "file": "02-enable.wav",
+      "duration": 9.8,
+      "sha256": "78ca12c165d14715de0ab34e5f465af91b2a9bc541b97281eaf86bd43618d44c",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 1.0
+      }
+    },
+    {
+      "id": "03-local",
+      "file": "03-local.wav",
+      "duration": 10.08,
+      "sha256": "97b100251a71d8beaa5d14b6806b9fe67f62047f8991f1e0096791938bd16497",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9796184954125171
+      }
+    },
+    {
+      "id": "04-intake",
+      "file": "04-intake.wav",
+      "duration": 11.6,
+      "sha256": "38e870981f69330f25271ebfd24b936273ce49697b083e54c4cfd20306b43aa4",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9818177097020888
+      }
+    },
+    {
+      "id": "05-review",
+      "file": "05-review.wav",
+      "duration": 12.52,
+      "sha256": "af02d7c8d445c71d01eaa0b8023dfd0670762b8bf909e1e0d2a6c31109d5aa63",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9841169724035546
+      }
+    },
+    {
+      "id": "06-diagnose",
+      "file": "06-diagnose.wav",
+      "duration": 10.96,
+      "sha256": "a1def90075232e08df9f9fac43a6a9db6da186d736ceaaad23bb72c49b56b93e",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9492814092523602
+      }
+    },
+    {
+      "id": "07-draft",
+      "file": "07-draft.wav",
+      "duration": 11.36,
+      "sha256": "e42f504b5cd75ceefe39cbe30670c7e884de6935038d4be134f39349355309b9",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9961460478852088
+      }
+    },
+    {
+      "id": "08-agent",
+      "file": "08-agent.wav",
+      "duration": 12.84,
+      "sha256": "1bf6f2100868aeba1bda37b1c4bdf0999d0b49370df43993b4ac8a33e99459bc",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9690508887646091
+      }
+    },
+    {
+      "id": "09-loop",
+      "file": "09-loop.wav",
+      "duration": 12.68,
+      "sha256": "c537ffccf3e34ccfe91ce3a505a069148ab4b402567e3c761886ab7bbcae91b6",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 1.0
+      }
+    },
+    {
+      "id": "10-close",
+      "file": "10-close.wav",
+      "duration": 12.04,
+      "sha256": "9f4b3a1622df50f32d614a9587198cee62279b2f389a5fc51ab557731a87e8b2",
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9661216275919486
+      }
+    }
+  ],
+  "total_speech_duration": 114.76,
+  "passed": [
+    "All ten scene scripts match final script.en.json",
+    "All WAV SHA-256 hashes match manifest",
+    "All WAVs mono PCM16 24kHz",
+    "All WAV durations match manifest",
+    "All WAVs normalized from unclipped float source",
+    "All normalized WAVs have zero clipped sample fraction",
+    "Offline Whisper ASR returned nonempty English transcripts for all scenes; hashes match final WAVs"
+  ],
+  "asr_note": "Automated transcript review only, not human listening. Maximum per-scene word error rate 14.71%; errors include homophones and proper names.",
+  "asr_word_error_rates": {
+    "01-intro": 0.08823529411764706,
+    "02-enable": 0.034482758620689655,
+    "03-local": 0.0,
+    "04-intake": 0.08823529411764706,
+    "05-review": 0.06060606060606061,
+    "06-diagnose": 0.05555555555555555,
+    "07-draft": 0.0,
+    "08-agent": 0.027777777777777776,
+    "09-loop": 0.14705882352941177,
+    "10-close": 0.0
+  }
+}

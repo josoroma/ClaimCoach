@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "kind": "code",
+      "code_set": "CARC",
+      "code": "197",
+      "title": "Authorization-related denial",
+      "body": "Precertification/authorization/notification/pre-treatment absent.",
+      "source": "X12 CARC 197: https://x12.org/codes/claim-adjustment-reason-codes",
+      "verified_on": "2026-11-02"
+    },
+    {
+      "kind": "code",
+      "code_set": "GROUP",
+      "code": "CO",
+      "title": "Contractual obligation",
+      "body": "Contractual obligation.",
+      "source": "X12 Claim Adjustment Group Codes: https://x12.org/codes/claim-adjustment-group-codes",
+      "verified_on": "2026-11-02"
+    }
+  ]
+}

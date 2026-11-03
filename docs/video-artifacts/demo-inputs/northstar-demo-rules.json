@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "kind": "rule_card",
+      "payer": "Northstar Demo Health",
+      "topic": "appeal_levels",
+      "title": "Demo first-level appeal",
+      "body": "FICTIONAL DEMO POLICY. First-level appeals may be prepared within 180 calendar days of the denial notice. This sample is for product demonstration only.",
+      "appeal_limit_days": 180,
+      "source": "Fictional ClaimCoach video fixture; not an insurer policy",
+      "verified_on": "2026-11-02"
+    },
+    {
+      "kind": "rule_card",
+      "payer": "Northstar Demo Health",
+      "topic": "required_docs",
+      "title": "Demo authorization-denial documentation",
+      "body": "FICTIONAL DEMO POLICY. An authorization-denial appeal packet includes the denial notice, evidence of authorization if available, and the relevant service documentation. Missing evidence must be requested; never invent it.",
+      "required_documents": [
+        "Copy of the denial notice",
+        "Authorization record, if available",
+        "Documentation supporting the billed service"
+      ],
+      "source": "Fictional ClaimCoach video fixture; not an insurer policy",
+      "verified_on": "2026-11-02"
+    },
+    {
+      "kind": "letter_template",
+      "template_id": "appeal-video-demo",
+      "title": "Demo authorization appeal template",
+      "body": "FICTIONAL DEMO TEMPLATE. Draft for human review. Use only supplied case facts. Re: claim [Claim number], denial dated [Denial date]. Identify the denied service and CO-197. Request reconsideration based on the supporting documentation that the reviewer will attach. If authorization evidence is absent, mark [Authorization evidence required] rather than assert authorization existed. List enclosures as pending review. End with [Reviewer name and practice contact].",
+      "source": "Fictional ClaimCoach video fixture; not an insurer policy",
+      "verified_on": "2026-11-02"
+    }
+  ]
+}

@@ -1,0 +1,301 @@
+{
+  "engine": "Chatterbox Multilingual V3",
+  "model": "/Users/josoroma/Models/chatterbox-multilingual-v3",
+  "revision": "ResembleAI/chatterbox\n5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",
+  "runtime": {
+    "torch": "2.6.0",
+    "torchaudio": "2.6.0",
+    "numpy": "1.26.4",
+    "chatterbox-tts": "0.1.7"
+  },
+  "voice": "Bundled conds.pt default voice; no reference audio or voice cloning",
+  "language": "en",
+  "device": "cpu",
+  "seed": 42,
+  "parameters": {
+    "exaggeration": 0.5,
+    "cfg_weight": 0.0,
+    "temperature": 0.8
+  },
+  "watermark": "PerTh watermark retained from model output",
+  "sample_rate": 24000,
+  "scenes": {
+    "01-intro": {
+      "file": "01-intro.wav",
+      "text": "A denied claim should not leave an entry-level biller guessing. Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models and a clear path from evidence to a reviewable draft.",
+      "text_sha256": "2113de21ad79a941804d38dc1bde49ee8d214928458f7318477339dec9e01be7",
+      "generation_key": "9d0898f2ac6f2041271b81e24d266aedcbaea75f9fdbc34eae60d7d6715535d9",
+      "sha256": "8bdd1f8b489fd21396ac78c2c2d7813cfb1d0445d84c244dcbc78d8b9a4500e5",
+      "duration": 10.88,
+      "rms": 0.12660151720046997,
+      "peak": 0.9700000286102295,
+      "scene_seed": 137065,
+      "segments": [
+        {
+          "text": "A denied claim should not leave an entry-level biller guessing.",
+          "duration": 3.36
+        },
+        {
+          "text": "Claim Coach brings denial-management guidance into Hermes Desktop, with private, local models and a clear path from evidence to a reviewable draft.",
+          "duration": 7.4
+        }
+      ],
+      "generation_seconds": 49.83,
+      "source_peak": 1.0158114433288574,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9549016270394323
+      }
+    },
+    "02-enable": {
+      "file": "02-enable.wav",
+      "text": "Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim Coach. Open the Claim Coach pane. This is where you create cases and work through each denial.",
+      "text_sha256": "7a8d3cc1fd190d632d212fba44ef120388762db0dbe774d92a3c58f009b2cee2",
+      "generation_key": "9fb62482ca58f6b20566403c1af59cc1ac365e400379745f109b3cb46b169c49",
+      "sha256": "78ca12c165d14715de0ab34e5f465af91b2a9bc541b97281eaf86bd43618d44c",
+      "duration": 9.8,
+      "rms": 0.13153426349163055,
+      "peak": 0.9474165439605713,
+      "scene_seed": 8690255,
+      "segments": [
+        {
+          "text": "Start in Hermes Desktop. Open Capabilities, choose Plugins, rescan, and enable Claim Coach. Open the Claim Coach pane. This is where you create cases and work through each denial.",
+          "duration": 9.8
+        }
+      ],
+      "generation_seconds": 47.18,
+      "source_peak": 0.9474165439605713,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 1.0
+      }
+    },
+    "03-local": {
+      "file": "03-local.wav",
+      "text": "Configure Hermes to use a model server on this Mac. The model weights live in your Models folder. Claim Coach has its own local worker, which routes document processing and drafting to local models.",
+      "text_sha256": "5c7ece2c539a75049a7150eb04aa5309aa49746f6dc26d797e32a6f8fce97ca1",
+      "generation_key": "17be745fbe31cdee860a9020fea03d323043a72844bda1ba447ed29eccc6bad6",
+      "sha256": "97b100251a71d8beaa5d14b6806b9fe67f62047f8991f1e0096791938bd16497",
+      "duration": 10.08,
+      "rms": 0.12186416238546371,
+      "peak": 0.9699999690055847,
+      "scene_seed": 7445340,
+      "segments": [
+        {
+          "text": "Configure Hermes to use a model server on this Mac. The model weights live in your Models folder.",
+          "duration": 4.76
+        },
+        {
+          "text": "Claim Coach has its own local worker, which routes document processing and drafting to local models.",
+          "duration": 5.2
+        }
+      ],
+      "generation_seconds": 45.56,
+      "source_peak": 0.9901813864707947,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9796184954125171
+      }
+    },
+    "04-intake": {
+      "file": "04-intake.wav",
+      "text": "Create a case and add the denial letter, an explanation of benefits, or pasted eight thirty-five text. Our example uses fictional data from Northstar Demo Health. Process the case to read its fields.",
+      "text_sha256": "84768a4e19e0d9514ae11e5febdb693304907a8111ab1b4f79a349e730ca0a58",
+      "generation_key": "d1625387af4f728768d44f178aeb3b6c384026afe2cfd0ed79de01ef614332d8",
+      "sha256": "38e870981f69330f25271ebfd24b936273ce49697b083e54c4cfd20306b43aa4",
+      "duration": 11.6,
+      "rms": 0.12706977128982544,
+      "peak": 0.9700000286102295,
+      "scene_seed": 4613844,
+      "segments": [
+        {
+          "text": "Create a case and add the denial letter, an explanation of benefits, or pasted eight thirty-five text. Our example uses fictional data from Northstar Demo Health.",
+          "duration": 9.32
+        },
+        {
+          "text": "Process the case to read its fields.",
+          "duration": 2.16
+        }
+      ],
+      "generation_seconds": 52.17,
+      "source_peak": 0.9879634380340576,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9818177097020888
+      }
+    },
+    "05-review": {
+      "file": "05-review.wav",
+      "text": "Review the payer, service dates, amounts, and denial codes. Confirm any fields the software could not read. The example denial concerns authorization. Keep the original evidence beside the structured fields while checking them.",
+      "text_sha256": "a0b092d2c46fcb35a35c358ecae6a2c9251180f328bd386943ec746d40649a02",
+      "generation_key": "efdf2d0ccb17172b65bc410db39ed30227b945549f2bbc0b3a0d1d8e8098fe2e",
+      "sha256": "af02d7c8d445c71d01eaa0b8023dfd0670762b8bf909e1e0d2a6c31109d5aa63",
+      "duration": 12.52,
+      "rms": 0.12551388144493103,
+      "peak": 0.9700000286102295,
+      "scene_seed": 2108094,
+      "segments": [
+        {
+          "text": "Review the payer, service dates, amounts, and denial codes. Confirm any fields the software could not read. The example denial concerns authorization.",
+          "duration": 8.52
+        },
+        {
+          "text": "Keep the original evidence beside the structured fields while checking them.",
+          "duration": 3.88
+        }
+      ],
+      "generation_seconds": 53.7,
+      "source_peak": 0.9856551885604858,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9841169724035546
+      }
+    },
+    "08-agent": {
+      "file": "08-agent.wav",
+      "text": "In Hermes chat, use the denial command with a case identifier. The denial-triage skill guides the agent. Its tools retrieve code explanations, payer rules, and a redacted case summary, without handing over the source documents.",
+      "text_sha256": "7ca78f1de19b0708b1024702cd540ff6669edd2c6e0cb3c60c622ee4a9e8c6e2",
+      "generation_key": "e1c6860af6f7c4d72581099cf3e952b15d31e97cdd7d9d0a818ff8c5cfb5f883",
+      "sha256": "1bf6f2100868aeba1bda37b1c4bdf0999d0b49370df43993b4ac8a33e99459bc",
+      "duration": 12.84,
+      "rms": 0.12743228673934937,
+      "peak": 0.9699999690055847,
+      "scene_seed": 337937,
+      "segments": [
+        {
+          "text": "In Hermes chat, use the denial command with a case identifier. The denial-triage skill guides the agent.",
+          "duration": 6.12
+        },
+        {
+          "text": "Its tools retrieve code explanations, payer rules, and a redacted case summary, without handing over the source documents.",
+          "duration": 6.6
+        }
+      ],
+      "generation_seconds": 58.91,
+      "source_peak": 1.0009794235229492,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9690508887646091
+      }
+    },
+    "09-loop": {
+      "file": "09-loop.wav",
+      "text": "The Hermes loop reads your request, chooses a tool, inspects the result, and continues. Skills supply the playbook. Commands provide shortcuts. Local models do the inference, while the plugin keeps the case workflow organized.",
+      "text_sha256": "1545b7dca1653665b4aa45f5de98afc322add1178c378d42c11f175476571262",
+      "generation_key": "fb83404ab39c350acb1ff1bacfa530c977de265973e1d60ecacdbcd8c4e8b6a2",
+      "sha256": "c537ffccf3e34ccfe91ce3a505a069148ab4b402567e3c761886ab7bbcae91b6",
+      "duration": 12.68,
+      "rms": 0.12027096003293991,
+      "peak": 0.915510892868042,
+      "scene_seed": 1898379,
+      "segments": [
+        {
+          "text": "The Hermes loop reads your request, chooses a tool, inspects the result, and continues. Skills supply the playbook. Commands provide shortcuts.",
+          "duration": 8.16
+        },
+        {
+          "text": "Local models do the inference, while the plugin keeps the case workflow organized.",
+          "duration": 4.4
+        }
+      ],
+      "generation_seconds": 57.04,
+      "source_peak": 0.915510892868042,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 1.0
+      }
+    },
+    "10-close": {
+      "file": "10-close.wav",
+      "text": "Record the final outcome when it is known. Claim Coach turns specialist workflow into practical guidance on a consumer laptop. Private evidence, useful next steps, and a person in control of every final decision.",
+      "text_sha256": "718277c241fc05684cd5dfda05dbee32dd0298212f13ababb17f02f14ee28f14",
+      "generation_key": "1175fe061fb35ba5138f6f79b4b0493771dac62d550077b7686682b6ad47cad6",
+      "sha256": "9f4b3a1622df50f32d614a9587198cee62279b2f389a5fc51ab557731a87e8b2",
+      "duration": 12.04,
+      "rms": 0.12821286916732788,
+      "peak": 0.9699999690055847,
+      "scene_seed": 12074414,
+      "segments": [
+        {
+          "text": "Record the final outcome when it is known. Claim Coach turns specialist workflow into practical guidance on a consumer laptop.",
+          "duration": 7.0
+        },
+        {
+          "text": "Private evidence, useful next steps, and a person in control of every final decision.",
+          "duration": 4.92
+        }
+      ],
+      "generation_seconds": 50.15,
+      "source_peak": 1.0040143728256226,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9661216275919486
+      }
+    },
+    "06-diagnose": {
+      "file": "06-diagnose.wav",
+      "text": "Run diagnosis to get a plain-language explanation and a checklist of missing documents. Review the rule card and appeal deadline. These are decision aids: the biller checks the evidence and decides what to do next.",
+      "text_sha256": "c2c5d0ef0105d386e2de9157292e963e228e0a9db5d37d0eb3626dc7c51ff0a3",
+      "generation_key": "952453c451886c5d4059797e0d7a63023c92ed45a8511808191f8c2d29b5a10f",
+      "sha256": "a1def90075232e08df9f9fac43a6a9db6da186d736ceaaad23bb72c49b56b93e",
+      "duration": 10.96,
+      "rms": 0.1254165917634964,
+      "peak": 0.9699999690055847,
+      "scene_seed": 6935579,
+      "segments": [
+        {
+          "text": "Run diagnosis to get a plain-language explanation and a checklist of missing documents. Review the rule card and appeal deadline.",
+          "duration": 6.8
+        },
+        {
+          "text": "These are decision aids: the biller checks the evidence and decides what to do next.",
+          "duration": 4.04
+        }
+      ],
+      "generation_seconds": 47.59,
+      "source_peak": 1.0218255519866943,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9492814092523602
+      }
+    },
+    "07-draft": {
+      "file": "07-draft.wav",
+      "text": "Request an appeal draft, or a corrected-claim checklist when that is the right remedy. Edit and save the result, then export it for review. Claim Coach does not send appeals or submit claims.",
+      "text_sha256": "9001e5cac90852e4b3cfa0cc7aa4457e55d8ba68320a129390c7e934968153a9",
+      "generation_key": "bcca9c5b75ae1651fb87deba934359a51bb4f55168a254a63e00d69349f76d48",
+      "sha256": "e42f504b5cd75ceefe39cbe30670c7e884de6935038d4be134f39349355309b9",
+      "duration": 11.36,
+      "rms": 0.11980539560317993,
+      "peak": 0.9699999690055847,
+      "scene_seed": 5798035,
+      "segments": [
+        {
+          "text": "Request an appeal draft, or a corrected-claim checklist when that is the right remedy. Edit and save the result, then export it for review.",
+          "duration": 8.2
+        },
+        {
+          "text": "Claim Coach does not send appeals or submit claims.",
+          "duration": 3.04
+        }
+      ],
+      "generation_seconds": 55.84,
+      "source_peak": 0.9737527966499329,
+      "normalization": {
+        "method": "uniform gain from cached float source",
+        "target_peak": 0.97,
+        "gain": 0.9961460478852088
+      }
+    }
+  },
+  "normalization": "All scene WAVs encoded from unclipped cached floats; uniform gain only; peak at most 0.97"
+}

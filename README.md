@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A denial-management specialist for every entry-level medical biller.<br>
-  PHI never leaves the Mac.</strong>
+  Built to process claim evidence on the practice's Mac.</strong>
 </p>
 
 <p align="center">
@@ -57,11 +57,12 @@ or pasted 835 text. On the same Mac, ClaimCoach:
 
 ## Why it runs on the Mac
 
-ClaimCoach runs on the practice's own Mac with local open-weight models (8B to 27B parameters,
-Apple MLX). There is no ClaimCoach cloud and no case content to send anywhere. ClaimCoach is local
-software, and the practice remains the covered entity.
+ClaimCoach is designed to run on the practice's own Mac with local open-weight models (8B to 27B
+parameters, Apple MLX). ClaimCoach has no hosted case-processing service. The demonstration's
+model routes use loopback endpoints with no configured cloud fallback; this configuration check
+is not a compliance certification or an independent zero-egress audit.
 
-- No case content leaves the Mac. ClaimCoach's own outbound calls are model downloads you confirm.
+- Case-processing models run locally. Model downloads require confirmation.
   If your Hermes chat agent uses a cloud model, it receives only case IDs, codes, payer names, and
   redacted summaries.
 - Each biller's cases are encrypted at rest, with the key in the macOS Keychain. Every case access
@@ -90,17 +91,32 @@ cases until then) and the manager's reviews of real drafts.
 
 ## Status
 
-Every v1 feature is implemented: intake and extraction, diagnosis, appeal letters and corrected-claim
-lists, outcomes and the manager dashboard, the agent tools, the desktop pane, and payer-call
-transcription (v1.1). Each passes its acceptance tests offline, against stand-in models. None has
-yet run against the real local models or inside a live Hermes Desktop, and the release gates have
-not run.
+The implemented workflows include intake and extraction, diagnosis, appeal letters and
+corrected-claim lists, outcomes, the manager dashboard, agent tools, the desktop pane, and
+payer-call transcription (v1.1). The offline application gate passed with 1,876 Python tests,
+191 JavaScript tests and 100% application coverage; one Python test was skipped because the
+live worker occupied its port, and 14 tests were deselected.
+
+On November 2, 2026, a fictional 835 denial completed an actual Hermes Desktop workflow using
+local models: intake, diagnosis, drafting, operator edits and PDF/DOCX export. The Hermes agent
+also used the denial-triage skill and all three ClaimCoach tools. The run used an Apple M3 Pro
+Mac with 36 GiB RAM, ternary Bonsai 27B text weights and Qwen3 Embedding 8B weights.
+
+This is a working prototype, not a validated production release. The model produced unsupported
+statements that required correction, and memory pressure required a drafting retry. OCR and
+call transcription were not exercised because their model weights were absent. Real-case
+accuracy, billing outcomes and the full release gates remain unvalidated. See the
+[recorded findings](docs/video-artifacts/quality-review.md).
 
 Out of scope for v1: EHR, practice-management, or clearinghouse integrations; submitting appeals or
 claims to payers; coding new claims; and medical or legal advice.
 
 ## Learn more
 
+- **[Watch the English product demo](docs/video-artifacts/film/claimcoach-walkthrough.en.mp4):**
+  2:07 walkthrough with captions, actual desktop captures and local Chatterbox narration.
+- **[Video artifacts and reproduction](docs/video-artifacts/README.md)** and the
+  **[YC application guide](YCOMBINATOR.md)**.
 - **[Developer guide](README-DEV.md):** models, install, configuration, the daily start, the REST
   API, the database, storage, and uploads.
 - **[Product requirements](PRD.md)** and the **[backlog](SPECS.md)**.

@@ -1,0 +1,76 @@
+{
+  "draft": false,
+  "duration": 126.9,
+  "scenes": [
+    {
+      "id": "01-intro",
+      "start": 0,
+      "duration": 12.1,
+      "audio": true,
+      "hasScreen": false
+    },
+    {
+      "id": "02-enable",
+      "start": 12.1,
+      "duration": 11,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "03-local",
+      "start": 23.1,
+      "duration": 11.3,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "04-intake",
+      "start": 34.400000000000006,
+      "duration": 12.8,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "05-review",
+      "start": 47.2,
+      "duration": 13.733333333333333,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "06-diagnose",
+      "start": 60.93333333333334,
+      "duration": 12.166666666666666,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "07-draft",
+      "start": 73.10000000000001,
+      "duration": 12.566666666666666,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "08-agent",
+      "start": 85.66666666666667,
+      "duration": 14.066666666666666,
+      "audio": true,
+      "hasScreen": true
+    },
+    {
+      "id": "09-loop",
+      "start": 99.73333333333333,
+      "duration": 13.9,
+      "audio": true,
+      "hasScreen": false
+    },
+    {
+      "id": "10-close",
+      "start": 113.63333333333334,
+      "duration": 13.266666666666667,
+      "audio": true,
+      "hasScreen": false
+    }
+  ]
+}
